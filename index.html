@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f7f4">
+  <title>Clearflow | RO Operations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1c2927;
+      --muted: #788480;
+      --line: #e8ece8;
+      --paper: #fff;
+      --canvas: #f5f7f4;
+      --teal: #197c70;
+      --teal-dark: #12594f;
+      --teal-pale: #e3f2ed;
+      --lime: #d7ed76;
+      --blue: #4775a8;
+      --blue-pale: #eaf1f8;
+      --orange: #bc7742;
+      --orange-pale: #fbefe4;
+      --red: #b94a48;
+      --red-pale: #fae9e7;
+      --shadow: 0 12px 32px rgba(27, 49, 42, .055);
+      font-family: "DM Sans", sans-serif;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--canvas); min-height: 100vh; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
+    .sidebar { position: sticky; top: 0; display: flex; flex-direction: column; height: 100vh; padding: 27px 17px 18px; background: #fff; border-right: 1px solid var(--line); z-index: 4; }
+    .brand { display: flex; gap: 11px; align-items: center; padding: 0 12px; margin-bottom: 42px; }
+    .brand-mark { width: 35px; height: 35px; display: grid; place-items: center; border-radius: 12px 12px 12px 4px; background: var(--teal); color: white; }
+    .brand-mark svg { width: 21px; height: 21px; }
+    .brand-name { font: 800 17px/1 "Manrope", sans-serif; letter-spacing: 0; }
+    .brand-caption { margin-top: 5px; font-size: 10px; color: var(--muted); letter-spacing: 0; }
+    .nav-label { padding: 0 13px 10px; color: #a0aaa6; font-size: 10px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; }
+    .nav { display: grid; gap: 5px; }
+    .nav-item { width: 100%; height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 13px; border: 0; border-radius: 8px; color: #64716c; background: transparent; text-align: left; font-size: 13px; font-weight: 600; }
+    .nav-item:hover { background: #f6f8f6; color: var(--ink); }
+    .nav-item.active { color: var(--teal-dark); background: var(--teal-pale); }
+    .nav-item svg { width: 18px; height: 18px; stroke-width: 1.8; flex: none; }
+    .nav-count { margin-left: auto; min-width: 21px; padding: 3px 6px; border-radius: 12px; background: #edf1ed; color: #6f7a76; font-size: 10px; text-align: center; }
+    .side-bottom { margin-top: auto; }
+    .water-card { position: relative; overflow: hidden; margin: 10px 4px 18px; padding: 16px; border-radius: 8px; background: #e9f4ed; }
+    .water-card:after { content: ""; position: absolute; width: 70px; height: 70px; right: -22px; bottom: -27px; border: 1px solid rgba(25,124,112,.18); border-radius: 50%; box-shadow: 0 0 0 10px rgba(25,124,112,.04), 0 0 0 22px rgba(25,124,112,.035); }
+    .water-card strong { display: block; font: 700 12px "Manrope", sans-serif; }
+    .water-card span { display: block; margin-top: 5px; color: #72817a; font-size: 10px; }
+    .user-chip { display: flex; align-items: center; gap: 10px; padding: 12px 10px 0; border-top: 1px solid var(--line); }
+    .avatar { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: #dcece4; color: var(--teal-dark); font-size: 11px; font-weight: 700; }
+    .user-name { font-size: 12px; font-weight: 700; }
+    .user-role { margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .main { min-width: 0; }
+    .topbar { height: 76px; display: flex; align-items: center; justify-content: space-between; padding: 0 clamp(20px, 4vw, 56px); border-bottom: 1px solid var(--line); background: rgba(255,255,255,.72); }
+    .crumb { display: flex; align-items: center; gap: 8px; color: #96a09b; font-size: 11px; }
+    .crumb strong { color: #4a5752; font-weight: 600; }
+    .top-actions { display: flex; align-items: center; gap: 12px; }
+    .role-control { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 7px; background: white; }
+    .role-control label { color: var(--muted); font-size: 10px; }
+    .role-control select { max-width: 125px; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 11px; font-weight: 700; }
+    .icon-button { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 7px; color: #61706a; background: white; }
+    .icon-button svg { width: 17px; height: 17px; }
+    .page { width: min(100%, 1440px); margin: 0 auto; padding: 34px clamp(20px, 4vw, 56px) 60px; }
+    .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 26px; }
+    .eyebrow { margin-bottom: 8px; color: var(--teal); font-size: 10px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; }
+    h1 { margin: 0; font: 700 clamp(23px, 3vw, 29px)/1.2 "Manrope", sans-serif; letter-spacing: 0; }
+    .subhead { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
+    .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 0 13px; border: 1px solid transparent; border-radius: 6px; color: #fff; background: var(--teal); font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .button:hover { background: var(--teal-dark); }
+    .button.secondary { color: #40534c; border-color: var(--line); background: white; }
+    .button.secondary:hover { background: #f7f9f7; }
+    .button svg { width: 15px; height: 15px; }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; margin-bottom: 19px; }
+    .metric { min-height: 112px; padding: 17px 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+    .metric-top { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 10px; font-weight: 600; }
+    .metric-icon { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 7px; color: var(--teal); background: var(--teal-pale); }
+    .metric-icon svg { width: 15px; height: 15px; }
+    .metric-value { margin-top: 10px; font: 700 23px/1 "Manrope", sans-serif; letter-spacing: 0; }
+    .metric-note { margin-top: 8px; color: #97a19d; font-size: 10px; }
+    .metric-note b { color: var(--teal); font-weight: 700; }
+    .dash-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(280px, .85fr); gap: 16px; }
+    .panel { min-width: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 17px 19px; border-bottom: 1px solid #eef0ed; }
+    .panel-title { font: 700 13px "Manrope", sans-serif; }
+    .panel-note { margin-top: 4px; color: var(--muted); font-size: 10px; }
+    .text-link { padding: 4px 0; border: 0; color: var(--teal); background: transparent; font-size: 10px; font-weight: 700; }
+    .chart-wrap { padding: 18px 19px 14px; }
+    .chart-summary { display: flex; align-items: baseline; gap: 9px; }
+    .chart-summary strong { font: 700 24px "Manrope", sans-serif; }
+    .chart-summary span { color: var(--teal); font-size: 10px; font-weight: 700; }
+    .chart { height: 157px; display: flex; align-items: flex-end; justify-content: space-between; gap: 9px; padding: 22px 4px 0; }
+    .bar-group { height: 100%; display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: flex-end; gap: 8px; }
+    .bar { width: min(100%, 30px); min-height: 3px; border-radius: 4px 4px 1px 1px; background: #c9e6d9; transition: height .25s ease; }
+    .bar.current { background: var(--teal); }
+    .bar-label { color: #99a29e; font-size: 9px; }
+    .chart-legend { display: flex; align-items: center; gap: 6px; margin-top: 7px; color: #86918b; font-size: 9px; }
+    .legend-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); }
+    .job-list { padding: 4px 18px 8px; }
+    .job-row { display: flex; align-items: center; gap: 11px; padding: 13px 0; border-bottom: 1px solid #f0f2ef; }
+    .job-row:last-child { border-bottom: 0; }
+    .job-symbol { width: 32px; height: 32px; display: grid; place-items: center; flex: none; border-radius: 8px; color: var(--blue); background: var(--blue-pale); }
+    .job-symbol svg { width: 16px; height: 16px; }
+    .job-copy { min-width: 0; flex: 1; }
+    .job-copy strong { display: block; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .job-copy span { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; }
+    .status { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border-radius: 20px; color: #59776a; background: #edf5f0; font-size: 9px; font-weight: 700; white-space: nowrap; }
+    .status:before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: #62a380; }
+    .status.scheduled, .status.sent { color: #9c6a37; background: #fbf2e7; }
+    .status.scheduled:before, .status.sent:before { background: #d99a54; }
+    .status.overdue, .status.cancelled { color: var(--red); background: var(--red-pale); }
+    .status.overdue:before, .status.cancelled:before { background: var(--red); }
+    .status.urgent, .status.high { color: var(--red); background: var(--red-pale); }
+    .status.urgent:before, .status.high:before { background: var(--red); }
+    .lower-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(270px, .85fr); gap: 16px; margin-top: 16px; }
+    .quick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 15px 18px 18px; }
+    .quick-action { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 13px 10px; border: 1px solid var(--line); border-radius: 7px; color: #4c5c55; background: white; text-align: left; }
+    .quick-action:hover { border-color: #b5d7ca; background: #f8fbf8; }
+    .quick-action svg { width: 17px; height: 17px; color: var(--teal); }
+    .quick-action span { font-size: 10px; font-weight: 600; }
+    .feed { padding: 7px 18px 10px; }
+    .feed-line { display: flex; gap: 10px; padding: 10px 0; }
+    .feed-dot { width: 7px; height: 7px; margin-top: 4px; flex: none; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 3px #f4f8e5; }
+    .feed-text { color: #6e7c75; font-size: 10px; line-height: 1.5; }
+    .feed-text strong { color: #40504a; font-weight: 700; }
+    .feed-time { display: block; margin-top: 3px; color: #a2aaa6; font-size: 9px; }
+    .toolbar { display: flex; align-items: center; gap: 9px; margin-bottom: 15px; }
+    .search { position: relative; flex: 1; max-width: 340px; }
+    .search svg { position: absolute; left: 11px; top: 50%; width: 15px; height: 15px; transform: translateY(-50%); color: #98a39d; }
+    .search input { width: 100%; height: 38px; padding: 0 12px 0 34px; border: 1px solid var(--line); border-radius: 6px; outline: 0; background: #fff; font-size: 11px; }
+    .search input:focus, .field input:focus, .field select:focus, .field textarea:focus { border-color: #81b9a3; box-shadow: 0 0 0 3px rgba(25,124,112,.08); }
+    .filter-select { height: 38px; padding: 0 28px 0 10px; border: 1px solid var(--line); border-radius: 6px; color: #5f6e67; background: white; font-size: 10px; }
+    .table-panel { overflow: hidden; }
+    .table-scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; white-space: nowrap; }
+    th { padding: 12px 16px; color: #929d97; background: #fbfcfb; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0; }
+    td { padding: 14px 16px; border-top: 1px solid #eef0ed; color: #5a6862; font-size: 10px; }
+    td strong { color: #364640; font-size: 10px; font-weight: 700; }
+    .person-cell { display: flex; align-items: center; gap: 9px; }
+    .mini-avatar { width: 29px; height: 29px; display: grid; place-items: center; border-radius: 50%; color: #477166; background: #e9f1eb; font-size: 9px; font-weight: 700; }
+    .muted-cell { margin-top: 3px; color: #9aa39e; font-size: 9px; }
+    .row-action { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 5px; color: #78847e; background: transparent; }
+    .row-action:hover { background: #f1f5f1; }
+    .row-action svg { width: 15px; height: 15px; }
+    .empty { padding: 38px 20px; color: #89948e; text-align: center; font-size: 11px; }
+    .tabs { display: flex; gap: 19px; padding: 0 18px; border-bottom: 1px solid var(--line); }
+    .tab { position: relative; padding: 14px 0; border: 0; color: #849089; background: transparent; font-size: 10px; font-weight: 700; }
+    .tab.active { color: var(--teal); }
+    .tab.active:after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: var(--teal); }
+    .product-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .product { overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .product-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 14px 10px; }
+    .product-art { width: 43px; height: 43px; display: grid; place-items: center; border-radius: 8px; color: var(--teal); background: #e9f4ed; }
+    .product-art.blue { color: #567da4; background: #edf2f7; }
+    .product-art.gold { color: #aa7a43; background: #f8f0e5; }
+    .product-art svg { width: 24px; height: 24px; }
+    .category { padding: 5px 7px; border-radius: 4px; color: #718078; background: #f2f5f2; font-size: 8px; font-weight: 700; }
+    .product-info { padding: 3px 14px 14px; }
+    .product-info h3 { margin: 0; font: 700 12px "Manrope", sans-serif; }
+    .product-info p { min-height: 28px; margin: 5px 0 12px; color: #909b95; font-size: 9px; line-height: 1.5; }
+    .product-price { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; padding-top: 10px; border-top: 1px solid #eef0ed; }
+    .product-price strong { font: 700 15px "Manrope", sans-serif; }
+    .product-price span { color: #9ba49f; font-size: 8px; }
+    .price-other { display: flex; gap: 10px; margin-top: 9px; color: #7e8b84; font-size: 8px; }
+    .price-other b { color: #52635b; }
+    .job-customer { font-weight: 700; color: #40504a; }
+    .call-link { color: var(--teal); text-decoration: none; }
+    .role-tag { display: inline-flex; padding: 5px 7px; border-radius: 4px; color: #57766a; background: #eaf3ed; font-size: 8px; font-weight: 700; }
+    .notice { margin-bottom: 15px; padding: 11px 13px; border: 1px solid #dfece4; border-radius: 6px; color: #63776c; background: #f0f7f1; font-size: 10px; }
+    .notice strong { color: #335c4c; }
+    .overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 20px; background: rgba(20,35,30,.38); }
+    .modal { width: min(100%, 520px); max-height: min(90vh, 780px); overflow: auto; border-radius: 9px; background: #fff; box-shadow: 0 24px 80px rgba(17,35,27,.2); }
+    .modal.wide { width: min(100%, 680px); }
+    .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; padding: 20px 22px 16px; border-bottom: 1px solid var(--line); }
+    .modal-head h2 { margin: 0; font: 700 17px "Manrope", sans-serif; }
+    .modal-head p { margin: 5px 0 0; color: var(--muted); font-size: 10px; }
+    .modal-body { padding: 18px 22px 22px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+    .field { display: flex; min-width: 0; flex-direction: column; gap: 6px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { color: #62716a; font-size: 10px; font-weight: 700; }
+    .field input, .field select, .field textarea { width: 100%; min-height: 37px; padding: 8px 10px; border: 1px solid #e3e8e3; border-radius: 5px; outline: 0; color: #33423c; background: white; font-size: 11px; }
+    .field textarea { min-height: 70px; resize: vertical; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+    .price-toggle { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; color: #5d6c65; font-size: 10px; }
+    .price-toggle input { accent-color: var(--teal); }
+    .line-item { display: grid; grid-template-columns: minmax(0, 1fr) 70px 95px 28px; align-items: end; gap: 8px; margin-bottom: 9px; }
+    .line-item .field { gap: 4px; }
+    .line-item .field label { font-size: 9px; }
+    .line-item .field input, .line-item .field select { min-height: 34px; padding: 6px 7px; font-size: 10px; }
+    .invoice-total { display: grid; gap: 7px; width: 240px; margin: 16px 0 0 auto; padding-top: 12px; border-top: 1px solid var(--line); color: #7a8780; font-size: 10px; }
+    .invoice-total div { display: flex; justify-content: space-between; }
+    .invoice-total .grand { padding-top: 8px; border-top: 1px solid var(--line); color: var(--ink); font-size: 13px; font-weight: 700; }
+    .toast { position: fixed; right: 22px; bottom: 22px; z-index: 40; padding: 12px 16px; border-radius: 7px; color: #fff; background: #234f43; box-shadow: var(--shadow); font-size: 11px; animation: toast-in .2s ease-out; }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .hide { display: none !important; }
+    @media (max-width: 1050px) {
+      .app { grid-template-columns: 210px minmax(0, 1fr); }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .app { display: block; padding-bottom: 69px; }
+      .sidebar { position: fixed; inset: auto 0 0; width: 100%; height: 65px; padding: 5px 8px max(5px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); border-right: 0; background: rgba(255,255,255,.97); }
+      .brand, .nav-label, .side-bottom { display: none; }
+      .nav { height: 100%; grid-template-columns: repeat(7, minmax(58px, 1fr)); gap: 0; overflow-x: auto; }
+      .nav-item { height: 54px; flex-direction: column; justify-content: center; gap: 3px; padding: 3px 2px; border-radius: 6px; font-size: 8px; }
+      .nav-item svg { width: 17px; height: 17px; }
+      .nav-count { display: none; }
+      .topbar { height: 59px; padding: 0 17px; }
+      .crumb { font-size: 10px; }
+      .role-control { gap: 5px; padding: 6px 7px; }
+      .role-control label { display: none; }
+      .role-control select { max-width: 94px; font-size: 10px; }
+      .top-actions { gap: 7px; }
+      .icon-button { width: 32px; height: 32px; }
+      .page { padding: 25px 16px 35px; }
+      .page-head { align-items: flex-start; margin-bottom: 18px; }
+      h1 { font-size: 23px; }
+      .subhead { max-width: 250px; line-height: 1.5; }
+      .page-head .button { min-height: 35px; padding: 0 9px; font-size: 10px; }
+      .metrics { gap: 8px; margin-bottom: 12px; }
+      .metric { min-height: 100px; padding: 13px; }
+      .metric-value { font-size: 20px; }
+      .dash-grid, .lower-grid { grid-template-columns: 1fr; gap: 12px; }
+      .lower-grid { margin-top: 12px; }
+      .chart { height: 140px; }
+      .quick-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 12px; }
+      .quick-action { min-height: 72px; padding: 10px 7px; }
+      .quick-action span { font-size: 9px; }
+      .toolbar { flex-wrap: wrap; }
+      .toolbar .search { flex-basis: 100%; max-width: none; }
+      .toolbar .button { margin-left: auto; }
+      .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .product-top { padding: 10px 10px 7px; }
+      .product-info { padding: 3px 10px 11px; }
+      .product-info h3 { font-size: 11px; }
+      .product-info p { min-height: 34px; font-size: 8px; }
+      .product-price strong { font-size: 13px; }
+      .price-other { gap: 5px; font-size: 7px; }
+      .table-panel { border-radius: 7px; }
+      .table-scroll { margin: 0 -1px; }
+      .table-panel table { min-width: 650px; }
+      .form-grid { gap: 10px; }
+      .overlay { align-items: end; padding: 0; }
+      .modal, .modal.wide { width: 100%; max-height: 92vh; border-radius: 12px 12px 0 0; }
+      .modal-head { padding: 17px 17px 13px; }
+      .modal-body { padding: 15px 17px max(20px, env(safe-area-inset-bottom)); }
+    }
+    @media (max-width: 390px) {
+      .role-control select { max-width: 78px; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .metric-top { font-size: 9px; }
+      .quick-grid { gap: 5px; }
+      .quick-action span { font-size: 8px; }
+      .line-item { grid-template-columns: minmax(0, 1fr) 48px 75px 25px; gap: 5px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3.5S5.7 10.1 5.7 14.5a6.3 6.3 0 0 0 12.6 0C18.3 10.1 12 3.5 12 3.5Z"/><path d="M9 15.2a3.1 3.1 0 0 0 3.1 3.1"/></svg></div>
+        <div><div class="brand-name">clearflow</div><div class="brand-caption">WATER SYSTEMS · OPERATIONS</div></div>
+      </div>
+      <div class="nav-label">Workspace</div>
+      <nav class="nav" aria-label="Main navigation">
+        <button class="nav-item active" data-view="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="11" width="7" height="10" rx="1.5"/><rect x="3" y="14" width="8" height="7" rx="1.5"/></svg>Overview</button>
+        <button class="nav-item" data-view="customers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="8" r="3.5"/><path d="M3 20v-1.6a5.2 5.2 0 0 1 5.2-5.2h1.6a5.2 5.2 0 0 1 5.2 5.2V20M16 4.8a3.5 3.5 0 0 1 0 6.7M18 13.4a5.2 5.2 0 0 1 3 4.8V20"/></svg>Customers<span class="nav-count" id="customer-count">0</span></button>
+        <button class="nav-item" data-view="jobs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 6 18 2l4 4-4 4M20 8l-8.5 8.5M13 5l6 6M5 8l4-4 4 4-4 4M3 20l5-5 4 4-5 5H3z"/></svg>Service jobs<span class="nav-count" id="jobs-count">0</span></button>
+        <button class="nav-item" data-view="sales"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 3h14v18l-3.5-2-3.5 2-3.5-2L5 21zM8 8h8M8 12h8M8 16h4"/></svg>Sales & invoices</button>
+        <button class="nav-item" data-view="catalog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7.5 12 3l8 4.5-8 4.5zM4 12l8 4.5 8-4.5M4 16.5 12 21l8-4.5"/></svg>Product catalogue</button>
+        <button class="nav-item" data-view="accounts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="3.5"/><path d="M4 21v-1a8 8 0 0 1 16 0v1M18 4l1.5-1.5L22 5l-3 3"/></svg>Accounts & access</button>
+        <button class="nav-item" data-view="feedback"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H6l-3 2v-6a7.5 7.5 0 1 1 17-3.5Z"/><path d="M8 11h.01M12 11h.01M16 11h.01"/></svg>Feedback</button>
+      </nav>
+      <div class="side-bottom">
+        <div class="water-card"><strong>Every drop, accounted for.</strong><span>Sales, service and stock in one place.</span></div>
+        <div class="user-chip"><div class="avatar">NK</div><div><div class="user-name">Naveen Kumar</div><div class="user-role">Business owner</div></div></div>
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div class="crumb"><span>Clearflow</span><span>›</span><strong id="crumb-title">Overview</strong></div>
+        <div class="top-actions">
+          <div class="role-control"><label for="role-select">Price view</label><select id="role-select" aria-label="Price view"><option value="customer">Customer</option><option value="technician">Technician</option><option value="shop">Shop</option></select></div>
+          <button class="icon-button" id="help-button" aria-label="Help" title="Help"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.5 2.5 0 1 1 4.3 1.7c-1.1 1-1.9 1.4-1.9 3M12 17.5v.1"/></svg></button>
+        </div>
+      </header>
+      <section class="page" id="page"></section>
+    </main>
+  </div>
+  <div id="modal-root"></div>
+  <div id="toast-root" aria-live="polite"></div>
+  <script>
+    const icons = {
+      person: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>',
+      service: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 6 18 2l4 4-4 4M20 8l-8.5 8.5M13 5l6 6M5 8l4-4 4 4-4 4M3 20l5-5 4 4-5 5H3z"/></svg>',
+      invoice: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 3h14v18l-3.5-2-3.5 2-3.5-2L5 21zM8 8h8M8 12h8M8 16h4"/></svg>',
+      product: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7.5 12 3l8 4.5-8 4.5zM4 12l8 4.5 8-4.5M4 16.5 12 21l8-4.5"/></svg>',
+      search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></svg>',
+      plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+      calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>',
+      close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18"/></svg>',
+      download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3v12m-5-5 5 5 5-5M4 19v2h16v-2"/></svg>'
+    };
+    const seed = {
+      customers: [
+        { id: 'C-1001', name: 'Ananya Reddy', phone: '98765 43210', email: 'ananya.r@email.com', address: '12 Lakeview Road, Jubilee Hills, Hyderabad', type: 'Residential', installed: '2026-08-12', purifier: 'AquaPure RO+UV', notes: '' },
+        { id: 'C-1002', name: 'Green Leaf Cafe', phone: '98490 12345', email: 'accounts@greenleaf.in', address: '4 Market Street, Kondapur, Hyderabad', type: 'Commercial', installed: '2026-09-03', purifier: 'ClearFlow Commercial 50 LPH', notes: '' },
+        { id: 'C-1003', name: 'Vikram Rao', phone: '99887 65432', email: 'vikram.rao@email.com', address: '8 Sunrise Enclave, Gachibowli, Hyderabad', type: 'Residential', installed: '2026-06-22', purifier: 'AquaPure RO+UV+UF', notes: '' },
+        { id: 'C-1004', name: 'Meera Residency', phone: '97010 24680', email: 'manager@meeraread.in', address: '21 Botanical Lane, Manikonda, Hyderabad', type: 'Apartment', installed: '2026-10-08', purifier: 'Community RO 100 LPH', notes: '' }
+      ],
+      jobs: [
+        { id: 'SR-2408', customerId: 'C-1001', type: 'Filter replacement', date: '2026-10-28', technician: 'Arjun S.', status: 'Scheduled', notes: 'Replace sediment and carbon filters' },
+        { id: 'SR-2407', customerId: 'C-1002', type: 'Quarterly maintenance', date: '2026-10-29', technician: 'Ramesh K.', status: 'Scheduled', notes: 'Commercial unit service' },
+        { id: 'SR-2406', customerId: 'C-1003', type: 'Low water flow', date: '2026-10-27', technician: 'Arjun S.', status: 'In progress', notes: 'Check membrane and pressure' },
+        { id: 'SR-2405', customerId: 'C-1004', type: 'Installation', date: '2026-10-30', technician: 'Ramesh K.', status: 'Scheduled', notes: 'New community unit commissioning' }
+      ],
+      products: [
+        { id: 'P-101', name: 'AquaPure RO+UV', category: 'Purifiers', description: '8-stage purification · 10 L storage', customer: 18990, technician: 14200, shop: 15100, stock: 12, gst: 18 },
+        { id: 'P-102', name: 'AquaPure RO+UV+UF', category: 'Purifiers', description: '9-stage purification · 12 L storage', customer: 22990, technician: 17400, shop: 18600, stock: 8, gst: 18 },
+        { id: 'P-103', name: 'ClearFlow Commercial 50 LPH', category: 'Purifiers', description: 'Commercial RO · 50 litres per hour', customer: 48900, technician: 38500, shop: 41200, stock: 3, gst: 18 },
+        { id: 'P-104', name: 'RO Membrane 75 GPD', category: 'Spare parts', description: 'Compatible with standard domestic RO', customer: 1850, technician: 1180, shop: 1350, stock: 24, gst: 18 },
+        { id: 'P-105', name: 'Sediment Filter 10 inch', category: 'Spare parts', description: 'PP spun filter · 5 micron', customer: 280, technician: 150, shop: 190, stock: 64, gst: 18 },
+        { id: 'P-106', name: 'Carbon Filter 10 inch', category: 'Spare parts', description: 'Activated carbon post-filter', customer: 420, technician: 240, shop: 310, stock: 42, gst: 18 },
+        { id: 'P-107', name: 'Smart Float Valve', category: 'Accessories', description: 'Automatic tank shut-off valve', customer: 550, technician: 330, shop: 410, stock: 31, gst: 18 },
+        { id: 'P-108', name: 'Booster Pump 100 GPD', category: 'Accessories', description: '24 V high-pressure RO pump', customer: 2450, technician: 1760, shop: 2050, stock: 15, gst: 18 },
+        { id: 'P-109', name: 'TDS Meter', category: 'Accessories', description: 'Digital handheld water tester', customer: 390, technician: 230, shop: 295, stock: 27, gst: 18 }
+      ],
+      accounts: [
+        { id: 'A-01', name: 'Naveen Kumar', username: 'naveen.admin', role: 'Owner', phone: '90000 11111', linked: 'Business owner', status: 'Active' },
+        { id: 'A-02', name: 'Arjun Singh', username: 'arjun.tech', role: 'Technician', phone: '90000 22222', linked: 'Service team', status: 'Active' },
+        { id: 'A-03', name: 'Ramesh Kumar', username: 'ramesh.tech', role: 'Technician', phone: '90000 33333', linked: 'Service team', status: 'Active' },
+        { id: 'A-04', name: 'Sri Balaji Electricals', username: 'balaji.shop', role: 'Shop', phone: '90000 44444', address: '14 Gandhi Nagar, Hyderabad', gstin: '36AABCS1234G1Z4', linked: 'Wholesale partner', status: 'Active' },
+        { id: 'A-05', name: 'Ananya Reddy', username: 'ananya.customer', role: 'Customer', phone: '98765 43210', linked: 'C-1001', status: 'Active' }
+      ],
+      documents: [
+        { id: 'INV-2026-018', type: 'Invoice', customerId: 'C-1002', date: '2026-10-24', due: '2026-11-07', items: [{ productId: 'P-105', qty: 4, price: 190 }, { productId: 'P-106', qty: 4, price: 310 }], gst: true, status: 'Paid' },
+        { id: 'QT-2026-032', type: 'Quotation', customerId: 'C-1004', date: '2026-10-25', due: '2026-11-01', items: [{ productId: 'P-103', qty: 1, price: 48900 }, { productId: 'P-107', qty: 2, price: 550 }], gst: true, status: 'Sent' },
+        { id: 'INV-2026-017', type: 'Invoice', customerId: 'C-1001', date: '2026-10-21', due: '2026-10-28', items: [{ productId: 'P-104', qty: 1, price: 1850 }, { productId: 'P-105', qty: 2, price: 280 }], gst: false, status: 'Pending' },
+        { id: 'QT-2026-031', type: 'Quotation', customerId: 'C-1003', date: '2026-10-19', due: '2026-10-26', items: [{ productId: 'P-102', qty: 1, price: 22990 }], gst: true, status: 'Draft' }
+      ],
+      feedback: []
+    };
+    let data;
+    try { data = JSON.parse(localStorage.getItem('clearflow-data')) || seed; } catch { data = seed; }
+    data.feedback ||= [];
+    let view = 'overview';
+    let salesTab = 'All documents';
+    let catalogTab = 'All products';
+    let searchQuery = '';
+    let roleView = localStorage.getItem('clearflow-role') || 'customer';
+    const page = document.getElementById('page');
+
+    function save() { localStorage.setItem('clearflow-data', JSON.stringify(data)); }
+    function esc(value = '') { return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]); }
+    function money(value) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value) || 0); }
+    function date(value) { if (!value) return '—'; return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`)); }
+    function shortDate(value) { if (!value) return '—'; return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short' }).format(new Date(`${value}T00:00:00`)); }
+    function customer(id) { return data.customers.find(item => item.id === id) || { name: 'Unknown customer', phone: '', address: '' }; }
+    function product(id) { return data.products.find(item => item.id === id) || { name: 'Removed product', gst: 18 }; }
+    function price(productItem, role = roleView) { return productItem[role] ?? productItem.customer ?? 0; }
+    function initials(name = '') { return name.split(/\s+/).slice(0, 2).map(part => part[0] || '').join('').toUpperCase(); }
+    function setView(next) {
+      view = next; searchQuery = '';
+      document.querySelectorAll('.nav-item').forEach(button => button.classList.toggle('active', button.dataset.view === next));
+      document.getElementById('crumb-title').textContent = ({ overview: 'Overview', customers: 'Customers', jobs: 'Service jobs', sales: 'Sales & invoices', catalog: 'Product catalogue', accounts: 'Accounts & access', feedback: 'Feedback' })[next];
+      render();
+    }
+    function render() {
+      document.getElementById('customer-count').textContent = data.customers.length;
+      document.getElementById('jobs-count').textContent = data.jobs.filter(item => item.status !== 'Completed').length;
+      if (view === 'overview') renderOverview();
+      if (view === 'customers') renderCustomers();
+      if (view === 'jobs') renderJobs();
+      if (view === 'sales') renderSales();
+      if (view === 'catalog') renderCatalog();
+      if (view === 'accounts') renderAccounts();
+      if (view === 'feedback') renderFeedback();
+    }
+    function pageHead(kicker, title, subtitle, action = '') {
+      return `<div class="page-head"><div><div class="eyebrow">${kicker}</div><h1>${title}</h1><p class="subhead">${subtitle}</p></div>${action}</div>`;
+    }
+    function metric(label, value, note, icon) {
+      return `<div class="metric"><div class="metric-top"><span>${label}</span><span class="metric-icon">${icon}</span></div><div class="metric-value">${value}</div><div class="metric-note">${note}</div></div>`;
+    }
+    function renderOverview() {
+      const month = '2026-10';
+      const monthDocs = data.documents.filter(doc => doc.type === 'Invoice' && doc.date.startsWith(month));
+      const monthTotal = monthDocs.reduce((sum, doc) => sum + totals(doc).grand, 0);
+      const upcoming = [...data.jobs].filter(job => job.status !== 'Completed').sort((a, b) => a.date.localeCompare(b.date)).slice(0, 4);
+      const chartValues = [31, 48, 42, 67, 55, 74, 62, 86, 70, 96, 79, Math.max(12, Math.min(100, Math.round(monthTotal / 900)))];
+      const months = ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
+      const productRows = data.products.slice(0, 4).map(item => `<div class="job-row"><div class="job-symbol">${icons.product}</div><div class="job-copy"><strong>${esc(item.name)}</strong><span>${esc(item.category)} · ${item.stock} in stock</span></div><span class="status ${item.stock < 5 ? 'scheduled' : ''}">${item.stock < 5 ? 'Low stock' : 'In stock'}</span></div>`).join('');
+      const jobRows = upcoming.length ? upcoming.map(job => {
+        const person = customer(job.customerId);
+        const statusClass = job.status.toLowerCase().replace(/\s+/g, '-');
+        return `<div class="job-row"><div class="job-symbol">${icons.service}</div><div class="job-copy"><strong>${esc(person.name)}</strong><span>${esc(job.type)} · ${shortDate(job.date)} · ${esc(job.technician || 'Unassigned')}</span></div><span class="status ${statusClass}">${esc(job.status)}</span></div>`;
+      }).join('') : '<div class="empty">No upcoming service jobs.</div>';
+      const activity = data.documents.slice(0, 3).map(doc => `<div class="feed-line"><span class="feed-dot"></span><div class="feed-text"><strong>${esc(doc.id)}</strong> ${doc.type.toLowerCase()} for ${esc(customer(doc.customerId).name)}<span class="feed-time">${shortDate(doc.date)} · ${money(totals(doc).grand)}</span></div></div>`).join('');
+      page.innerHTML = `${pageHead('Tuesday, 27 October 2026', 'Good morning, Naveen', 'Here’s what’s happening across your water business today.', `<button class="button" data-action="new-sale">${icons.plus} Create quotation</button>`)}
+        <div class="metrics">${metric('October sales', money(monthTotal), '<b>Invoice total</b> · this month', icons.invoice)}${metric('Active customers', data.customers.length, '<b>Customer records</b> · all locations', icons.person)}${metric('Open service jobs', data.jobs.filter(item => item.status !== 'Completed').length, '<b>Scheduled and in progress</b>', icons.service)}${metric('Products in catalogue', data.products.length, '<b>Purifiers, spares & accessories</b>', icons.product)}</div>
+        <div class="dash-grid"><section class="panel"><div class="panel-head"><div><div class="panel-title">Sales overview</div><div class="panel-note">Invoice value · last 12 months</div></div><button class="text-link" data-nav="sales">View sales →</button></div><div class="chart-wrap"><div class="chart-summary"><strong>${money(monthTotal)}</strong><span>October</span></div><div class="chart">${chartValues.map((value, index) => `<div class="bar-group"><div class="bar ${index === 11 ? 'current' : ''}" style="height:${value}%" title="${months[index]}"></div><span class="bar-label">${months[index]}</span></div>`).join('')}</div><div class="chart-legend"><span class="legend-dot"></span>Revenue from invoices</div></div></section>
+          <section class="panel"><div class="panel-head"><div><div class="panel-title">Upcoming service</div><div class="panel-note">Next scheduled visits</div></div><button class="text-link" data-nav="jobs">All jobs →</button></div><div class="job-list">${jobRows}</div></section></div>
+        <div class="lower-grid"><section class="panel"><div class="panel-head"><div><div class="panel-title">Quick actions</div><div class="panel-note">Common tasks, one tap away</div></div></div><div class="quick-grid"><button class="quick-action" data-action="new-customer">${icons.person}<span>Add customer</span></button><button class="quick-action" data-action="new-job">${icons.service}<span>Schedule service</span></button><button class="quick-action" data-action="new-sale">${icons.invoice}<span>New quotation</span></button><button class="quick-action" data-nav="catalog">${icons.product}<span>View catalogue</span></button></div></section><section class="panel"><div class="panel-head"><div><div class="panel-title">Recent activity</div><div class="panel-note">Latest quotations and invoices</div></div><button class="text-link" data-nav="sales">View all →</button></div><div class="feed">${activity || '<div class="empty">No recent sales activity.</div>'}</div></section></div>
+        <section class="panel" style="margin-top:16px"><div class="panel-head"><div><div class="panel-title">Stock watch</div><div class="panel-note">Popular parts and current availability</div></div><button class="text-link" data-nav="catalog">Full catalogue →</button></div><div class="job-list">${productRows}</div></section>`;
+    }
+    function renderCustomers() {
+      const filtered = data.customers.filter(item => `${item.name} ${item.phone} ${item.address} ${item.id}`.toLowerCase().includes(searchQuery.toLowerCase()));
+      page.innerHTML = `${pageHead('Customer relationships', 'Customers', `${data.customers.length} customer records · installation and contact details`, `<button class="button" data-action="new-customer">${icons.plus} Add customer</button>`)}
+        <div class="toolbar"><div class="search">${icons.search}<input data-search placeholder="Search name, phone, address…" value="${esc(searchQuery)}"></div><select class="filter-select" id="customer-type-filter"><option value="All">All customer types</option><option>Residential</option><option>Commercial</option><option>Apartment</option></select></div>
+        <section class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>Customer</th><th>Phone</th><th>Customer type</th><th>Installed unit</th><th>Installation date</th><th>Address</th><th></th></tr></thead><tbody>${filtered.length ? filtered.map(item => `<tr><td><div class="person-cell"><span class="mini-avatar">${initials(item.name)}</span><div><strong>${esc(item.name)}</strong><div class="muted-cell">${esc(item.id)} · ${esc(item.email || 'No email')}</div></div></div></td><td><a class="call-link" href="tel:${esc(item.phone.replace(/\s/g, ''))}">${esc(item.phone)}</a></td><td>${esc(item.type)}</td><td>${esc(item.purifier || 'Not recorded')}</td><td>${date(item.installed)}</td><td>${esc(item.address)}</td><td><button class="row-action" data-edit-customer="${esc(item.id)}" aria-label="Edit ${esc(item.name)}" title="Edit customer">✎</button></td></tr>`).join('') : '<tr><td colspan="7" class="empty">No matching customers.</td></tr>'}</tbody></table></div></section>`;
+      bindSearch();
+      document.getElementById('customer-type-filter').addEventListener('change', event => {
+        const selected = event.target.value;
+        page.querySelectorAll('tbody tr').forEach(row => { row.hidden = selected !== 'All' && row.children[2]?.textContent !== selected; });
+      });
+    }
+    function renderJobs() {
+      const filtered = data.jobs.filter(item => `${item.id} ${item.type} ${item.technician} ${customer(item.customerId).name} ${item.status}`.toLowerCase().includes(searchQuery.toLowerCase()));
+      page.innerHTML = `${pageHead('Installations & aftercare', 'Service jobs', `${data.jobs.length} job records · ${data.jobs.filter(item => item.status !== 'Completed').length} still open`, `<button class="button" data-action="new-job">${icons.plus} Schedule service</button>`)}
+        <div class="toolbar"><div class="search">${icons.search}<input data-search placeholder="Search customer, job or technician…" value="${esc(searchQuery)}"></div><select class="filter-select" id="job-status-filter"><option value="All">All statuses</option><option>Scheduled</option><option>In progress</option><option>Completed</option></select></div>
+        <section class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>Job ID</th><th>Customer</th><th>Contact</th><th>Service type</th><th>Visit date</th><th>Technician</th><th>Status</th><th></th></tr></thead><tbody>${filtered.length ? filtered.map(item => `<tr><td><strong>${esc(item.id)}</strong></td><td class="job-customer">${esc(customer(item.customerId).name)}</td><td><a class="call-link" href="tel:${esc(customer(item.customerId).phone.replace(/\s/g, ''))}">${esc(customer(item.customerId).phone)}</a></td><td>${esc(item.type)}</td><td>${date(item.date)}</td><td>${esc(item.technician || 'Unassigned')}</td><td><span class="status ${item.status.toLowerCase().replace(/\s+/g, '-')}">${esc(item.status)}</span></td><td><button class="row-action" data-edit-job="${esc(item.id)}" aria-label="Edit job ${esc(item.id)}" title="Edit job">✎</button></td></tr>`).join('') : '<tr><td colspan="8" class="empty">No matching service jobs.</td></tr>'}</tbody></table></div></section>`;
+      bindSearch();
+      document.getElementById('job-status-filter').addEventListener('change', event => {
+        const selected = event.target.value;
+        page.querySelectorAll('tbody tr').forEach(row => { row.hidden = selected !== 'All' && row.children[6]?.textContent.trim() !== selected; });
+      });
+    }
+    function totals(doc) {
+      const subtotal = doc.items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.price || 0), 0);
+      const gst = doc.gst ? doc.items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.price || 0) * Number(product(item.productId).gst || 18) / 100, 0) : 0;
+      return { subtotal, gst, grand: subtotal + gst };
+    }
+    function renderSales() {
+      const tabs = ['All documents', 'Quotations', 'Invoices'];
+      let docs = [...data.documents].sort((a, b) => b.date.localeCompare(a.date));
+      if (salesTab === 'Quotations') docs = docs.filter(doc => doc.type === 'Quotation');
+      if (salesTab === 'Invoices') docs = docs.filter(doc => doc.type === 'Invoice');
+      page.innerHTML = `${pageHead('Quotes, billing & tax', 'Sales & invoices', 'Prepare quotations and invoices with GST or as non-GST documents.', `<button class="button" data-action="new-sale">${icons.plus} New document</button>`)}
+        <div class="notice"><strong>Tax options:</strong> choose GST-inclusive billing (product tax rates apply) or a non-GST document when creating a quotation or invoice.</div>
+        <section class="panel table-panel"><div class="tabs">${tabs.map(tab => `<button class="tab ${salesTab === tab ? 'active' : ''}" data-sales-tab="${tab}">${tab}</button>`).join('')}</div><div class="table-scroll"><table><thead><tr><th>Document</th><th>Customer</th><th>Date</th><th>Due date</th><th>Tax</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody>${docs.length ? docs.map(doc => `<tr><td><strong>${esc(doc.id)}</strong><div class="muted-cell">${esc(doc.type)}</div></td><td>${esc(customer(doc.customerId).name)}</td><td>${date(doc.date)}</td><td>${date(doc.due)}</td><td>${doc.gst ? 'GST' : 'No GST'}</td><td><strong>${money(totals(doc).grand)}</strong></td><td><span class="status ${doc.status.toLowerCase()}">${esc(doc.status)}</span></td><td><button class="row-action" data-print-doc="${esc(doc.id)}" aria-label="Print ${esc(doc.id)}" title="Print document">${icons.download}</button></td></tr>`).join('') : '<tr><td colspan="8" class="empty">No documents in this view yet.</td></tr>'}</tbody></table></div></section>`;
+    }
+    function renderCatalog() {
+      const tabs = ['All products', 'Purifiers', 'Accessories', 'Spare parts'];
+      const products = data.products.filter(item => catalogTab === 'All products' || item.category === catalogTab);
+      page.innerHTML = `${pageHead('Products & pricing', 'Product catalogue', `Purifiers, accessories and spares · prices shown for ${roleView} view`, `<button class="button" data-action="new-product">${icons.plus} Add product</button>`)}
+        <div class="notice">The <strong>${roleView}</strong> price is highlighted. Switch price view from the top bar to compare customer, technician and shop rates.</div>
+        <section class="panel" style="margin-bottom:15px"><div class="tabs">${tabs.map(tab => `<button class="tab ${catalogTab === tab ? 'active' : ''}" data-catalog-tab="${tab}">${tab}</button>`).join('')}</div></section>
+        <div class="product-grid">${products.length ? products.map((item, index) => `<article class="product"><div class="product-top"><div class="product-art ${index % 3 === 1 ? 'blue' : index % 3 === 2 ? 'gold' : ''}">${item.category === 'Purifiers' ? icons.product : item.category === 'Accessories' ? icons.service : icons.invoice}</div><span class="category">${esc(item.category)}</span></div><div class="product-info"><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><div class="product-price"><div><span>${esc(roleView)} price</span><strong>${money(price(item))}</strong></div><span>${item.stock} in stock</span></div><div class="price-other"><span>Customer <b>${money(item.customer)}</b></span><span>Tech <b>${money(item.technician)}</b></span><span>Shop <b>${money(item.shop)}</b></span></div></div></article>`).join('') : '<div class="empty">No products in this category.</div>'}</div>`;
+    }
+    function renderAccounts() {
+      page.innerHTML = `${pageHead('People, partners & permissions', 'Accounts & access', 'Technician, shop and customer accounts with role-based price access.', `<button class="button" data-action="new-account">${icons.plus} Add account</button>`)}
+        <div class="notice"><strong>Access note:</strong> this local prototype stores account records and role-based prices in this browser. Connect a secure authentication service before using real passwords or customer data.</div>
+        <section class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>Account</th><th>Login ID</th><th>Access role</th><th>Phone</th><th>Business address</th><th>GSTIN</th><th>Linked record</th><th>Price list</th><th>Status</th><th></th></tr></thead><tbody>${data.accounts.map(account => `<tr><td><div class="person-cell"><span class="mini-avatar">${initials(account.name)}</span><strong>${esc(account.name)}</strong></div></td><td>${esc(account.username)}</td><td><span class="role-tag">${esc(account.role)}</span></td><td><a class="call-link" href="tel:${esc(account.phone.replace(/\s/g, ''))}">${esc(account.phone)}</a></td><td>${esc(account.address || '—')}</td><td>${esc(account.gstin || '—')}</td><td>${esc(account.linked)}</td><td>${account.role === 'Technician' ? 'Technician' : account.role === 'Shop' ? 'Shop' : account.role === 'Customer' ? 'Customer' : 'All prices'}</td><td><span class="status">${esc(account.status)}</span></td><td><button class="row-action" data-edit-account="${esc(account.id)}" aria-label="Edit ${esc(account.name)}" title="Edit account">✎</button></td></tr>`).join('')}</tbody></table></div></section>
+        <div class="lower-grid"><section class="panel"><div class="panel-head"><div><div class="panel-title">Price access</div><div class="panel-note">Each account role sees its own price tier</div></div></div><div class="job-list"><div class="job-row"><div class="job-symbol">${icons.person}</div><div class="job-copy"><strong>Customer price</strong><span>Retail price shown to end customers</span></div><span class="role-tag">Retail</span></div><div class="job-row"><div class="job-symbol">${icons.service}</div><div class="job-copy"><strong>Technician price</strong><span>Service team rate for spares and units</span></div><span class="role-tag">Service</span></div><div class="job-row"><div class="job-symbol">${icons.product}</div><div class="job-copy"><strong>Shop price</strong><span>Partner / reseller wholesale rate</span></div><span class="role-tag">Wholesale</span></div></div></section><section class="panel"><div class="panel-head"><div><div class="panel-title">Login details</div><div class="panel-note">Account usernames are listed above</div></div></div><div class="feed"><div class="feed-line"><span class="feed-dot"></span><div class="feed-text">Passwords are intentionally not stored or displayed in this local prototype.<span class="feed-time">Use secure invitations when connecting real sign-in.</span></div></div><div class="feed-line"><span class="feed-dot"></span><div class="feed-text">Technician and shop accounts can be linked to their contact or business records.<span class="feed-time">Account records are editable.</span></div></div></div></section></div>`;
+    }
+    function renderFeedback() {
+      const entries = [...data.feedback].filter(item => `${item.id} ${item.type} ${item.title} ${item.description} ${item.name} ${item.phone}`.toLowerCase().includes(searchQuery.toLowerCase())).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      const statuses = ['New', 'In review', 'In progress', 'Planned', 'Resolved', 'Closed'];
+      page.innerHTML = `${pageHead('Customer support', 'Feedback & issues', 'Customer feedback, reported problems, and product ideas.', `<button class="button" data-action="submit-feedback">${icons.plus} Submit feedback</button>`)}
+        <div class="notice"><strong>Prototype storage:</strong> submissions are saved in this browser only and are not yet sent to your team.</div>
+        <div class="toolbar"><div class="search">${icons.search}<input data-search placeholder="Search reports, customers or reference…" value="${esc(searchQuery)}"></div><span class="role-tag">${data.feedback.length} submitted</span></div>
+        <section class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>Report</th><th>Category</th><th>Customer</th><th>Priority</th><th>Submitted</th><th>Status</th></tr></thead><tbody>${entries.length ? entries.map(item => `<tr><td><strong>${esc(item.title)}</strong><div class="muted-cell">${esc(item.id)} · ${esc(item.description)}</div>${item.reference ? `<div class="muted-cell">Ref: ${esc(item.reference)}</div>` : ''}</td><td><span class="role-tag">${esc(item.type)}</span></td><td><strong>${esc(item.name)}</strong><div class="muted-cell">${esc(item.phone)}${item.email ? ` · ${esc(item.email)}` : ''}</div></td><td><span class="status ${item.priority.toLowerCase()}">${esc(item.priority)}</span></td><td>${date(item.date)}</td><td><select class="filter-select" data-feedback-status="${esc(item.id)}" aria-label="Update status for ${esc(item.title)}">${statuses.map(status => `<option ${item.status === status ? 'selected' : ''}>${status}</option>`).join('')}</select></td></tr>`).join('') : '<tr><td colspan="6" class="empty">No feedback reports yet.</td></tr>'}</tbody></table></div></section>`;
+      bindSearch();
+    }
+    function bindSearch() {
+      const input = page.querySelector('[data-search]');
+      input.addEventListener('input', event => { searchQuery = event.target.value; render(); const next = page.querySelector('[data-search]'); next.focus(); next.setSelectionRange(searchQuery.length, searchQuery.length); });
+    }
+    function toast(message) {
+      const root = document.getElementById('toast-root');
+      root.innerHTML = `<div class="toast">${esc(message)}</div>`;
+      window.setTimeout(() => { root.innerHTML = ''; }, 2600);
+    }
+    function showModal(title, subtitle, body, submitLabel, onSubmit, wide = false) {
+      const root = document.getElementById('modal-root');
+      root.innerHTML = `<div class="overlay" data-dismiss><section class="modal ${wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-head"><div><h2>${esc(title)}</h2><p>${esc(subtitle)}</p></div><button class="icon-button" data-close aria-label="Close">${icons.close}</button></div><div class="modal-body"><form id="active-form">${body}<div class="modal-actions"><button type="button" class="button secondary" data-close>Cancel</button><button type="submit" class="button">${esc(submitLabel)}</button></div></form></div></section></div>`;
+      root.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', closeModal));
+      root.querySelector('[data-dismiss]').addEventListener('click', event => { if (event.target === event.currentTarget) closeModal(); });
+      root.querySelector('#active-form').addEventListener('submit', event => { event.preventDefault(); onSubmit(new FormData(event.currentTarget), event.currentTarget); });
+    }
+    function closeModal() { document.getElementById('modal-root').innerHTML = ''; }
+    function customerOptions(selected = '') { return data.customers.map(item => `<option value="${esc(item.id)}" ${item.id === selected ? 'selected' : ''}>${esc(item.name)} · ${esc(item.phone)}</option>`).join(''); }
+    function openCustomerForm(existing) {
+      const item = existing || {};
+      showModal(existing ? 'Edit customer' : 'Add customer', 'Contact, address and installation details', `<div class="form-grid"><div class="field"><label for="name">Customer / business name *</label><input id="name" name="name" required value="${esc(item.name || '')}"></div><div class="field"><label for="phone">Phone number *</label><input id="phone" name="phone" type="tel" required value="${esc(item.phone || '')}"></div><div class="field"><label for="email">Email</label><input id="email" name="email" type="email" value="${esc(item.email || '')}"></div><div class="field"><label for="type">Customer type</label><select id="type" name="type"><option ${item.type === 'Residential' ? 'selected' : ''}>Residential</option><option ${item.type === 'Commercial' ? 'selected' : ''}>Commercial</option><option ${item.type === 'Apartment' ? 'selected' : ''}>Apartment</option></select></div><div class="field full"><label for="address">Full address</label><textarea id="address" name="address">${esc(item.address || '')}</textarea></div><div class="field"><label for="purifier">Purifier / model installed</label><input id="purifier" name="purifier" value="${esc(item.purifier || '')}"></div><div class="field"><label for="installed">Installation date</label><input id="installed" name="installed" type="date" value="${esc(item.installed || '')}"></div></div>`, existing ? 'Save changes' : 'Add customer', form => {
+        const value = Object.fromEntries(form.entries());
+        if (existing) Object.assign(existing, value);
+        else data.customers.unshift({ ...value, id: `C-${1001 + data.customers.length}`, notes: '' });
+        save(); closeModal(); render(); toast(existing ? 'Customer updated' : 'Customer added');
+      });
+    }
+    function openJobForm(existing) {
+      if (!data.customers.length) { toast('Add a customer before scheduling a service job'); return; }
+      const item = existing || {};
+      showModal(existing ? 'Edit service job' : 'Schedule service', 'Installation, maintenance and repair visits', `<div class="form-grid"><div class="field full"><label for="customerId">Customer *</label><select id="customerId" name="customerId" required>${customerOptions(item.customerId)}</select></div><div class="field"><label for="type">Service type *</label><select id="type" name="type" required>${['Installation', 'Filter replacement', 'Routine maintenance', 'Quarterly maintenance', 'Low water flow', 'Repair', 'Other'].map(type => `<option ${item.type === type ? 'selected' : ''}>${type}</option>`).join('')}</select></div><div class="field"><label for="date">Visit date *</label><input id="date" name="date" type="date" required value="${esc(item.date || '2026-10-27')}"></div><div class="field"><label for="technician">Technician</label><input id="technician" name="technician" list="technician-list" value="${esc(item.technician || '')}"><datalist id="technician-list">${data.accounts.filter(account => account.role === 'Technician').map(account => `<option value="${esc(account.name)}"></option>`).join('')}</datalist></div><div class="field"><label for="status">Status</label><select name="status" id="status">${['Scheduled', 'In progress', 'Completed', 'Cancelled'].map(status => `<option ${item.status === status ? 'selected' : ''}>${status}</option>`).join('')}</select></div><div class="field full"><label for="notes">Job notes</label><textarea id="notes" name="notes">${esc(item.notes || '')}</textarea></div></div>`, existing ? 'Save changes' : 'Schedule job', form => {
+        const value = Object.fromEntries(form.entries());
+        if (existing) Object.assign(existing, value);
+        else data.jobs.unshift({ ...value, id: `SR-${2409 + data.jobs.length}` });
+        save(); closeModal(); render(); toast(existing ? 'Service job updated' : 'Service job scheduled');
+      });
+    }
+    function openAccountForm(existing) {
+      const item = existing || {};
+      showModal(existing ? 'Edit account' : 'Add account', 'Set role and link a login to a technician, shop or customer', `<div class="form-grid"><div class="field"><label for="name">Name / business *</label><input id="name" name="name" required value="${esc(item.name || '')}"></div><div class="field"><label for="username">Login ID *</label><input id="username" name="username" required value="${esc(item.username || '')}"></div><div class="field"><label for="role">Access role</label><select id="role" name="role">${['Technician', 'Shop', 'Customer', 'Owner'].map(role => `<option ${item.role === role ? 'selected' : ''}>${role}</option>`).join('')}</select></div><div class="field"><label for="phone">Phone number</label><input id="phone" name="phone" type="tel" value="${esc(item.phone || '')}"></div><div class="field full"><label for="address">Business address</label><input id="address" name="address" value="${esc(item.address || '')}"></div><div class="field"><label for="gstin">GSTIN</label><input id="gstin" name="gstin" value="${esc(item.gstin || '')}"></div><div class="field"><label for="linked">Linked record / business</label><input id="linked" name="linked" value="${esc(item.linked || '')}"></div><div class="field"><label for="status">Account status</label><select id="status" name="status"><option ${item.status !== 'Inactive' ? 'selected' : ''}>Active</option><option ${item.status === 'Inactive' ? 'selected' : ''}>Inactive</option></select></div></div><p style="margin:13px 0 0;color:#9a6f3a;font-size:10px">Do not enter passwords here. This prototype does not provide secure authentication.</p>`, existing ? 'Save changes' : 'Add account', form => {
+        const value = Object.fromEntries(form.entries());
+        if (existing) Object.assign(existing, value);
+        else data.accounts.push({ ...value, id: `A-${String(data.accounts.length + 1).padStart(2, '0')}` });
+        save(); closeModal(); render(); toast(existing ? 'Account updated' : 'Account added');
+      });
+    }
+    function openFeedbackForm() {
+      showModal('Submit feedback', 'Tell us about your experience or something that needs attention', `<div class="form-grid"><div class="field"><label for="type">What would you like to share? *</label><select id="type" name="type" required><option>Customer feedback</option><option>Issue</option><option>Bug</option><option>Feature request</option></select></div><div class="field"><label for="priority">Priority</label><select id="priority" name="priority"><option>Normal</option><option>High</option><option>Urgent</option></select></div><div class="field"><label for="name">Your name *</label><input id="name" name="name" required autocomplete="name"></div><div class="field"><label for="phone">Phone number *</label><input id="phone" name="phone" type="tel" required autocomplete="tel"></div><div class="field"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email"></div><div class="field"><label for="reference">Product, job or invoice reference</label><input id="reference" name="reference" placeholder="Optional"></div><div class="field full"><label for="title">Subject *</label><input id="title" name="title" required maxlength="100"></div><div class="field full"><label for="description">Details *</label><textarea id="description" name="description" required maxlength="2000"></textarea></div></div>`, 'Send feedback', form => {
+        const values = Object.fromEntries(form.entries());
+        const today = new Date().toISOString().slice(0, 10);
+        data.feedback.unshift({ ...values, id: `FB-${Date.now().toString().slice(-8)}`, date: today, createdAt: new Date().toISOString(), status: 'New' });
+        save(); closeModal(); render(); toast('Feedback submitted');
+      }, true);
+    }
+    function openProductForm() {
+      showModal('Add catalogue item', 'Set customer, technician and shop pricing', `<div class="form-grid"><div class="field"><label for="name">Product name *</label><input id="name" name="name" required></div><div class="field"><label for="category">Category</label><select id="category" name="category"><option>Purifiers</option><option>Accessories</option><option>Spare parts</option></select></div><div class="field full"><label for="description">Description</label><input id="description" name="description"></div><div class="field"><label for="customer">Customer price (₹)</label><input id="customer" name="customer" type="number" min="0" required></div><div class="field"><label for="technician">Technician price (₹)</label><input id="technician" name="technician" type="number" min="0" required></div><div class="field"><label for="shop">Shop price (₹)</label><input id="shop" name="shop" type="number" min="0" required></div><div class="field"><label for="stock">Stock quantity</label><input id="stock" name="stock" type="number" min="0" value="0"></div><div class="field"><label for="gst">GST rate (%)</label><input id="gst" name="gst" type="number" min="0" max="100" value="18"></div></div>`, 'Add product', form => {
+        const value = Object.fromEntries(form.entries());
+        data.products.push({ ...value, id: `P-${101 + data.products.length}`, customer: Number(value.customer), technician: Number(value.technician), shop: Number(value.shop), stock: Number(value.stock), gst: Number(value.gst) });
+        save(); closeModal(); render(); toast('Product added to catalogue');
+      });
+    }
+    function openSaleForm(type = 'Quotation') {
+      if (!data.customers.length || !data.products.length) { toast('Add a customer and product before creating a document'); return; }
+      const options = data.products.map(item => `<option value="${esc(item.id)}" data-price="${price(item)}">${esc(item.name)} · ${money(price(item))}</option>`).join('');
+      showModal(`New ${type.toLowerCase()}`, 'Choose a customer, products and GST treatment', `<div class="form-grid"><div class="field"><label for="docType">Document type</label><select id="docType" name="docType"><option ${type === 'Quotation' ? 'selected' : ''}>Quotation</option><option ${type === 'Invoice' ? 'selected' : ''}>Invoice</option></select></div><div class="field"><label for="customerId">Customer *</label><select id="customerId" name="customerId" required>${customerOptions()}</select></div><div class="field"><label for="date">Document date</label><input id="date" name="date" type="date" required value="2026-10-27"></div><div class="field"><label for="due">Valid until / due date</label><input id="due" name="due" type="date" value="2026-11-10"></div><div class="field full"><label>Line items</label><div id="line-items"><div class="line-item"><div class="field"><label>Product</label><select name="productId" class="sale-product">${options}</select></div><div class="field"><label>Qty</label><input name="qty" class="sale-qty" type="number" min="1" value="1" required></div><div class="field"><label>Unit price ₹</label><input name="price" class="sale-price" type="number" min="0" value="${price(data.products[0])}" required></div><button class="row-action remove-line" type="button" aria-label="Remove line">${icons.close}</button></div></div><button class="button secondary" id="add-line" type="button">${icons.plus} Add line item</button></div><div class="field full"><label class="price-toggle"><input type="checkbox" name="gst" id="gst-check" checked> Apply GST at each product’s rate</label></div><div class="field full"><div class="invoice-total" id="sale-total"></div></div></div>`, 'Save document', (values, form) => {
+        const ids = form.querySelectorAll('.sale-product');
+        const quantities = form.querySelectorAll('.sale-qty');
+        const prices = form.querySelectorAll('.sale-price');
+        const items = [...ids].map((select, index) => ({ productId: select.value, qty: Number(quantities[index].value), price: Number(prices[index].value) }));
+        if (items.some(item => item.qty < 1 || item.price < 0)) { toast('Check item quantities and prices'); return; }
+        const docType = values.get('docType');
+        const prefix = docType === 'Invoice' ? 'INV' : 'QT';
+        const nextNumber = String(data.documents.filter(doc => doc.type === docType).length + 33).padStart(3, '0');
+        data.documents.unshift({ id: `${prefix}-2026-${nextNumber}`, type: docType, customerId: values.get('customerId'), date: values.get('date'), due: values.get('due'), items, gst: values.has('gst'), status: docType === 'Invoice' ? 'Pending' : 'Draft' });
+        save(); closeModal(); render(); toast(`${docType} saved`);
+      }, true);
+      const modal = document.getElementById('modal-root');
+      const updateTotal = () => {
+        const rows = [...modal.querySelectorAll('.line-item')];
+        const subtotal = rows.reduce((sum, row) => sum + Number(row.querySelector('.sale-qty').value || 0) * Number(row.querySelector('.sale-price').value || 0), 0);
+        const gst = modal.querySelector('#gst-check').checked ? rows.reduce((sum, row) => { const selected = product(row.querySelector('.sale-product').value); return sum + Number(row.querySelector('.sale-qty').value || 0) * Number(row.querySelector('.sale-price').value || 0) * Number(selected.gst || 18) / 100; }, 0) : 0;
+        modal.querySelector('#sale-total').innerHTML = `<div><span>Subtotal</span><strong>${money(subtotal)}</strong></div><div><span>GST ${gst ? '(product rates)' : '(not applied)'}</span><strong>${money(gst)}</strong></div><div class="grand"><span>Total</span><strong>${money(subtotal + gst)}</strong></div>`;
+      };
+      const bindRow = row => {
+        row.querySelector('.sale-product').addEventListener('change', event => { row.querySelector('.sale-price').value = price(product(event.target.value)); updateTotal(); });
+        row.querySelectorAll('input').forEach(input => input.addEventListener('input', updateTotal));
+        row.querySelector('.remove-line').addEventListener('click', () => { if (modal.querySelectorAll('.line-item').length > 1) { row.remove(); updateTotal(); } });
+      };
+      bindRow(modal.querySelector('.line-item'));
+      modal.querySelector('#gst-check').addEventListener('change', updateTotal);
+      modal.querySelector('#add-line').addEventListener('click', () => { const row = document.createElement('div'); row.className = 'line-item'; row.innerHTML = `<div class="field"><label>Product</label><select name="productId" class="sale-product">${options}</select></div><div class="field"><label>Qty</label><input name="qty" class="sale-qty" type="number" min="1" value="1" required></div><div class="field"><label>Unit price ₹</label><input name="price" class="sale-price" type="number" min="0" value="${price(data.products[0])}" required></div><button class="row-action remove-line" type="button" aria-label="Remove line">${icons.close}</button>`; modal.querySelector('#line-items').append(row); bindRow(row); updateTotal(); });
+      updateTotal();
+    }
+    function printDocument(id) {
+      const doc = data.documents.find(item => item.id === id);
+      if (!doc) return;
+      const person = customer(doc.customerId);
+      const amounts = totals(doc);
+      const rows = doc.items.map(item => `<tr><td>${esc(product(item.productId).name)}</td><td>${item.qty}</td><td>${money(item.price)}</td><td>${money(item.qty * item.price)}</td></tr>`).join('');
+      const print = window.open('', '_blank', 'width=800,height=700');
+      if (!print) { toast('Allow pop-ups to print this document'); return; }
+      print.document.write(`<!doctype html><html><head><title>${esc(doc.id)}</title><style>body{font:14px Arial,sans-serif;color:#24342d;padding:48px}h1{color:#197c70}small{color:#68756e}table{width:100%;border-collapse:collapse;margin-top:30px}th,td{text-align:left;padding:12px;border-bottom:1px solid #ddd}th{background:#f4f7f4}.total{width:280px;margin:24px 0 0 auto}.total p{display:flex;justify-content:space-between}.grand{border-top:1px solid #aaa;padding-top:12px;font-size:18px;font-weight:bold}.foot{margin-top:60px;color:#77827c;font-size:12px}</style></head><body><h1>clearflow</h1><small>WATER SYSTEMS</small><h2>${esc(doc.type)} · ${esc(doc.id)}</h2><p>${esc(person.name)}<br>${esc(person.phone)}<br>${esc(person.address)}</p><p>Date: ${date(doc.date)}<br>${doc.type === 'Quotation' ? 'Valid until' : 'Due date'}: ${date(doc.due)}<br>Tax: ${doc.gst ? 'GST applied at product rates' : 'No GST'}</p><table><thead><tr><th>Item</th><th>Qty</th><th>Unit price</th><th>Amount</th></tr></thead><tbody>${rows}</tbody></table><div class="total"><p><span>Subtotal</span><strong>${money(amounts.subtotal)}</strong></p><p><span>GST</span><strong>${money(amounts.gst)}</strong></p><p class="grand"><span>Total</span><strong>${money(amounts.grand)}</strong></p></div><div class="foot">Thank you for choosing Clearflow Water Systems.</div><script>window.onload=()=>window.print()<\/script></body></html>`);
+      print.document.close();
+    }
+    document.querySelectorAll('.nav-item').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
+    document.getElementById('role-select').value = roleView;
+    document.getElementById('role-select').addEventListener('change', event => { roleView = event.target.value; localStorage.setItem('clearflow-role', roleView); render(); });
+    document.getElementById('help-button').addEventListener('click', () => toast('Use Accounts & access to manage role and price access.'));
+    document.addEventListener('click', event => {
+      const action = event.target.closest('[data-action]')?.dataset.action;
+      if (action === 'new-customer') openCustomerForm();
+      if (action === 'new-job') openJobForm();
+      if (action === 'new-sale') openSaleForm();
+      if (action === 'new-product') openProductForm();
+      if (action === 'new-account') openAccountForm();
+      if (action === 'submit-feedback') openFeedbackForm();
+      const nav = event.target.closest('[data-nav]')?.dataset.nav;
+      if (nav) setView(nav);
+      const customerEdit = event.target.closest('[data-edit-customer]')?.dataset.editCustomer;
+      if (customerEdit) openCustomerForm(data.customers.find(item => item.id === customerEdit));
+      const jobEdit = event.target.closest('[data-edit-job]')?.dataset.editJob;
+      if (jobEdit) openJobForm(data.jobs.find(item => item.id === jobEdit));
+      const accountEdit = event.target.closest('[data-edit-account]')?.dataset.editAccount;
+      if (accountEdit) openAccountForm(data.accounts.find(item => item.id === accountEdit));
+      const printId = event.target.closest('[data-print-doc]')?.dataset.printDoc;
+      if (printId) printDocument(printId);
+      const sales = event.target.closest('[data-sales-tab]')?.dataset.salesTab;
+      if (sales) { salesTab = sales; renderSales(); }
+      const catalog = event.target.closest('[data-catalog-tab]')?.dataset.catalogTab;
+      if (catalog) { catalogTab = catalog; renderCatalog(); }
+    });
+    document.addEventListener('change', event => {
+      const statusSelect = event.target.closest('[data-feedback-status]');
+      if (!statusSelect) return;
+      const entry = data.feedback.find(item => item.id === statusSelect.dataset.feedbackStatus);
+      if (!entry) return;
+      entry.status = statusSelect.value;
+      save();
+      toast('Feedback status updated');
+    });
+    render();
+  </script>
+</body>
+</html>

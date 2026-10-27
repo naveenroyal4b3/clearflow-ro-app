@@ -1,0 +1,23 @@
+{
+  "name": "clearflow-ro",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Clearflow RO sales and service app",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "android:add": "cap add android",
+    "android:sync": "npm run build && cap sync android",
+    "android:open": "cap open android",
+    "android:bundle": "npm run android:sync && cd android && gradlew.bat bundleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/core": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.0"
+  }
+}
