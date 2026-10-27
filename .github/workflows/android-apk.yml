@@ -10,12 +10,61 @@ permissions:
   contents: read
 
 jobs:
+  validate-schema:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: clearflow_test
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d clearflow_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Create Supabase auth test stubs
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d clearflow_test -v ON_ERROR_STOP=1 <<'SQL'
+          create role anon;
+          create role authenticated;
+          create schema auth;
+          create table auth.users (
+            id uuid primary key,
+            email text,
+            raw_app_meta_data jsonb not null default '{}'::jsonb,
+            raw_user_meta_data jsonb not null default '{}'::jsonb
+          );
+          create function auth.uid() returns uuid language sql stable as $$
+            select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+          $$;
+          SQL
+
+      - name: Apply database schema
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d clearflow_test -v ON_ERROR_STOP=1 -f supabase/schema.sql
+
   debug-apk:
+    needs: validate-schema
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
     steps:
       - name: Check out source
         uses: actions/checkout@v5
