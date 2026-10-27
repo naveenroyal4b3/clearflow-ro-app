@@ -5,4 +5,4 @@ dist/
 local.properties
 .env
 .env.*
-!.env.example
+!.env.examplesupabase/.temp/
