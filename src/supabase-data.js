@@ -73,7 +73,7 @@ export async function loadWorkspace(client, profile) {
       name: item.name,
       category: item.category,
       description: item.description || '',
-      stock: item.stock,
+      stock: ['owner', 'technician'].includes(profile.role) ? item.stock : null,
       gst: Number(item.gst_rate),
       ...(priceByProduct.get(item.id) || {})
     })),

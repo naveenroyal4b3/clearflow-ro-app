@@ -24,6 +24,7 @@ create table public.profiles (
   customer_id text,
   active boolean not null default true,
   created_at timestamptz not null default now(),
+  unique (organization_id, user_id),
   check ((role = 'customer' and customer_id is not null) or role <> 'customer')
 );
 
@@ -80,7 +81,7 @@ create table public.service_jobs (
   customer_id text not null,
   job_type text not null,
   scheduled_for date not null,
-  technician_id uuid references public.profiles(user_id) on delete set null,
+  technician_id uuid,
   technician_name text not null default '',
   status text not null default 'Scheduled' check (status in ('Scheduled', 'In progress', 'Completed', 'Cancelled')),
   notes text not null default '',
@@ -88,7 +89,9 @@ create table public.service_jobs (
   updated_at timestamptz not null default now(),
   primary key (organization_id, id),
   foreign key (organization_id, customer_id)
-    references public.customers(organization_id, id)
+    references public.customers(organization_id, id),
+  foreign key (organization_id, technician_id)
+    references public.profiles(organization_id, user_id) on delete set null (technician_id)
 );
 
 create table public.sales_documents (
@@ -330,10 +333,10 @@ begin
       to_char(p_document_date - interval '1 year', 'YY') || '-' || to_char(p_document_date, 'YY')
   end;
 
-  insert into public.document_counters (organization_id, financial_year, document_type, last_number)
+  insert into public.document_counters as counter (organization_id, financial_year, document_type, last_number)
   values (org_id, financial_year, p_document_type, 1)
   on conflict (organization_id, financial_year, document_type)
-  do update set last_number = public.document_counters.last_number + 1
+  do update set last_number = counter.last_number + 1
   returning last_number into sequence_number;
 
   document_id := case when p_document_type = 'Invoice' then 'INV-' else 'QT-' end
@@ -405,7 +408,11 @@ alter table public.feedback enable row level security;
 
 grant usage on schema public to authenticated;
 grant select, insert, update, delete on public.organizations to authenticated;
-grant select, insert, update, delete on public.profiles to authenticated;
+revoke insert, update, delete on public.organizations from authenticated;
+grant update (name, gstin) on public.organizations to authenticated;
+grant select on public.profiles to authenticated;
+revoke insert, update, delete on public.profiles from authenticated;
+grant update (role, full_name, phone, business_name, business_address, gstin, customer_id, active) on public.profiles to authenticated;
 grant select, insert, update, delete on public.customers to authenticated;
 grant select, insert, update, delete on public.products to authenticated;
 grant select, insert, update, delete on public.product_prices to authenticated;
@@ -440,7 +447,13 @@ create policy "Staff and linked customers can read customers"
   using (
     organization_id = (select public.current_organization_id())
     and (
-      (select public.current_app_role()) in ('owner', 'technician')
+      (select public.current_app_role()) = 'owner'
+      or (select public.current_app_role()) = 'technician' and exists (
+        select 1 from public.service_jobs job
+        where job.organization_id = customers.organization_id
+          and job.customer_id = customers.id
+          and job.technician_id = (select auth.uid())
+      )
       or id = (select public.current_customer_id())
     )
   );
@@ -520,6 +533,7 @@ create policy "Organization members can submit feedback"
   with check (
     organization_id = (select public.current_organization_id())
     and submitter_user_id = (select auth.uid())
+    and ((select public.current_app_role()) <> 'customer' or customer_id = (select public.current_customer_id()))
   );
 
 create policy "Owners can update feedback"

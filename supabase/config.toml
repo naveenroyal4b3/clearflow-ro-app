@@ -1,0 +1,4 @@
+project_id = "clearflow-ro-app"
+
+[functions.invite-member]
+verify_jwt = true

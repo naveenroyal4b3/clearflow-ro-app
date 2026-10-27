@@ -453,7 +453,7 @@
       const allowedViews = {
         owner: ['overview', 'customers', 'jobs', 'sales', 'catalog', 'accounts', 'feedback'],
         technician: ['overview', 'jobs', 'catalog', 'feedback'],
-        shop: ['overview', 'catalog', 'sales', 'feedback'],
+        shop: ['overview', 'catalog', 'feedback'],
         customer: ['overview', 'jobs', 'catalog', 'sales', 'feedback']
       }[profile?.role] || [];
       document.querySelectorAll('.nav-item[data-view]').forEach(button => { button.hidden = !allowedViews.includes(button.dataset.view); });
@@ -527,11 +527,16 @@
       const chartMaximum = Math.max(1, ...monthlySales.map(item => item.total));
       const needsSetup = data.customers.length === 0 && data.products.length === 0;
       const owner = profile.role === 'owner';
-      const setupPanel = needsSetup ? `<section class="setup-panel"><div class="setup-copy"><div class="eyebrow">First steps</div><h2>Set up your RO workspace</h2><p>Add your first customer and catalogue item to start managing service and sales.</p></div><div class="setup-actions"><button class="button" data-action="new-customer">${icons.plus} Add customer</button><button class="button secondary" data-action="new-product">${icons.product} Add product</button></div></section>` : '';
+      const setupPanel = owner && needsSetup ? `<section class="setup-panel"><div class="setup-copy"><div class="eyebrow">First steps</div><h2>Set up your RO workspace</h2><p>Add your first customer and catalogue item to start managing service and sales.</p></div><div class="setup-actions"><button class="button" data-action="new-customer">${icons.plus} Add customer</button><button class="button secondary" data-action="new-product">${icons.product} Add product</button></div></section>` : '';
       const quickActions = owner
         ? `<button class="quick-action" data-action="new-customer">${icons.person}<span>Add customer</span></button><button class="quick-action" data-action="new-job">${icons.service}<span>Schedule service</span></button><button class="quick-action" data-action="new-sale">${icons.invoice}<span>New quotation</span></button><button class="quick-action" data-nav="catalog">${icons.product}<span>View catalogue</span></button>`
-        : `<button class="quick-action" data-nav="jobs">${icons.service}<span>My service</span></button><button class="quick-action" data-nav="catalog">${icons.product}<span>View prices</span></button><button class="quick-action" data-nav="feedback">${icons.invoice}<span>Send feedback</span></button>`;
-      const productRows = data.products.slice(0, 4).map(item => `<div class="job-row"><div class="job-symbol">${icons.product}</div><div class="job-copy"><strong>${esc(item.name)}</strong><span>${esc(item.category)} · ${item.stock} in stock</span></div><span class="status ${item.stock < 5 ? 'scheduled' : ''}">${item.stock < 5 ? 'Low stock' : 'In stock'}</span></div>`).join('') || '<div class="empty">Add products to start tracking stock.</div>';
+        : profile.role === 'technician'
+          ? `<button class="quick-action" data-nav="jobs">${icons.service}<span>Assigned jobs</span></button><button class="quick-action" data-nav="catalog">${icons.product}<span>Parts pricing</span></button><button class="quick-action" data-nav="feedback">${icons.invoice}<span>Report an issue</span></button>`
+          : profile.role === 'shop'
+            ? `<button class="quick-action" data-nav="catalog">${icons.product}<span>Shop catalogue</span></button><button class="quick-action" data-nav="feedback">${icons.invoice}<span>Contact support</span></button>`
+            : `<button class="quick-action" data-nav="jobs">${icons.service}<span>My service</span></button><button class="quick-action" data-nav="sales">${icons.invoice}<span>My documents</span></button><button class="quick-action" data-nav="feedback">${icons.person}<span>Send feedback</span></button>`;
+            const canViewStock = owner || profile.role === 'technician';
+            const productRows = data.products.slice(0, 4).map(item => `<div class="job-row"><div class="job-symbol">${icons.product}</div><div class="job-copy"><strong>${esc(item.name)}</strong><span>${esc(item.category)}${canViewStock ? ` · ${item.stock} in stock` : ''}</span></div>${canViewStock ? `<span class="status ${item.stock < 5 ? 'scheduled' : ''}">${item.stock < 5 ? 'Low stock' : 'In stock'}</span>` : ''}</div>`).join('') || '<div class="empty">Add products to start tracking stock.</div>';
       const jobRows = upcoming.length ? upcoming.map(job => {
         const person = customer(job.customerId);
         const statusClass = job.status.toLowerCase().replace(/\s+/g, '-');
@@ -543,7 +548,7 @@
         <div class="dash-grid"><section class="panel"><div class="panel-head"><div><div class="panel-title">Sales overview</div><div class="panel-note">Invoice value · last 12 months</div></div><button class="text-link" data-nav="sales">View sales →</button></div><div class="chart-wrap"><div class="chart-summary"><strong>${money(monthTotal)}</strong><span>${currentMonthLabel}</span></div><div class="chart">${monthlySales.map((item, index) => `<div class="bar-group"><div class="bar ${index === 11 ? 'current' : ''}" style="height:${Math.max(3, Math.round(item.total / chartMaximum * 100))}%" title="${esc(item.label)}: ${money(item.total)}"></div><span class="bar-label">${esc(item.label)}</span></div>`).join('')}</div><div class="chart-legend"><span class="legend-dot"></span>Revenue from invoices</div></div></section>
           <section class="panel"><div class="panel-head"><div><div class="panel-title">Upcoming service</div><div class="panel-note">Next scheduled visits</div></div><button class="text-link" data-nav="jobs">All jobs →</button></div><div class="job-list">${jobRows}</div></section></div>
         <div class="lower-grid"><section class="panel"><div class="panel-head"><div><div class="panel-title">Quick actions</div><div class="panel-note">Common tasks, one tap away</div></div></div><div class="quick-grid">${quickActions}</div></section><section class="panel"><div class="panel-head"><div><div class="panel-title">Recent activity</div><div class="panel-note">Latest quotations and invoices</div></div>${owner ? '<button class="text-link" data-nav="sales">View all →</button>' : ''}</div><div class="feed">${activity || '<div class="empty">No recent sales activity.</div>'}</div></section></div>
-        <section class="panel" style="margin-top:16px"><div class="panel-head"><div><div class="panel-title">Stock watch</div><div class="panel-note">Popular parts and current availability</div></div><button class="text-link" data-nav="catalog">Full catalogue →</button></div><div class="job-list">${productRows}</div></section>`;
+        ${canViewStock ? `<section class="panel" style="margin-top:16px"><div class="panel-head"><div><div class="panel-title">Stock watch</div><div class="panel-note">Popular parts and current availability</div></div><button class="text-link" data-nav="catalog">Full catalogue →</button></div><div class="job-list">${productRows}</div></section>` : ''}`;
     }
     function renderCustomers() {
       const owner = profile.role === 'owner';
@@ -572,7 +577,7 @@
     }
     function totals(doc) {
       const subtotal = doc.items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.price || 0), 0);
-      const gst = doc.gst ? doc.items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.price || 0) * Number(product(item.productId).gst || 18) / 100, 0) : 0;
+      const gst = doc.gst ? doc.items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.price || 0) * Number(item.gst ?? product(item.productId).gst ?? 18) / 100, 0) : 0;
       return { subtotal, gst, grand: subtotal + gst };
     }
     function renderSales() {
@@ -592,7 +597,7 @@
       page.innerHTML = `${pageHead('Products & pricing', 'Product catalogue', `Purifiers, accessories and spares · prices shown for ${roleView} access`, owner ? `<button class="button" data-action="new-product">${icons.plus} Add product</button>` : '')}
         <div class="notice">${owner ? `Previewing <strong>${roleView}</strong> pricing. Each signed-in role can only retrieve its own price tier.` : `Showing the <strong>${roleView}</strong> prices assigned to your account.`}</div>
         <section class="panel" style="margin-bottom:15px"><div class="tabs">${tabs.map(tab => `<button class="tab ${catalogTab === tab ? 'active' : ''}" data-catalog-tab="${tab}">${tab}</button>`).join('')}</div></section>
-        <div class="product-grid">${products.length ? products.map((item, index) => `<article class="product"><div class="product-top"><div class="product-art ${index % 3 === 1 ? 'blue' : index % 3 === 2 ? 'gold' : ''}">${item.category === 'Purifiers' ? icons.product : item.category === 'Accessories' ? icons.service : icons.invoice}</div><span class="category">${esc(item.category)}</span></div><div class="product-info"><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><div class="product-price"><div><span>${esc(roleView)} price</span><strong>${money(price(item))}</strong></div><span>${item.stock} in stock</span></div>${owner ? `<div class="price-other"><span>Customer <b>${money(item.customer)}</b></span><span>Tech <b>${money(item.technician)}</b></span><span>Shop <b>${money(item.shop)}</b></span></div>` : ''}</div></article>`).join('') : '<div class="empty">No products in this category.</div>'}</div>`;
+        <div class="product-grid">${products.length ? products.map((item, index) => `<article class="product"><div class="product-top"><div class="product-art ${index % 3 === 1 ? 'blue' : index % 3 === 2 ? 'gold' : ''}">${item.category === 'Purifiers' ? icons.product : item.category === 'Accessories' ? icons.service : icons.invoice}</div><span class="category">${esc(item.category)}</span></div><div class="product-info"><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><div class="product-price"><div><span>${esc(roleView)} price</span><strong>${money(price(item))}</strong></div>${owner || profile.role === 'technician' ? `<span>${item.stock} in stock</span>` : ''}</div>${owner ? `<div class="price-other"><span>Customer <b>${money(item.customer)}</b></span><span>Tech <b>${money(item.technician)}</b></span><span>Shop <b>${money(item.shop)}</b></span></div>` : ''}</div></article>`).join('') : '<div class="empty">No products in this category.</div>'}</div>`;
     }
     function renderAccounts() {
       if (profile.role !== 'owner') { page.innerHTML = '<div class="empty">Only the organization owner can manage accounts.</div>'; return; }

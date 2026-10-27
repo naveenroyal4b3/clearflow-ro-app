@@ -56,6 +56,14 @@ jobs:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -d clearflow_test -v ON_ERROR_STOP=1 -f supabase/schema.sql
 
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Check invitation function
+        run: deno check supabase/functions/invite-member/index.ts
+
   debug-apk:
     needs: validate-schema
     runs-on: ubuntu-24.04
