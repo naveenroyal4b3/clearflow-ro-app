@@ -392,7 +392,7 @@
             const { data: result, error } = await supabaseClient.auth.signUp({
               email: values.email.trim(),
               password: values.password,
-              options: { data: { full_name: values.full_name.trim(), phone: values.phone.trim(), organization_name: values.organization_name.trim(), gstin: values.gstin.trim() } }
+              options: { ...webRedirectOption('emailRedirectTo'), data: { full_name: values.full_name.trim(), phone: values.phone.trim(), organization_name: values.organization_name.trim(), gstin: values.gstin.trim() } }
             });
             if (error) throw error;
             if (result.session) await openAuthenticatedApp(result.session);
@@ -407,6 +407,11 @@
         }
       });
     }
+    // Email links should return to the page they were requested from. In the Android app that page
+    // is not reachable from an email link, so let Supabase fall back to its Site URL.
+    function webRedirectOption(name) {
+      return window.Capacitor?.isNativePlatform?.() ? {} : { [name]: window.location.origin + window.location.pathname };
+    }
     function authBrand() {
       return `<div class="auth-brand"><div class="brand-mark">${icons.product}</div><div><div class="brand-name">clearflow</div><div class="brand-caption">WATER SYSTEMS · OPERATIONS</div></div></div>`;
     }
@@ -420,9 +425,7 @@
         event.preventDefault();
         const email = new FormData(event.currentTarget).get('email').trim();
         event.currentTarget.querySelector('[type="submit"]').disabled = true;
-        // In the Android app the page origin is not reachable from an email link, so let Supabase use its Site URL.
-        const options = window.Capacitor?.isNativePlatform?.() ? {} : { redirectTo: window.location.origin + window.location.pathname };
-        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, options);
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, webRedirectOption('redirectTo'));
         if (error) { renderPasswordResetRequest(error.message); return; }
         renderAuth('sign-in', 'If that email has an account, a password reset link is on its way.');
       });
