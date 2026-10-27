@@ -1,4 +1,6 @@
 project_id = "clearflow-ro-app"
 
 [functions.invite-member]
-verify_jwt = true
+# The gateway's legacy JWT check does not support the project's new API keys/JWT signing keys.
+# The function verifies the caller itself with auth.getUser() and rejects unauthenticated requests.
+verify_jwt = false

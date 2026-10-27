@@ -11,8 +11,10 @@ Deno.serve(async request => {
   if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   const projectUrl = Deno.env.get('SUPABASE_URL');
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  // Prefer the project's publishable/secret API keys; the legacy JWT keys stop working once
+  // legacy API keys are disabled for the project.
+  const anonKey = defaultKey('SUPABASE_PUBLISHABLE_KEYS') || Deno.env.get('SUPABASE_ANON_KEY');
+  const serviceKey = defaultKey('SUPABASE_SECRET_KEYS') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const authorization = request.headers.get('Authorization');
   if (!projectUrl || !anonKey || !serviceKey || !authorization) return json({ error: 'Server configuration is incomplete' }, 500);
 
@@ -97,6 +99,16 @@ Deno.serve(async request => {
     return json({ error: error instanceof Error ? error.message : 'Unexpected invitation error' }, 500);
   }
 });
+
+// SUPABASE_PUBLISHABLE_KEYS / SUPABASE_SECRET_KEYS are JSON dictionaries of key name -> key.
+function defaultKey(variable: string): string | undefined {
+  try {
+    const keys = JSON.parse(Deno.env.get(variable) || '{}') as Record<string, string>;
+    return keys.default || Object.values(keys)[0];
+  } catch {
+    return undefined;
+  }
+}
 
 function json(body: unknown, status: number) {
   return new Response(JSON.stringify(body), {
