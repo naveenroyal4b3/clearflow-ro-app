@@ -346,6 +346,10 @@
     const environment = import.meta.env;
     const supabaseUrl = environment.VITE_SUPABASE_URL || '';
     const supabaseAnonKey = environment.VITE_SUPABASE_ANON_KEY || '';
+    // Read invite/recovery link details before the Supabase client consumes and clears the URL hash.
+    const authLinkParams = new URLSearchParams(window.location.hash.slice(1));
+    const authLinkType = authLinkParams.get('type');
+    const authLinkError = authLinkParams.get('error_description');
     const supabaseClient = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
     const appShell = document.getElementById('app-shell');
     const authRoot = document.getElementById('auth-root');
@@ -371,8 +375,9 @@
       authRoot.hidden = false;
       authRoot.className = 'auth-screen';
       const creating = mode === 'sign-up';
-      authRoot.innerHTML = `<section class="auth-card"><div class="auth-brand"><div class="brand-mark">${icons.product}</div><div><div class="brand-name">clearflow</div><div class="brand-caption">WATER SYSTEMS · OPERATIONS</div></div></div><h1>${creating ? 'Create your workspace' : 'Welcome back'}</h1><p>${creating ? 'Set up the owner account for your water business.' : 'Sign in to your water business workspace.'}</p>${message ? `<div class="auth-message" role="status">${esc(message)}</div>` : ''}<form class="auth-form" id="auth-form">${creating ? `<div class="field"><label for="auth-full-name">Your name</label><input id="auth-full-name" name="full_name" autocomplete="name" required maxlength="160"></div><div class="field"><label for="auth-phone">Phone number</label><input id="auth-phone" name="phone" type="tel" autocomplete="tel" required></div><div class="field"><label for="auth-organization">Business name</label><input id="auth-organization" name="organization_name" required maxlength="160"></div><div class="field"><label for="auth-gstin">Business GSTIN (optional)</label><input id="auth-gstin" name="gstin" maxlength="15" autocomplete="off"></div>` : ''}<div class="field"><label for="auth-email">Email</label><input id="auth-email" name="email" type="email" autocomplete="email" required></div><div class="field"><label for="auth-password">Password</label><input id="auth-password" name="password" type="password" autocomplete="${creating ? 'new-password' : 'current-password'}" minlength="8" required></div><button class="button" type="submit">${creating ? 'Create account' : 'Sign in'}</button></form><button class="auth-switch" type="button" data-auth-mode="${creating ? 'sign-in' : 'sign-up'}">${creating ? 'Already have an account? Sign in' : 'Create the first owner account'}</button><p class="auth-footnote">Invited technicians, shops, and customers should sign in with the email invitation from your business.</p></section>`;
+      authRoot.innerHTML = `<section class="auth-card"><div class="auth-brand"><div class="brand-mark">${icons.product}</div><div><div class="brand-name">clearflow</div><div class="brand-caption">WATER SYSTEMS · OPERATIONS</div></div></div><h1>${creating ? 'Create your workspace' : 'Welcome back'}</h1><p>${creating ? 'Set up the owner account for your water business.' : 'Sign in to your water business workspace.'}</p>${message ? `<div class="auth-message" role="status">${esc(message)}</div>` : ''}<form class="auth-form" id="auth-form">${creating ? `<div class="field"><label for="auth-full-name">Your name</label><input id="auth-full-name" name="full_name" autocomplete="name" required maxlength="160"></div><div class="field"><label for="auth-phone">Phone number</label><input id="auth-phone" name="phone" type="tel" autocomplete="tel" required></div><div class="field"><label for="auth-organization">Business name</label><input id="auth-organization" name="organization_name" required maxlength="160"></div><div class="field"><label for="auth-gstin">Business GSTIN (optional)</label><input id="auth-gstin" name="gstin" maxlength="15" autocomplete="off"></div>` : ''}<div class="field"><label for="auth-email">Email</label><input id="auth-email" name="email" type="email" autocomplete="email" required></div><div class="field"><label for="auth-password">Password</label><input id="auth-password" name="password" type="password" autocomplete="${creating ? 'new-password' : 'current-password'}" minlength="8" required></div><button class="button" type="submit">${creating ? 'Create account' : 'Sign in'}</button></form><button class="auth-switch" type="button" data-auth-mode="${creating ? 'sign-in' : 'sign-up'}">${creating ? 'Already have an account? Sign in' : 'Create the first owner account'}</button>${creating ? '' : '<button class="auth-switch" type="button" data-reset-password>Forgot password?</button>'}<p class="auth-footnote">Invited technicians, shops, and customers: open the invitation email from your business to set your password, then sign in here.</p></section>`;
       authRoot.querySelector('[data-auth-mode]').addEventListener('click', event => renderAuth(event.currentTarget.dataset.authMode));
+      authRoot.querySelector('[data-reset-password]')?.addEventListener('click', () => renderPasswordResetRequest());
       authRoot.querySelector('#auth-form').addEventListener('submit', async event => {
         event.preventDefault();
         const values = Object.fromEntries(new FormData(event.currentTarget).entries());
@@ -396,6 +401,42 @@
         } catch (error) {
           renderAuth(mode, error instanceof Error ? error.message : 'Sign-in failed. Check your details and try again.');
         }
+      });
+    }
+    function authBrand() {
+      return `<div class="auth-brand"><div class="brand-mark">${icons.product}</div><div><div class="brand-name">clearflow</div><div class="brand-caption">WATER SYSTEMS · OPERATIONS</div></div></div>`;
+    }
+    function renderPasswordResetRequest(message = '') {
+      appShell.hidden = true;
+      authRoot.hidden = false;
+      authRoot.className = 'auth-screen';
+      authRoot.innerHTML = `<section class="auth-card">${authBrand()}<h1>Reset your password</h1><p>Enter your account email and we'll send you a link to choose a new password.</p>${message ? `<div class="auth-message" role="status">${esc(message)}</div>` : ''}<form class="auth-form" id="reset-form"><div class="field"><label for="reset-email">Email</label><input id="reset-email" name="email" type="email" autocomplete="email" required></div><button class="button" type="submit">Send reset link</button></form><button class="auth-switch" type="button" data-auth-mode="sign-in">Back to sign in</button></section>`;
+      authRoot.querySelector('[data-auth-mode]').addEventListener('click', () => renderAuth('sign-in'));
+      authRoot.querySelector('#reset-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        const email = new FormData(event.currentTarget).get('email').trim();
+        event.currentTarget.querySelector('[type="submit"]').disabled = true;
+        // In the Android app the page origin is not reachable from an email link, so let Supabase use its Site URL.
+        const options = window.Capacitor?.isNativePlatform?.() ? {} : { redirectTo: window.location.origin + window.location.pathname };
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, options);
+        if (error) { renderPasswordResetRequest(error.message); return; }
+        renderAuth('sign-in', 'If that email has an account, a password reset link is on its way.');
+      });
+    }
+    function renderSetPassword(session, linkType, message = '') {
+      appShell.hidden = true;
+      authRoot.hidden = false;
+      authRoot.className = 'auth-screen';
+      const invited = linkType === 'invite';
+      authRoot.innerHTML = `<section class="auth-card">${authBrand()}<h1>${invited ? 'Set your password' : 'Choose a new password'}</h1><p>${invited ? `Welcome! Choose a password for <strong>${esc(session.user.email)}</strong>. You'll use it to sign in on this and other devices.` : `Choose a new password for <strong>${esc(session.user.email)}</strong>.`}</p>${message ? `<div class="auth-message" role="alert">${esc(message)}</div>` : ''}<form class="auth-form" id="password-form"><div class="field"><label for="new-password">New password</label><input id="new-password" name="password" type="password" autocomplete="new-password" minlength="8" required></div><div class="field"><label for="confirm-password">Confirm password</label><input id="confirm-password" name="confirm" type="password" autocomplete="new-password" minlength="8" required></div><button class="button" type="submit">Save password</button></form></section>`;
+      authRoot.querySelector('#password-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        const values = Object.fromEntries(new FormData(event.currentTarget).entries());
+        if (values.password !== values.confirm) { renderSetPassword(session, linkType, 'The passwords do not match.'); return; }
+        event.currentTarget.querySelector('[type="submit"]').disabled = true;
+        const { error } = await supabaseClient.auth.updateUser({ password: values.password });
+        if (error) { renderSetPassword(session, linkType, error.message); return; }
+        await openAuthenticatedApp(session);
       });
     }
     function renderOrganizationSetup(message = '') {
@@ -468,7 +509,10 @@
         }
       });
       const { data: sessionData, error } = await supabaseClient.auth.getSession();
+      if (authLinkType || authLinkError) window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      if (authLinkError) { renderAuth('sign-in', `That email link could not be used: ${authLinkError}. Ask your business owner for a new invitation, or use "Forgot password?".`); return; }
       if (error) { renderAuth('sign-in', error.message); return; }
+      if (sessionData.session && (authLinkType === 'invite' || authLinkType === 'recovery')) { renderSetPassword(sessionData.session, authLinkType); return; }
       if (sessionData.session) await openAuthenticatedApp(sessionData.session);
       else renderAuth('sign-in');
     }
