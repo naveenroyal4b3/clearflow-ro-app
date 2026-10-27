@@ -68,6 +68,8 @@
     .water-card strong { display: block; font: 700 12px "Manrope", sans-serif; }
     .water-card span { display: block; margin-top: 5px; color: #72817a; font-size: 10px; }
     .user-chip { display: flex; align-items: center; gap: 10px; padding: 12px 10px 0; border-top: 1px solid var(--line); }
+    button.user-chip { width: 100%; border-width: 1px 0 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+    .button.danger { border-color: #b42318; background: #b42318; color: #fff; }
     .avatar { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: #dcece4; color: var(--teal-dark); font-size: 11px; font-weight: 700; }
     .user-name { font-size: 12px; font-weight: 700; }
     .user-role { margin-top: 3px; color: var(--muted); font-size: 10px; }
@@ -309,7 +311,7 @@
       </nav>
       <div class="side-bottom">
         <div class="water-card"><strong>Every drop, accounted for.</strong><span>Sales, service and stock in one place.</span></div>
-        <div class="user-chip"><div class="avatar" id="user-initials">NK</div><div><div class="user-name" id="user-name">Naveen Kumar</div><div class="user-role" id="user-role">Business owner</div></div></div>
+        <button class="user-chip" type="button" data-action="my-account" title="My account"><div class="avatar" id="user-initials">NK</div><div><div class="user-name" id="user-name">Naveen Kumar</div><div class="user-role" id="user-role">Business owner</div></div></button>
       </div>
     </aside>
     <main class="main">
@@ -328,7 +330,7 @@
   <div id="toast-root" aria-live="polite"></div>
   <script type="module">
     import { createClient } from '@supabase/supabase-js';
-    import { createSalesDocument, inviteMember, loadWorkspace, saveWorkspaceRecords, setFeedbackStatus } from './src/supabase-data.js';
+    import { createSalesDocument, deleteAccount, inviteMember, loadWorkspace, saveWorkspaceRecords, setFeedbackStatus } from './src/supabase-data.js';
 
     const icons = {
       person: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>',
@@ -350,6 +352,8 @@
     const authLinkParams = new URLSearchParams(window.location.hash.slice(1));
     const authLinkType = authLinkParams.get('type');
     const authLinkError = authLinkParams.get('error_description');
+    // The public delete-account page links here so people can delete their account from the web.
+    let deleteAccountRequested = new URLSearchParams(window.location.search).get('action') === 'delete-account';
     const supabaseClient = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
     const appShell = document.getElementById('app-shell');
     const authRoot = document.getElementById('auth-root');
@@ -489,6 +493,11 @@
       authRoot.hidden = true;
       appShell.hidden = false;
       render();
+      if (deleteAccountRequested) {
+        deleteAccountRequested = false;
+        window.history.replaceState(null, '', window.location.pathname);
+        openAccountSettings();
+      }
     }
     function updateRoleAccess() {
       const allowedViews = {
@@ -514,7 +523,7 @@
       if (error) { renderAuth('sign-in', error.message); return; }
       if (sessionData.session && (authLinkType === 'invite' || authLinkType === 'recovery')) { renderSetPassword(sessionData.session, authLinkType); return; }
       if (sessionData.session) await openAuthenticatedApp(sessionData.session);
-      else renderAuth('sign-in');
+      else renderAuth('sign-in', deleteAccountRequested ? 'Sign in to delete your Clearflow account.' : '');
     }
     function esc(value = '') { return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]); }
     function money(value) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value) || 0); }
@@ -757,8 +766,22 @@
         ['accounts', 'Accounts & access', icons.person],
         ['feedback', 'Feedback & issues', icons.service]
       ].filter(([target]) => ({ owner: ['catalog', 'accounts', 'feedback'], technician: ['catalog', 'feedback'], shop: ['catalog', 'feedback'], customer: ['catalog', 'feedback'] }[profile.role] || []).includes(target));
-      const body = `<div class="quick-grid">${tools.map(([target, label, icon]) => `<button class="quick-action" type="button" data-nav="${target}">${icon}<span>${label}</span></button>`).join('')}</div>`;
+      const body = `<div class="quick-grid">${tools.map(([target, label, icon]) => `<button class="quick-action" type="button" data-nav="${target}">${icon}<span>${label}</span></button>`).join('')}<button class="quick-action" type="button" data-action="my-account">${icons.person}<span>My account</span></button></div>`;
       showModal('More tools', 'Products, team access, and customer feedback', body, 'Done', closeModal);
+    }
+    function openAccountSettings() {
+      const businessName = esc(organization?.name || 'your business');
+      const consequence = profile.role === 'owner'
+        ? `If you are the only owner, this permanently deletes the <strong>${businessName}</strong> workspace: every customer, service job, product, invoice and feedback item, and the login of every technician, shop and customer you invited. This cannot be undone.`
+        : `This permanently deletes your login and the feedback you submitted. This cannot be undone. <strong>${businessName}</strong> keeps the records it needs for service history and GST invoices; contact them directly if you want those removed.`;
+      showModal('My account', `${profile.login_email} · ${roleLabels[profile.role] || profile.role}`, `<div class="notice"><strong>Delete account.</strong> ${consequence}</div><div class="field"><label for="delete-confirm">Type DELETE to confirm</label><input id="delete-confirm" name="confirm" autocomplete="off" required></div>`, 'Delete account', async form => {
+        if (form.get('confirm').trim() !== 'DELETE') throw new Error('Type DELETE to confirm');
+        await deleteAccount(supabaseClient);
+        closeModal();
+        await supabaseClient.auth.signOut({ scope: 'local' });
+        renderAuth('sign-in', 'Your account has been deleted.');
+      });
+      document.querySelector('#active-form [type="submit"]').classList.add('danger');
     }
     function openProductForm() {
       if (profile.role !== 'owner') { toast('Only the owner can change catalogue items'); return; }
@@ -835,6 +858,7 @@
       if (action === 'new-account') openAccountForm();
       if (action === 'submit-feedback') openFeedbackForm();
       if (action === 'more-menu') openMoreMenu();
+      if (action === 'my-account') openAccountSettings();
       const nav = event.target.closest('[data-nav]')?.dataset.nav;
       if (nav) { closeModal(); setView(nav); }
       const customerEdit = event.target.closest('[data-edit-customer]')?.dataset.editCustomer;

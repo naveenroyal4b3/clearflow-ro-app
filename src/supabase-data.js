@@ -238,7 +238,25 @@ export async function inviteMember(client, invite) {
       gstin: invite.gstin || ''
     }
   });
-  if (error) throw error;
+  if (error) throw new Error(await functionErrorMessage(error));
   if (data?.error) throw new Error(data.error);
   return data.profile;
+}
+
+export async function deleteAccount(client) {
+  const { data, error } = await client.functions.invoke('delete-account', { body: { confirm: 'DELETE' } });
+  if (error) throw new Error(await functionErrorMessage(error));
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+// Edge Function errors only say "non-2xx status code"; the function's own message is in the response body.
+async function functionErrorMessage(error) {
+  try {
+    const body = await error.context?.json();
+    if (body?.error) return body.error;
+  } catch {
+    // Fall back to the generic message below.
+  }
+  return error.message;
 }

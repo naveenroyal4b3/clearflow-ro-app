@@ -61,8 +61,8 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: Check invitation function
-        run: deno check supabase/functions/invite-member/index.ts
+      - name: Check Edge Functions
+        run: deno check supabase/functions/invite-member/index.ts supabase/functions/delete-account/index.ts
 
   web:
     # Hosts the web app on GitHub Pages so Supabase invite and password-reset email links
