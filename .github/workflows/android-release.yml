@@ -1,0 +1,84 @@
+name: Build Android release
+
+# Builds the signed app bundle (.aab) to upload to Google Play. Run it from the Actions tab.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-aab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Check signing secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::Add the ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD repository secrets first."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Accept Android SDK licenses
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
+
+      - name: Install Android API 36
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Install dependencies and generate Android project
+        run: |
+          npm install
+          npx cap add android
+          npx capacitor-assets generate --android
+          npm run android:sync
+
+      - name: Set version
+        # Google Play needs a higher versionCode for every upload, so use this workflow's run number.
+        run: |
+          version_name=$(node -p "require('./package.json').version")
+          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"$version_name\"/" android/app/build.gradle
+          grep -E "versionCode|versionName" android/app/build.gradle
+
+      - name: Build signed app bundle
+        run: |
+          cd android && ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file="$RUNNER_TEMP/upload.jks" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias=upload \
+            -Pandroid.injected.signing.key.password="$KEYSTORE_PASSWORD"
+
+      - name: Verify signature
+        run: jarsigner -verify android/app/build/outputs/bundle/release/app-release.aab | tail -1
+
+      - name: Upload app bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: clearflow-release-aab-${{ github.run_number }}
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 30

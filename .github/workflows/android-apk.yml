@@ -145,6 +145,7 @@ jobs:
         run: |
           npm install
           npx cap add android
+          npx capacitor-assets generate --android
           npm run android:sync
 
       - name: Build debug APK
