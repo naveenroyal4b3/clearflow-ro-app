@@ -35,7 +35,7 @@
     body { margin: 0; color: var(--ink); background: var(--canvas); min-height: 100vh; }
     button, input, select, textarea { font: inherit; }
     button { cursor: pointer; }
-    .app[hidden], #auth-root[hidden] { display: none; }
+    [hidden] { display: none !important; }
     .auth-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 15% 15%, #e8f4ec, transparent 38%), var(--canvas); }
     .auth-card { width: min(100%, 440px); padding: 30px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); box-shadow: var(--shadow); }
     .auth-card h1 { margin-top: 26px; font-size: 24px; }
@@ -318,7 +318,7 @@
       <header class="topbar">
         <div class="crumb"><span>Clearflow</span><span>›</span><strong id="crumb-title">Overview</strong></div>
         <div class="top-actions">
-          <div class="role-control" id="role-control"><label for="role-select">Preview</label><select id="role-select" aria-label="Preview price role"><option value="customer">Customer</option><option value="technician">Technician</option><option value="shop">Shop</option></select></div>
+          <div class="role-control" id="role-control"><label for="role-select">Preview</label><select id="role-select" aria-label="Preview price list"><option value="customer">Customer prices</option><option value="technician">Technician prices</option><option value="shop">Shop prices</option></select></div>
           <button class="icon-button" id="help-button" aria-label="Help" title="Help"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.5 2.5 0 1 1 4.3 1.7c-1.1 1-1.9 1.4-1.9 3M12 17.5v.1"/></svg></button>
           <button class="button secondary" id="signout-button" type="button" hidden>Sign out</button>
         </div>
@@ -487,7 +487,7 @@
       }
       roleView = profile.role === 'owner' ? (localStorage.getItem('clearflow-role') || 'customer') : profile.role;
       document.getElementById('role-select').value = roleView;
-      document.getElementById('role-control').hidden = profile.role !== 'owner';
+      updateRoleControl();
       document.getElementById('user-name').textContent = profile.full_name || profile.login_email;
       document.getElementById('user-role').textContent = roleLabels[profile.role] || profile.role;
       document.getElementById('user-initials').textContent = initials(profile.full_name || profile.login_email);
@@ -542,7 +542,12 @@
       view = next; searchQuery = '';
       document.querySelectorAll('.nav-item').forEach(button => button.classList.toggle('active', button.dataset.view === next));
       document.getElementById('crumb-title').textContent = ({ overview: 'Overview', customers: 'Customers', jobs: 'Service jobs', sales: 'Sales & invoices', catalog: 'Product catalogue', accounts: 'Accounts & access', feedback: 'Feedback' })[next];
+      updateRoleControl();
       render();
+    }
+    // The owner's price-list preview only affects the catalogue, so keep it out of the top bar elsewhere.
+    function updateRoleControl() {
+      document.getElementById('role-control').hidden = profile?.role !== 'owner' || view !== 'catalog';
     }
     function render() {
       if (profile) updateRoleAccess();
@@ -658,9 +663,9 @@
     function renderAccounts() {
       if (profile.role !== 'owner') { page.innerHTML = '<div class="empty">Only the organization owner can manage accounts.</div>'; return; }
       page.innerHTML = `${pageHead('People, partners & permissions', 'Accounts & access', 'Technician, shop and customer accounts with role-based price access.', `<button class="button" data-action="new-account">${icons.plus} Add account</button>`)}
-        <div class="notice"><strong>Access note:</strong> this local prototype stores account records and role-based prices in this browser. Connect a secure authentication service before using real passwords or customer data.</div>
+        <div class="notice"><strong>Access note:</strong> each person signs in with their own email and password, and sees only the records and price tier their role allows.</div>
         <section class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>Account</th><th>Login ID</th><th>Access role</th><th>Phone</th><th>Business address</th><th>GSTIN</th><th>Linked record</th><th>Price list</th><th>Status</th><th></th></tr></thead><tbody>${data.accounts.map(account => `<tr><td><div class="person-cell"><span class="mini-avatar">${initials(account.name)}</span><strong>${esc(account.name)}</strong></div></td><td>${esc(account.username)}</td><td><span class="role-tag">${esc(account.role)}</span></td><td><a class="call-link" href="tel:${esc(account.phone.replace(/\s/g, ''))}">${esc(account.phone)}</a></td><td>${esc(account.address || '—')}</td><td>${esc(account.gstin || '—')}</td><td>${esc(account.linked)}</td><td>${account.role === 'Technician' ? 'Technician' : account.role === 'Shop' ? 'Shop' : account.role === 'Customer' ? 'Customer' : 'All prices'}</td><td><span class="status">${esc(account.status)}</span></td><td><button class="row-action" data-edit-account="${esc(account.id)}" aria-label="Edit ${esc(account.name)}" title="Edit account">✎</button></td></tr>`).join('')}</tbody></table></div></section>
-        <div class="lower-grid"><section class="panel"><div class="panel-head"><div><div class="panel-title">Price access</div><div class="panel-note">Each account role sees its own price tier</div></div></div><div class="job-list"><div class="job-row"><div class="job-symbol">${icons.person}</div><div class="job-copy"><strong>Customer price</strong><span>Retail price shown to end customers</span></div><span class="role-tag">Retail</span></div><div class="job-row"><div class="job-symbol">${icons.service}</div><div class="job-copy"><strong>Technician price</strong><span>Service team rate for spares and units</span></div><span class="role-tag">Service</span></div><div class="job-row"><div class="job-symbol">${icons.product}</div><div class="job-copy"><strong>Shop price</strong><span>Partner / reseller wholesale rate</span></div><span class="role-tag">Wholesale</span></div></div></section><section class="panel"><div class="panel-head"><div><div class="panel-title">Login details</div><div class="panel-note">Account usernames are listed above</div></div></div><div class="feed"><div class="feed-line"><span class="feed-dot"></span><div class="feed-text">Passwords are intentionally not stored or displayed in this local prototype.<span class="feed-time">Use secure invitations when connecting real sign-in.</span></div></div><div class="feed-line"><span class="feed-dot"></span><div class="feed-text">Technician and shop accounts can be linked to their contact or business records.<span class="feed-time">Account records are editable.</span></div></div></div></section></div>`;
+        <div class="lower-grid"><section class="panel"><div class="panel-head"><div><div class="panel-title">Price access</div><div class="panel-note">Each account role sees its own price tier</div></div></div><div class="job-list"><div class="job-row"><div class="job-symbol">${icons.person}</div><div class="job-copy"><strong>Customer price</strong><span>Retail price shown to end customers</span></div><span class="role-tag">Retail</span></div><div class="job-row"><div class="job-symbol">${icons.service}</div><div class="job-copy"><strong>Technician price</strong><span>Service team rate for spares and units</span></div><span class="role-tag">Service</span></div><div class="job-row"><div class="job-symbol">${icons.product}</div><div class="job-copy"><strong>Shop price</strong><span>Partner / reseller wholesale rate</span></div><span class="role-tag">Wholesale</span></div></div></section><section class="panel"><div class="panel-head"><div><div class="panel-title">Login details</div><div class="panel-note">Account usernames are listed above</div></div></div><div class="feed"><div class="feed-line"><span class="feed-dot"></span><div class="feed-text">Passwords are never shown here.<span class="feed-time">Invited people choose their own password from the email link, and can reset it from the sign-in screen.</span></div></div><div class="feed-line"><span class="feed-dot"></span><div class="feed-text">Technician and shop accounts can be linked to their contact or business records.<span class="feed-time">Account records are editable.</span></div></div></div></section></div>`;
     }
     function renderFeedback() {
       const owner = profile.role === 'owner';

@@ -9,7 +9,9 @@
     "android:add": "cap add android",
     "android:sync": "npm run build && cap sync android",
     "android:open": "cap open android",
-    "android:bundle": "npm run android:sync && cd android && gradlew.bat bundleRelease"
+    "android:bundle": "npm run android:sync && cd android && gradlew.bat bundleRelease",
+    "e2e:prepare": "node e2e/prepare.mjs",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
