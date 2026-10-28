@@ -55,6 +55,9 @@ jobs:
           npm install
           npx cap add android
           npx capacitor-assets generate --android
+          # Keep login sessions and cached business data out of device and cloud backups.
+          sed -i 's/android:allowBackup="true"/android:allowBackup="false"/' android/app/src/main/AndroidManifest.xml
+          grep -q 'android:allowBackup="false"' android/app/src/main/AndroidManifest.xml
           npm run android:sync
 
       - name: Set version

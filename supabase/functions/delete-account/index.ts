@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -98,6 +98,9 @@ Deno.serve(async request => {
     // Feedback rows reference the profile without cascading, so remove them before the login.
     const { error: feedbackError } = await adminClient.from('feedback').delete().eq('submitter_user_id', userId);
     if (feedbackError) return json({ error: 'Your feedback could not be deleted' }, 500);
+
+    const { error: errorReportsError } = await adminClient.from('client_errors').delete().in('user_id', usersToDelete);
+    if (errorReportsError) return json({ error: 'Your app error reports could not be deleted' }, 500);
 
     const failed: string[] = [];
     for (const id of usersToDelete) {

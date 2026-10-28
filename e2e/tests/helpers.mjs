@@ -9,7 +9,10 @@ export const password = 'Test-pass-123';
 export const test = base.extend({
   page: async ({ page }, use) => {
     await page.route(/supabase\.co/, route => route.abort());
+    const violations = [];
+    page.on('console', message => { if (/Content Security Policy/i.test(message.text())) violations.push(message.text()); });
     await use(page);
+    expect(violations, 'Content-Security-Policy violations').toEqual([]);
   }
 });
 
@@ -114,4 +117,10 @@ export async function deleteMyAccount(page) {
   await page.fill('#delete-confirm', 'DELETE');
   await page.click('#active-form [type="submit"]');
   await expect(page.locator('.auth-message')).toContainText('Your account has been deleted');
+}
+
+// Selects the option whose visible text contains `text` (option labels also include phone numbers).
+export async function selectOptionContaining(page, selector, text) {
+  const value = await page.locator(`${selector} option`, { hasText: text }).first().getAttribute('value');
+  await page.selectOption(selector, value);
 }

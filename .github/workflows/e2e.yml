@@ -29,6 +29,9 @@ jobs:
           npm install
           npx playwright install --with-deps chromium
 
+      - name: Lint
+        run: npm run lint
+
       - name: Start local Supabase
         run: npm run e2e:prepare
 

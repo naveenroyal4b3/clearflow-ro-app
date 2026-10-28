@@ -7,6 +7,9 @@ create table public.organizations (
   id uuid primary key default gen_random_uuid(),
   name text not null check (length(trim(name)) between 2 and 160),
   gstin text,
+  address text not null default '',
+  state_code text not null default '' check (state_code ~ '^([0-9]{2})?$'),
+  phone text not null default '',
   created_by uuid not null references auth.users(id),
   created_at timestamptz not null default now()
 );
@@ -39,6 +42,8 @@ create table public.customers (
   installed_on date,
   purifier text not null default '',
   notes text not null default '',
+  gstin text not null default '',
+  state_code text not null default '' check (state_code ~ '^([0-9]{2})?$'),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   primary key (organization_id, id)
@@ -56,6 +61,7 @@ create table public.products (
   name text not null,
   category text not null check (category in ('Purifiers', 'Accessories', 'Spare parts')),
   description text not null default '',
+  hsn_code text not null default '',
   stock integer not null default 0 check (stock >= 0),
   gst_rate numeric(5,2) not null default 18 check (gst_rate between 0 and 100),
   active boolean not null default true,
@@ -105,6 +111,17 @@ create table public.sales_documents (
   status text not null default 'Draft' check (status in ('Draft', 'Sent', 'Pending', 'Paid', 'Cancelled')),
   created_by uuid not null default auth.uid() references public.profiles(user_id),
   created_at timestamptz not null default now(),
+  -- Seller and buyer details as they were when the document was issued, so later edits to the
+  -- business or customer never change an issued GST invoice.
+  seller_name text not null default '',
+  seller_gstin text not null default '',
+  seller_address text not null default '',
+  seller_state_code text not null default '',
+  seller_phone text not null default '',
+  buyer_name text not null default '',
+  buyer_gstin text not null default '',
+  buyer_address text not null default '',
+  buyer_state_code text not null default '',
   primary key (organization_id, id),
   foreign key (organization_id, customer_id)
     references public.customers(organization_id, id)
@@ -124,6 +141,7 @@ create table public.sales_document_items (
   document_id text not null,
   product_id text not null,
   product_name text not null,
+  hsn_code text not null default '',
   quantity numeric(10,2) not null check (quantity > 0),
   unit_price numeric(12,2) not null check (unit_price >= 0),
   gst_rate numeric(5,2) not null check (gst_rate between 0 and 100),
@@ -343,11 +361,18 @@ begin
     || document_year || '-' || lpad(sequence_number::text, 4, '0');
 
   insert into public.sales_documents (
-    id, organization_id, document_type, customer_id, document_date, due_date, gst_enabled, status, created_by
-  ) values (
+    id, organization_id, document_type, customer_id, document_date, due_date, gst_enabled, status, created_by,
+    seller_name, seller_gstin, seller_address, seller_state_code, seller_phone,
+    buyer_name, buyer_gstin, buyer_address, buyer_state_code
+  )
+  select
     document_id, org_id, p_document_type, p_customer_id, p_document_date, p_due_date, coalesce(p_gst_enabled, false),
-    case when p_document_type = 'Invoice' then 'Pending' else 'Draft' end, auth.uid()
-  );
+    case when p_document_type = 'Invoice' then 'Pending' else 'Draft' end, auth.uid(),
+    o.name, coalesce(o.gstin, ''), o.address, o.state_code, o.phone,
+    c.name, c.gstin, c.address, c.state_code
+  from public.organizations o
+  join public.customers c on c.organization_id = o.id and c.id = p_customer_id
+  where o.id = org_id;
 
   for item in select value from jsonb_array_elements(p_line_items)
   loop
@@ -369,9 +394,9 @@ begin
     end if;
 
     insert into public.sales_document_items (
-      organization_id, document_id, product_id, product_name, quantity, unit_price, gst_rate
+      organization_id, document_id, product_id, product_name, hsn_code, quantity, unit_price, gst_rate
     ) values (
-      org_id, document_id, product_row.id, product_row.name, item_quantity, item_price, product_row.gst_rate
+      org_id, document_id, product_row.id, product_row.name, product_row.hsn_code, item_quantity, item_price, product_row.gst_rate
     );
   end loop;
 
@@ -409,7 +434,7 @@ alter table public.feedback enable row level security;
 grant usage on schema public to authenticated;
 grant select, insert, update, delete on public.organizations to authenticated;
 revoke insert, update, delete on public.organizations from authenticated;
-grant update (name, gstin) on public.organizations to authenticated;
+grant update (name, gstin, address, state_code, phone) on public.organizations to authenticated;
 grant select on public.profiles to authenticated;
 revoke insert, update, delete on public.profiles from authenticated;
 grant update (role, full_name, phone, business_name, business_address, gstin, customer_id, active) on public.profiles to authenticated;
@@ -542,3 +567,94 @@ create policy "Owners can update feedback"
   with check (organization_id = (select public.current_organization_id()) and (select public.current_app_role()) = 'owner');
 
 revoke all on public.document_counters from anon, authenticated;
+-- Audit trail: who changed which business record, and what it looked like before and after.
+create table public.audit_log (
+  id bigint generated always as identity primary key,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  table_name text not null,
+  record_id text not null,
+  action text not null check (action in ('insert', 'update', 'delete')),
+  changed_by uuid default auth.uid(),
+  changed_at timestamptz not null default now(),
+  old_data jsonb,
+  new_data jsonb
+);
+
+create index audit_log_organization_date_idx on public.audit_log (organization_id, changed_at desc);
+
+create function public.record_audit_event()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  row_data jsonb := to_jsonb(coalesce(new, old));
+begin
+  insert into public.audit_log (organization_id, table_name, record_id, action, changed_by, old_data, new_data)
+  values (
+    case when tg_table_name = 'organizations' then (row_data ->> 'id')::uuid else (row_data ->> 'organization_id')::uuid end,
+    tg_table_name,
+    case tg_table_name
+      when 'profiles' then row_data ->> 'user_id'
+      when 'product_prices' then (row_data ->> 'product_id') || ':' || (row_data ->> 'audience')
+      else row_data ->> 'id'
+    end,
+    lower(tg_op),
+    auth.uid(),
+    case when tg_op in ('UPDATE', 'DELETE') then to_jsonb(old) end,
+    case when tg_op in ('INSERT', 'UPDATE') then to_jsonb(new) end
+  );
+  return coalesce(new, old);
+end;
+$$;
+
+revoke all on function public.record_audit_event() from public, anon, authenticated;
+
+create trigger audit_customers after insert or update or delete on public.customers
+  for each row execute function public.record_audit_event();
+create trigger audit_products after insert or update or delete on public.products
+  for each row execute function public.record_audit_event();
+create trigger audit_product_prices after insert or update or delete on public.product_prices
+  for each row execute function public.record_audit_event();
+create trigger audit_service_jobs after insert or update or delete on public.service_jobs
+  for each row execute function public.record_audit_event();
+create trigger audit_sales_documents after insert or update or delete on public.sales_documents
+  for each row execute function public.record_audit_event();
+-- Profiles without an organization (a new owner before workspace setup) have nothing to audit.
+create trigger audit_profiles_insert after insert on public.profiles
+  for each row when (new.organization_id is not null) execute function public.record_audit_event();
+create trigger audit_profiles_update after update on public.profiles
+  for each row when (coalesce(new.organization_id, old.organization_id) is not null) execute function public.record_audit_event();
+create trigger audit_profiles_delete after delete on public.profiles
+  for each row when (old.organization_id is not null) execute function public.record_audit_event();
+-- Deleting the organization removes its audit log, so only updates are recorded.
+create trigger audit_organizations after update on public.organizations
+  for each row execute function public.record_audit_event();
+
+alter table public.audit_log enable row level security;
+grant select on public.audit_log to authenticated;
+
+create policy "Owners can read their organization's audit log"
+  on public.audit_log for select to authenticated
+  using (organization_id = (select public.current_organization_id()) and (select public.current_app_role()) = 'owner');
+
+-- Errors reported by the app, so problems on users' phones are visible to the developer.
+-- Readable only with the service key (Supabase dashboard); users can only add rows.
+create table public.client_errors (
+  id bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  user_id uuid default auth.uid(),
+  message text not null check (length(message) <= 2000),
+  stack text not null default '' check (length(stack) <= 8000),
+  page text not null default '' check (length(page) <= 500),
+  user_agent text not null default '' check (length(user_agent) <= 500),
+  app_version text not null default '' check (length(app_version) <= 40)
+);
+
+alter table public.client_errors enable row level security;
+grant insert (message, stack, page, user_agent, app_version) on public.client_errors to anon, authenticated;
+
+create policy "Anyone can report an app error as themselves"
+  on public.client_errors for insert to anon, authenticated
+  with check (user_id is not distinct from auth.uid());

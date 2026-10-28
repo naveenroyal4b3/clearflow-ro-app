@@ -56,6 +56,15 @@ jobs:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -d clearflow_test -v ON_ERROR_STOP=1 -f supabase/schema.sql
 
+      - name: Check production upgrade scripts
+        # Upgrade scripts must be safe to run again on a database that already has them.
+        env:
+          PGPASSWORD: postgres
+        run: |
+          for script in supabase/upgrades/*.sql; do
+            psql -h localhost -U postgres -d clearflow_test -v ON_ERROR_STOP=1 -q -f "$script"
+          done
+
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
@@ -95,7 +104,7 @@ jobs:
       - name: Build web app
         run: |
           npm install
-          npx vite build --base=./
+          WEB_CSP=1 npx vite build --base=./
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v6
@@ -146,6 +155,9 @@ jobs:
           npm install
           npx cap add android
           npx capacitor-assets generate --android
+          # Keep login sessions and cached business data out of device and cloud backups.
+          sed -i 's/android:allowBackup="true"/android:allowBackup="false"/' android/app/src/main/AndroidManifest.xml
+          grep -q 'android:allowBackup="false"' android/app/src/main/AndroidManifest.xml
           npm run android:sync
 
       - name: Build debug APK

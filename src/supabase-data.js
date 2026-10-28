@@ -42,7 +42,6 @@ export async function loadWorkspace(client, profile) {
     priceByProduct.get(row.product_id)[row.audience] = Number(row.amount);
   }
 
-  const customerById = new Map(customers.map(item => [item.id, item]));
   const profileById = new Map(profiles.map(item => [item.user_id, item]));
   const itemsByDocument = new Map();
   for (const item of items) {
@@ -52,7 +51,8 @@ export async function loadWorkspace(client, profile) {
       name: item.product_name,
       qty: Number(item.quantity),
       price: Number(item.unit_price),
-      gst: Number(item.gst_rate)
+      gst: Number(item.gst_rate),
+      hsn: item.hsn_code || ''
     });
   }
 
@@ -66,13 +66,16 @@ export async function loadWorkspace(client, profile) {
       type: item.customer_type,
       installed: item.installed_on || '',
       purifier: item.purifier || '',
-      notes: item.notes || ''
+      notes: item.notes || '',
+      gstin: item.gstin || '',
+      state: item.state_code || ''
     })),
     products: products.map(item => ({
       id: item.id,
       name: item.name,
       category: item.category,
       description: item.description || '',
+      hsn: item.hsn_code || '',
       stock: ['owner', 'technician'].includes(profile.role) ? item.stock : null,
       gst: Number(item.gst_rate),
       ...(priceByProduct.get(item.id) || {})
@@ -94,6 +97,8 @@ export async function loadWorkspace(client, profile) {
       due: item.due_date || '',
       gst: item.gst_enabled,
       status: item.status,
+      seller: { name: item.seller_name, gstin: item.seller_gstin, address: item.seller_address, state: item.seller_state_code, phone: item.seller_phone },
+      buyer: { name: item.buyer_name, gstin: item.buyer_gstin, address: item.buyer_address, state: item.buyer_state_code },
       items: itemsByDocument.get(item.id) || []
     })),
     feedback: feedback.map(item => ({
@@ -141,7 +146,9 @@ export async function saveWorkspaceRecords(client, profile, collection, records,
       customer_type: item.type || 'Residential',
       installed_on: item.installed || null,
       purifier: item.purifier || '',
-      notes: item.notes || ''
+      notes: item.notes || '',
+      gstin: (item.gstin || '').trim().toUpperCase(),
+      state_code: item.state || ''
     })), { onConflict: 'organization_id,id' });
   } else if (collection === 'products') {
     result = await client.from('products').upsert(entries.map(item => ({
@@ -150,6 +157,7 @@ export async function saveWorkspaceRecords(client, profile, collection, records,
       name: item.name,
       category: item.category,
       description: item.description || '',
+      hsn_code: (item.hsn || '').trim(),
       stock: Number(item.stock) || 0,
       gst_rate: Number(item.gst) || 0,
       active: true
@@ -259,4 +267,71 @@ async function functionErrorMessage(error) {
     // Fall back to the generic message below.
   }
   return error.message;
+}
+export async function updateOrganization(client, organizationId, details) {
+  const { data, error } = await client.from('organizations').update({
+    name: details.name.trim(),
+    gstin: details.gstin.trim().toUpperCase() || null,
+    address: details.address.trim(),
+    state_code: details.state || '',
+    phone: details.phone.trim()
+  }).eq('id', organizationId).select('*').single();
+  if (error) throw error;
+  return data;
+}
+
+export async function loadAuditLog(client, organizationId, limit = 50) {
+  return requireData(await client
+    .from('audit_log')
+    .select('id, table_name, record_id, action, changed_by, changed_at')
+    .eq('organization_id', organizationId)
+    .order('changed_at', { ascending: false })
+    .limit(limit));
+}
+
+// Reports an unexpected app error to the client_errors table. Never throws, and sends at most
+// a few reports per page load so a crash loop cannot flood the table.
+let errorReportsSent = 0;
+export async function reportClientError(client, error, appVersion) {
+  if (!client || errorReportsSent >= 5) return;
+  errorReportsSent += 1;
+  const message = String(error?.message || error || 'Unknown error').slice(0, 2000);
+  try {
+    await client.from('client_errors').insert({
+      message,
+      stack: String(error?.stack || '').slice(0, 8000),
+      page: `${window.location.pathname}${window.location.hash ? '#…' : ''}`.slice(0, 500),
+      user_agent: navigator.userAgent.slice(0, 500),
+      app_version: String(appVersion || '').slice(0, 40)
+    });
+  } catch {
+    // Reporting is best effort.
+  }
+}
+
+// The last workspace loaded for a user, so technicians can still read their jobs without signal.
+const workspaceCacheKey = userId => `clearflow-workspace-${userId}`;
+
+export function cacheWorkspace(userId, workspace) {
+  try {
+    localStorage.setItem(workspaceCacheKey(userId), JSON.stringify({ savedAt: new Date().toISOString(), workspace }));
+  } catch {
+    // Storage full or unavailable: offline viewing just won't be available.
+  }
+}
+
+export function cachedWorkspace(userId) {
+  try {
+    return JSON.parse(localStorage.getItem(workspaceCacheKey(userId)) || 'null');
+  } catch {
+    return null;
+  }
+}
+
+export function clearCachedWorkspaces() {
+  try {
+    Object.keys(localStorage).filter(key => key.startsWith('clearflow-workspace-')).forEach(key => localStorage.removeItem(key));
+  } catch {
+    // Nothing cached.
+  }
 }

@@ -11,6 +11,8 @@ function localSupabase() {
 const supabase = localSupabase();
 process.env.E2E_SUPABASE_URL = supabase.API_URL;
 process.env.E2E_MAILPIT_URL = supabase.MAILPIT_URL || supabase.INBUCKET_URL;
+process.env.E2E_PUBLISHABLE_KEY = supabase.PUBLISHABLE_KEY || supabase.ANON_KEY;
+process.env.E2E_SECRET_KEY = supabase.SECRET_KEY || supabase.SERVICE_ROLE_KEY;
 
 export default defineConfig({
   testDir: 'e2e/tests',
@@ -27,10 +29,12 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npx vite --host 127.0.0.1 --port 5180 --strictPort',
+    // Test the production bundle, including its Content-Security-Policy.
+    command: 'npx vite build --outDir e2e/dist --emptyOutDir && npx vite preview --outDir e2e/dist --host 127.0.0.1 --port 5180 --strictPort',
     url: 'http://127.0.0.1:5180/',
     reuseExistingServer: false,
     env: {
+      WEB_CSP: '1',
       VITE_SUPABASE_URL: supabase.API_URL,
       VITE_SUPABASE_ANON_KEY: supabase.PUBLISHABLE_KEY || supabase.ANON_KEY
     }

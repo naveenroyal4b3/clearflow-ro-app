@@ -15,3 +15,4 @@ e2e/supabase/.temp/
 test-results/
 playwright-report/
 e2e/supabase/.branches/
+e2e/dist/
