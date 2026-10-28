@@ -29,13 +29,22 @@ jobs:
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Install PostgreSQL 17 client
+        if: steps.secrets.outputs.ready == 'true'
+        # pg_dump must be at least the server's version (Supabase runs Postgres 17).
+        run: |
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
+
       - name: Dump database
         if: steps.secrets.outputs.ready == 'true'
         run: |
           mkdir -p backup
-          npx --yes supabase@2.122.0 db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
-          npx --yes supabase@2.122.0 db dump --db-url "$SUPABASE_DB_URL" --data-only -f backup/data.sql
-          npx --yes supabase@2.122.0 db dump --db-url "$SUPABASE_DB_URL" --data-only --schema auth -f backup/auth-data.sql
+          pg_dump=/usr/lib/postgresql/17/bin/pg_dump
+          $pg_dump "$SUPABASE_DB_URL" --schema=public --schema-only --no-owner -f backup/schema.sql
+          $pg_dump "$SUPABASE_DB_URL" --schema=public --data-only --no-owner -f backup/data.sql
+          $pg_dump "$SUPABASE_DB_URL" --data-only --no-owner --table=auth.users --table=auth.identities -f backup/auth-data.sql
           ls -la backup
 
       - name: Encrypt backup
