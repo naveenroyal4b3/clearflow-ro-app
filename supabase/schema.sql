@@ -311,7 +311,7 @@ set search_path = ''
 as $$
 declare
   org_id uuid := public.current_organization_id();
-  financial_year text;
+  document_year text;
   sequence_number bigint;
   document_id text;
   item jsonb;
@@ -326,7 +326,7 @@ begin
     raise exception 'Customer does not belong to this organization';
   end if;
 
-  financial_year := case
+  document_year := case
     when extract(month from p_document_date) >= 4 then
       to_char(p_document_date, 'YY') || '-' || to_char(p_document_date + interval '1 year', 'YY')
     else
@@ -334,13 +334,13 @@ begin
   end;
 
   insert into public.document_counters as counter (organization_id, financial_year, document_type, last_number)
-  values (org_id, financial_year, p_document_type, 1)
+  values (org_id, document_year, p_document_type, 1)
   on conflict (organization_id, financial_year, document_type)
   do update set last_number = counter.last_number + 1
   returning last_number into sequence_number;
 
   document_id := case when p_document_type = 'Invoice' then 'INV-' else 'QT-' end
-    || financial_year || '-' || lpad(sequence_number::text, 4, '0');
+    || document_year || '-' || lpad(sequence_number::text, 4, '0');
 
   insert into public.sales_documents (
     id, organization_id, document_type, customer_id, document_date, due_date, gst_enabled, status, created_by
