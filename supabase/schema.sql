@@ -782,11 +782,15 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  hourly_limit integer;
 begin
+  -- Set apart from the IF: PL/pgSQL would end the IF condition at the THEN inside a CASE.
+  hourly_limit := case when new.user_id is null then 300 else 50 end;
   if (
     select count(*) from public.client_errors e
     where e.user_id is not distinct from new.user_id and e.created_at > now() - interval '1 hour'
-  ) >= case when new.user_id is null then 300 else 50 end then
+  ) >= hourly_limit then
     return null;
   end if;
   return new;
