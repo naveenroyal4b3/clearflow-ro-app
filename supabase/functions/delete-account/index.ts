@@ -6,18 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
-const businessTablesInDeleteOrder = [
-  'feedback',
-  'sales_document_items',
-  'sales_documents',
-  'document_counters',
-  'service_jobs',
-  'product_prices',
-  'products',
-  'profiles',
-  'customers'
-];
-
 // Deletes the signed-in user's account. Technicians, shops, and customers lose their login and
 // the feedback they submitted; the business keeps its own customer, job, and invoice records.
 // The last owner of a business deletes the whole workspace and every team login in it.
@@ -84,13 +72,8 @@ Deno.serve(async request => {
         if (membersError) return json({ error: 'The business team could not be loaded' }, 500);
         usersToDelete = [...new Set([userId, ...(members || []).map(member => member.user_id)])];
 
-        // A single cascading delete of the organization trips the non-cascading foreign keys between
-        // these tables, so delete children before parents.
-        for (const table of businessTablesInDeleteOrder) {
-          const { error } = await adminClient.from(table).delete().eq('organization_id', organizationId);
-          if (error) return json({ error: 'The business workspace could not be deleted' }, 500);
-        }
-        const { error: deleteOrganizationError } = await adminClient.from('organizations').delete().eq('id', organizationId);
+        // One transaction, so a failure part-way never leaves half a workspace behind.
+        const { error: deleteOrganizationError } = await adminClient.rpc('delete_organization', { p_organization_id: organizationId });
         if (deleteOrganizationError) return json({ error: 'The business workspace could not be deleted' }, 500);
       }
     }

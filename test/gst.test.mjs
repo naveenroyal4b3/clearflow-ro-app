@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { stateFromGstin, stateLabel, taxBreakup } from '../src/gst.js';
+import { amountInWords, stateFromGstin, stateLabel, taxBreakup } from '../src/gst.js';
 
 const karnataka = '29';
 const maharashtra = '27';
@@ -68,6 +68,24 @@ test('bill totals are the sum of the line totals', () => {
   assert.equal(bill.taxable, 17200);
   assert.equal(bill.total, bill.rows.reduce((sum, row) => sum + row.total, 0));
   assert.equal(bill.rows[2].cgst + bill.rows[2].sgst, 0);
+});
+
+test('a discount comes off the price before tax', () => {
+  const bill = taxBreakup([{ qty: 2, price: 1000, gst: 18, discount: 200 }], { gstEnabled: true, sellerState: karnataka, buyerState: karnataka });
+  assert.deepEqual(
+    { discount: bill.discount, taxable: bill.taxable, cgst: bill.cgst, sgst: bill.sgst, total: bill.total },
+    { discount: 200, taxable: 1800, cgst: 162, sgst: 162, total: 2124 }
+  );
+});
+
+test('amountInWords uses lakh and crore and shows paise', () => {
+  assert.equal(amountInWords(0), 'Rupees Zero Only');
+  assert.equal(amountInWords(11800), 'Rupees Eleven Thousand Eight Hundred Only');
+  assert.equal(amountInWords(2360.5), 'Rupees Two Thousand Three Hundred Sixty and Fifty Paise Only');
+  assert.equal(amountInWords(120000), 'Rupees One Lakh Twenty Thousand Only');
+  assert.equal(amountInWords(12345678.09), 'Rupees One Crore Twenty Three Lakh Forty Five Thousand Six Hundred Seventy Eight and Nine Paise Only');
+  assert.equal(amountInWords(1500000000), 'Rupees One Hundred Fifty Crore Only');
+  assert.equal(amountInWords(100), 'Rupees One Hundred Only');
 });
 
 test('a missing or invalid GST rate counts as zero', () => {

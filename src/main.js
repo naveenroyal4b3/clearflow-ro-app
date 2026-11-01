@@ -1,7 +1,7 @@
 import { registerPlugin } from '@capacitor/core';
 import { createClient } from '@supabase/supabase-js';
 import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, updateOrganization } from './supabase-data.js';
-import { stateFromGstin, stateLabel, stateOptions, taxBreakup } from './gst.js';
+import { amountInWords, stateFromGstin, stateLabel, stateOptions, taxBreakup } from './gst.js';
 import { version as appVersion } from '../package.json';
 import './styles.css';
 
@@ -81,7 +81,7 @@ function renderAuth(mode = 'sign-in', message = '') {
         await openAuthenticatedApp(result.session);
       }
     } catch (error) {
-      renderAuth(mode, error instanceof Error ? error.message : 'Sign-in failed. Check your details and try again.');
+      renderAuth(mode, errorMessage(error, 'Sign-in failed. Check your details and try again.'));
     }
   });
 }
@@ -173,7 +173,7 @@ async function openAuthenticatedApp(session) {
     cacheWorkspace(session.user.id, { profile, organization, data });
   } catch (error) {
     if (openCachedWorkspace(session)) return;
-    renderAuth('sign-in', error instanceof Error ? error.message : 'Workspace could not be loaded');
+    renderAuth('sign-in', errorMessage(error, 'Workspace could not be loaded'));
     return;
   }
   showWorkspace();
@@ -355,9 +355,8 @@ function renderJobs() {
   });
 }
 function totals(doc) {
-  const subtotal = doc.items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.price || 0), 0);
-  const gst = doc.gst ? doc.items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.price || 0) * Number(item.gst ?? product(item.productId).gst ?? 18) / 100, 0) : 0;
-  return { subtotal, gst, grand: subtotal + gst };
+  const bill = taxBreakup(doc.items, { gstEnabled: doc.gst });
+  return { subtotal: bill.taxable, gst: Math.round((bill.total - bill.taxable) * 100) / 100, grand: bill.total };
 }
 const documentStatuses = { Invoice: ['Pending', 'Paid', 'Cancelled'], Quotation: ['Draft', 'Sent', 'Cancelled'] };
 function documentStatus(doc, owner) {
@@ -370,7 +369,7 @@ function renderSales() {
   let docs = [...data.documents].sort((a, b) => b.date.localeCompare(a.date));
   if (salesTab === 'Quotations') docs = docs.filter(doc => doc.type === 'Quotation');
   if (salesTab === 'Invoices') docs = docs.filter(doc => doc.type === 'Invoice');
-  page.innerHTML = `${pageHead('Quotes, billing & tax', 'Sales & invoices', 'Prepare quotations and invoices with GST or as non-GST documents.', owner ? `<button class="button" data-action="new-sale">${icons.plus} New document</button>` : '')}
+  page.innerHTML = `${pageHead('Quotes, billing & tax', 'Sales & invoices', 'Prepare quotations and invoices with GST or as non-GST documents.', owner ? `<div class="head-actions"><button class="button secondary" data-action="export-invoices">Export invoices</button><button class="button" data-action="new-sale">${icons.plus} New document</button></div>` : '')}
     <div class="notice"><strong>Tax options:</strong> choose GST-inclusive billing (product tax rates apply) or a non-GST document when creating a quotation or invoice.</div>
     <section class="panel table-panel"><div class="tabs">${tabs.map(tab => `<button class="tab ${salesTab === tab ? 'active' : ''}" data-sales-tab="${tab}">${tab}</button>`).join('')}</div><div class="table-scroll"><table><thead><tr><th>Document</th><th>Customer</th><th>Date</th><th>Due date</th><th>Tax</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody>${docs.length ? docs.map(doc => `<tr><td><strong>${esc(doc.id)}</strong><div class="muted-cell">${esc(doc.type)}</div></td><td>${esc(customer(doc.customerId).name)}</td><td>${date(doc.date)}</td><td>${date(doc.due)}</td><td>${doc.gst ? 'GST' : 'No GST'}</td><td><strong>${money(totals(doc).grand)}</strong></td><td>${documentStatus(doc, owner)}</td><td><button class="row-action" data-print-doc="${esc(doc.id)}" aria-label="Print ${esc(doc.id)}" title="Print document">${icons.download}</button></td></tr>`).join('') : '<tr><td colspan="8" class="empty">No documents in this view yet.</td></tr>'}</tbody></table></div></section>`;
 }
@@ -412,6 +411,11 @@ function bindSearch() {
   const input = page.querySelector('[data-search]');
   input.addEventListener('input', event => { searchQuery = event.target.value; render(); const next = page.querySelector('[data-search]'); next.focus(); next.setSelectionRange(searchQuery.length, searchQuery.length); });
 }
+// Supabase returns database errors as plain objects, not Error instances, so read the message
+// from whatever was thrown.
+function errorMessage(error, fallback) {
+  return typeof error?.message === 'string' && error.message ? error.message : fallback;
+}
 function toast(message) {
   const root = document.getElementById('toast-root');
   root.innerHTML = `<div class="toast">${esc(message)}</div>`;
@@ -428,7 +432,7 @@ function showModal(title, subtitle, body, submitLabel, onSubmit, wide = false) {
     const submit = event.currentTarget.querySelector('[type="submit"]');
     submit.disabled = true;
     try { await onSubmit(new FormData(event.currentTarget), event.currentTarget); }
-    catch (error) { submit.disabled = false; toast(error instanceof Error ? error.message : 'Save failed. Try again.'); }
+    catch (error) { submit.disabled = false; toast(errorMessage(error, 'Save failed. Try again.')); }
   });
 }
 function closeModal() { document.getElementById('modal-root').innerHTML = ''; }
@@ -522,7 +526,7 @@ function openBusinessForm() {
 function openAccountSettings() {
   const businessName = esc(organization?.name || 'your business');
   const consequence = profile.role === 'owner'
-    ? `If you are the only owner, this permanently deletes the <strong>${businessName}</strong> workspace: every customer, service job, product, invoice and feedback item, and the login of every technician, shop and customer you invited. This cannot be undone.`
+    ? `If you are the only owner, this permanently deletes the <strong>${businessName}</strong> workspace: every customer, service job, product, invoice and feedback item, and the login of every technician, shop and customer you invited. This cannot be undone. GST rules require you to keep invoices for six years, so export them first. <button class="button secondary" type="button" data-action="export-invoices">Export invoices</button>`
     : `This permanently deletes your login and the feedback you submitted. This cannot be undone. <strong>${businessName}</strong> keeps the records it needs for service history and GST invoices; contact them directly if you want those removed.`;
   showModal('My account', `${profile.login_email} · ${roleLabels[profile.role] || profile.role}`, `<div class="notice"><strong>Delete account.</strong> ${consequence}</div><div class="field"><label for="delete-confirm">Type DELETE to confirm</label><input id="delete-confirm" name="confirm" autocomplete="off" required></div>`, 'Delete account', async form => {
     if (form.get('confirm').trim() !== 'DELETE') throw new Error('Type DELETE to confirm');
@@ -533,9 +537,10 @@ function openAccountSettings() {
   });
   document.querySelector('#active-form [type="submit"]').classList.add('danger');
 }
+const productUnits = ['Nos', 'Pcs', 'Set', 'Box', 'Kg', 'Ltr', 'Mtr'];
 function openProductForm() {
   if (profile.role !== 'owner') { toast('Only the owner can change catalogue items'); return; }
-  showModal('Add catalogue item', 'Set customer, technician and shop pricing', `<div class="form-grid"><div class="field"><label for="name">Product name *</label><input id="name" name="name" required></div><div class="field"><label for="category">Category</label><select id="category" name="category"><option>Purifiers</option><option>Accessories</option><option>Spare parts</option></select></div><div class="field full"><label for="description">Description</label><input id="description" name="description"></div><div class="field"><label for="hsn">HSN code</label><input id="hsn" name="hsn" maxlength="8" inputmode="numeric" placeholder="e.g. 8421"></div><div class="field"><label for="customer">Customer price (₹)</label><input id="customer" name="customer" type="number" min="0" required></div><div class="field"><label for="technician">Technician price (₹)</label><input id="technician" name="technician" type="number" min="0" required></div><div class="field"><label for="shop">Shop price (₹)</label><input id="shop" name="shop" type="number" min="0" required></div><div class="field"><label for="stock">Stock quantity</label><input id="stock" name="stock" type="number" min="0" value="0"></div><div class="field"><label for="gst">GST rate (%)</label><input id="gst" name="gst" type="number" min="0" max="100" value="18"></div></div>`, 'Add product', async form => {
+  showModal('Add catalogue item', 'Set customer, technician and shop pricing', `<div class="form-grid"><div class="field"><label for="name">Product name *</label><input id="name" name="name" required></div><div class="field"><label for="category">Category</label><select id="category" name="category"><option>Purifiers</option><option>Accessories</option><option>Spare parts</option></select></div><div class="field full"><label for="description">Description</label><input id="description" name="description"></div><div class="field"><label for="hsn">HSN code (needed for GST invoices)</label><input id="hsn" name="hsn" maxlength="8" inputmode="numeric" placeholder="e.g. 8421"></div><div class="field"><label for="unit">Unit</label><select id="unit" name="unit">${productUnits.map(unit => `<option>${unit}</option>`).join('')}</select></div><div class="field"><label for="customer">Customer price (₹)</label><input id="customer" name="customer" type="number" min="0" required></div><div class="field"><label for="technician">Technician price (₹)</label><input id="technician" name="technician" type="number" min="0" required></div><div class="field"><label for="shop">Shop price (₹)</label><input id="shop" name="shop" type="number" min="0" required></div><div class="field"><label for="stock">Stock quantity</label><input id="stock" name="stock" type="number" min="0" value="0"></div><div class="field"><label for="gst">GST rate (%)</label><input id="gst" name="gst" type="number" min="0" max="100" value="18"></div></div>`, 'Add product', async form => {
     const value = Object.fromEntries(form.entries());
     const item = { ...value, id: `P-${crypto.randomUUID().slice(0, 8).toUpperCase()}`, customer: Number(value.customer), technician: Number(value.technician), shop: Number(value.shop), stock: Number(value.stock), gst: Number(value.gst) };
     await save('products', [item]);
@@ -547,12 +552,17 @@ function openSaleForm(type = 'Quotation') {
   if (profile.role !== 'owner') { toast('Only the owner can create quotations or invoices'); return; }
   if (!data.customers.length || !data.products.length) { toast('Add a customer and product before creating a document'); return; }
   const options = data.products.map(item => `<option value="${esc(item.id)}" data-price="${price(item)}">${esc(item.name)} · ${money(price(item))}</option>`).join('');
-  showModal(`New ${type.toLowerCase()}`, 'Choose a customer, products and GST treatment', `<div class="form-grid"><div class="field"><label for="docType">Document type</label><select id="docType" name="docType"><option ${type === 'Quotation' ? 'selected' : ''}>Quotation</option><option ${type === 'Invoice' ? 'selected' : ''}>Invoice</option></select></div><div class="field"><label for="customerId">Customer *</label><select id="customerId" name="customerId" required>${customerOptions()}</select></div><div class="field"><label for="date">Document date</label><input id="date" name="date" type="date" required value="${new Date().toISOString().slice(0, 10)}"></div><div class="field"><label for="due">Valid until / due date</label><input id="due" name="due" type="date" value="${new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)}"></div><div class="field full"><label>Line items</label><div id="line-items"><div class="line-item"><div class="field"><label>Product</label><select name="productId" class="sale-product">${options}</select></div><div class="field"><label>Qty</label><input name="qty" class="sale-qty" type="number" min="1" value="1" required></div><div class="field"><label>Unit price ₹</label><input name="price" class="sale-price" type="number" min="0" value="${price(data.products[0])}" required></div><button class="row-action remove-line" type="button" aria-label="Remove line">${icons.close}</button></div></div><button class="button secondary" id="add-line" type="button">${icons.plus} Add line item</button></div><div class="field full"><label class="price-toggle"><input type="checkbox" name="gst" id="gst-check" checked> Apply GST at each product’s rate</label></div><div class="field full"><div class="invoice-total" id="sale-total"></div></div></div>`, 'Save document', async (values, form) => {
+  const lineItem = `<div class="field"><label>Product</label><select name="productId" class="sale-product">${options}</select></div><div class="field"><label>Qty</label><input name="qty" class="sale-qty" type="number" min="1" value="1" required></div><div class="field"><label>Unit price ₹</label><input name="price" class="sale-price" type="number" min="0" value="${price(data.products[0])}" required></div><div class="field"><label>Discount ₹</label><input name="discount" class="sale-discount" type="number" min="0" step="0.01" value="0"></div><button class="row-action remove-line" type="button" aria-label="Remove line">${icons.close}</button>`;
+  // Only a GST-registered business may charge GST on an invoice.
+  const gstHint = organization?.gstin ? '' : '<small>Add your GSTIN in Accounts → Business details to charge GST on invoices.</small>';
+  showModal(`New ${type.toLowerCase()}`, 'Choose a customer, products and GST treatment', `<div class="form-grid"><div class="field"><label for="docType">Document type</label><select id="docType" name="docType"><option ${type === 'Quotation' ? 'selected' : ''}>Quotation</option><option ${type === 'Invoice' ? 'selected' : ''}>Invoice</option></select></div><div class="field"><label for="customerId">Customer *</label><select id="customerId" name="customerId" required>${customerOptions()}</select></div><div class="field"><label for="date">Document date</label><input id="date" name="date" type="date" required value="${new Date().toISOString().slice(0, 10)}"></div><div class="field"><label for="due">Valid until / due date</label><input id="due" name="due" type="date" value="${new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)}"></div><div class="field full"><label>Line items</label><div id="line-items"><div class="line-item">${lineItem}</div></div><button class="button secondary" id="add-line" type="button">${icons.plus} Add line item</button></div><div class="field full"><label class="price-toggle"><input type="checkbox" name="gst" id="gst-check" ${organization?.gstin ? 'checked' : ''}> Apply GST at each product’s rate</label>${gstHint}</div><div class="field full"><div class="invoice-total" id="sale-total"></div></div></div>`, 'Save document', async (values, form) => {
     const ids = form.querySelectorAll('.sale-product');
     const quantities = form.querySelectorAll('.sale-qty');
     const prices = form.querySelectorAll('.sale-price');
-    const items = [...ids].map((select, index) => ({ productId: select.value, qty: Number(quantities[index].value), price: Number(prices[index].value) }));
+    const discounts = form.querySelectorAll('.sale-discount');
+    const items = [...ids].map((select, index) => ({ productId: select.value, qty: Number(quantities[index].value), price: Number(prices[index].value), discount: Number(discounts[index].value) || 0 }));
     if (items.some(item => item.qty < 1 || item.price < 0)) { toast('Check item quantities and prices'); return; }
+    if (items.some(item => item.discount < 0 || item.discount > item.qty * item.price)) { toast('A discount cannot be more than the line amount'); return; }
     const document = { type: values.get('docType'), customerId: values.get('customerId'), date: values.get('date'), due: values.get('due'), items, gst: values.has('gst') };
     await createSalesDocument(supabaseClient, document);
     data = await loadWorkspace(supabaseClient, profile);
@@ -560,10 +570,15 @@ function openSaleForm(type = 'Quotation') {
   }, true);
   const modal = document.getElementById('modal-root');
   const updateTotal = () => {
-    const rows = [...modal.querySelectorAll('.line-item')];
-    const subtotal = rows.reduce((sum, row) => sum + Number(row.querySelector('.sale-qty').value || 0) * Number(row.querySelector('.sale-price').value || 0), 0);
-    const gst = modal.querySelector('#gst-check').checked ? rows.reduce((sum, row) => { const selected = product(row.querySelector('.sale-product').value); return sum + Number(row.querySelector('.sale-qty').value || 0) * Number(row.querySelector('.sale-price').value || 0) * (Number(selected.gst) || 0) / 100; }, 0) : 0;
-    modal.querySelector('#sale-total').innerHTML = `<div><span>Subtotal</span><strong>${money(subtotal)}</strong></div><div><span>GST ${gst ? '(product rates)' : '(not applied)'}</span><strong>${money(gst)}</strong></div><div class="grand"><span>Total</span><strong>${money(subtotal + gst)}</strong></div>`;
+    const lines = [...modal.querySelectorAll('.line-item')].map(row => ({
+      qty: Number(row.querySelector('.sale-qty').value) || 0,
+      price: Number(row.querySelector('.sale-price').value) || 0,
+      discount: Number(row.querySelector('.sale-discount').value) || 0,
+      gst: product(row.querySelector('.sale-product').value).gst
+    }));
+    const bill = taxBreakup(lines, { gstEnabled: modal.querySelector('#gst-check').checked });
+    const gst = bill.total - bill.taxable;
+    modal.querySelector('#sale-total').innerHTML = `${bill.discount ? `<div><span>Discount</span><strong>−${money(bill.discount)}</strong></div>` : ''}<div><span>Taxable value</span><strong>${money(bill.taxable)}</strong></div><div><span>GST ${gst ? '(product rates)' : '(not applied)'}</span><strong>${money(gst)}</strong></div><div class="grand"><span>Total</span><strong>${money(bill.total)}</strong></div>`;
   };
   const bindRow = row => {
     row.querySelector('.sale-product').addEventListener('change', event => { row.querySelector('.sale-price').value = price(product(event.target.value)); updateTotal(); });
@@ -572,15 +587,14 @@ function openSaleForm(type = 'Quotation') {
   };
   bindRow(modal.querySelector('.line-item'));
   modal.querySelector('#gst-check').addEventListener('change', updateTotal);
-  modal.querySelector('#add-line').addEventListener('click', () => { const row = document.createElement('div'); row.className = 'line-item'; row.innerHTML = `<div class="field"><label>Product</label><select name="productId" class="sale-product">${options}</select></div><div class="field"><label>Qty</label><input name="qty" class="sale-qty" type="number" min="1" value="1" required></div><div class="field"><label>Unit price ₹</label><input name="price" class="sale-price" type="number" min="0" value="${price(data.products[0])}" required></div><button class="row-action remove-line" type="button" aria-label="Remove line">${icons.close}</button>`; modal.querySelector('#line-items').append(row); bindRow(row); updateTotal(); });
+  modal.querySelector('#add-line').addEventListener('click', () => { const row = document.createElement('div'); row.className = 'line-item'; row.innerHTML = lineItem; modal.querySelector('#line-items').append(row); bindRow(row); updateTotal(); });
   updateTotal();
 }
 // The Android WebView ignores window.print(), so the app opens Android's print screen (which can
 // also save a PDF) through the plugin in android-overrides/.
 const NativePrint = registerPlugin('Print');
-function printDocument(id) {
-  const doc = data.documents.find(item => item.id === id);
-  if (!doc) return;
+// Seller, buyer and tax for a document, as it was issued.
+function documentDetails(doc) {
   const person = customer(doc.customerId);
   // Documents issued before seller/buyer snapshots existed fall back to the current details.
   const seller = doc.seller?.name ? doc.seller : { name: organization?.name || '', gstin: organization?.gstin || '', address: organization?.address || '', state: organization?.state_code || '', phone: organization?.phone || '' };
@@ -588,23 +602,12 @@ function printDocument(id) {
   const sellerState = seller.state || stateFromGstin(seller.gstin);
   const buyerState = buyer.state || stateFromGstin(buyer.gstin);
   const tax = taxBreakup(doc.items.map(item => ({ ...item, name: item.name || product(item.productId).name, hsn: item.hsn ?? product(item.productId).hsn ?? '' })), { gstEnabled: doc.gst, sellerState, buyerState });
-  const title = doc.type === 'Quotation' ? 'Quotation' : doc.gst && seller.gstin ? 'Tax Invoice' : 'Invoice';
-  const taxHead = tax.interState ? '<th>IGST</th>' : '<th>CGST</th><th>SGST</th>';
-  const rows = tax.rows.map((row, index) => `<tr><td>${index + 1}</td><td>${esc(row.name)}</td><td>${esc(row.hsn || '—')}</td><td class="n">${row.qty}</td><td class="n">${rupees(row.price)}</td><td class="n">${rupees(row.taxable)}</td><td class="n">${row.rate}%</td>${tax.interState ? `<td class="n">${rupees(row.igst)}</td>` : `<td class="n">${rupees(row.cgst)}</td><td class="n">${rupees(row.sgst)}</td>`}<td class="n">${rupees(row.total)}</td></tr>`).join('');
-  const taxTotals = tax.interState
-    ? `<p><span>IGST</span><strong>${rupees(tax.igst)}</strong></p>`
-    : `<p><span>CGST</span><strong>${rupees(tax.cgst)}</strong></p><p><span>SGST</span><strong>${rupees(tax.sgst)}</strong></p>`;
-  const party = (label, details, state) => `<div class="party"><small>${label}</small><strong>${esc(details.name)}</strong>${details.address ? `<span>${esc(details.address)}</span>` : ''}${details.phone ? `<span>Phone: ${esc(details.phone)}</span>` : ''}${details.gstin ? `<span>GSTIN: ${esc(details.gstin)}</span>` : ''}${state ? `<span>State: ${esc(stateLabel(state))}</span>` : ''}</div>`;
-  const html = `<!doctype html><html><head><title>${esc(doc.id)}</title><style>body{font:13px Arial,sans-serif;color:#24342d;padding:40px}h1{margin:0;font-size:22px}.head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #197c70;padding-bottom:16px}.meta{text-align:right}.meta span{display:block}.parties{display:flex;gap:24px;margin:20px 0}.party{flex:1}.party small{display:block;color:#68756e;text-transform:uppercase;font-size:10px;letter-spacing:.06em;margin-bottom:4px}.party strong,.party span{display:block}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;padding:8px;border-bottom:1px solid #ddd;font-size:12px}th{background:#f4f7f4}.n{text-align:right}.total{width:300px;margin:20px 0 0 auto}.total p{display:flex;justify-content:space-between;margin:6px 0}.grand{border-top:1px solid #aaa;padding-top:10px;font-size:16px;font-weight:bold}.foot{display:flex;justify-content:space-between;margin-top:60px;color:#77827c;font-size:11px}.sign{text-align:right;color:#24342d}</style></head><body>
-<div class="head"><div><h1>${esc(seller.name)}</h1></div><div class="meta"><h1>${title}</h1><span>${esc(doc.id)}</span><span>Date: ${date(doc.date)}</span><span>${doc.type === 'Quotation' ? 'Valid until' : 'Due date'}: ${date(doc.due)}</span></div></div>
-<div class="parties">${party('From', seller, sellerState)}${party(doc.type === 'Quotation' ? 'Quotation for' : 'Bill to', buyer, buyerState)}</div>
-${doc.gst ? `<p>Place of supply: <strong>${esc(stateLabel(tax.placeOfSupply) || 'Not specified')}</strong> · Reverse charge: No</p>` : '<p>GST not applied to this document.</p>'}
-<table><thead><tr><th>#</th><th>Item</th><th>HSN</th><th class="n">Qty</th><th class="n">Rate</th><th class="n">Taxable value</th><th class="n">GST</th>${taxHead.replace(/<th>/g, '<th class="n">')}<th class="n">Amount</th></tr></thead><tbody>${rows}</tbody></table>
-<div class="total"><p><span>Taxable value</span><strong>${rupees(tax.taxable)}</strong></p>${doc.gst ? taxTotals : ''}<p class="grand"><span>Total</span><strong>${rupees(tax.total)}</strong></p></div>
-<div class="foot"><span>This is a computer-generated document.</span><span class="sign">For ${esc(seller.name)}<br><br><br>Authorised signatory</span></div>
-</body></html>`;
+  return { seller, buyer, sellerState, buyerState, tax };
+}
+// Prints on Android through the plugin, or in a pop-up window on the web.
+function printHtml(html, name) {
   if (window.Capacitor?.isNativePlatform?.()) {
-    NativePrint.print({ html, name: doc.id }).catch(error => toast(error?.message || 'Could not open printing'));
+    NativePrint.print({ html, name }).catch(error => toast(error?.message || 'Could not open printing'));
     return;
   }
   const print = window.open('', '_blank', 'width=900,height=800');
@@ -613,6 +616,54 @@ ${doc.gst ? `<p>Place of supply: <strong>${esc(stateLabel(tax.placeOfSupply) || 
   print.document.close();
   print.focus();
   print.print();
+}
+// A spreadsheet of every invoice for the accountant: a CSV download on the web, or a printable
+// register (which can be saved as a PDF) in the Android app, where downloads are not available.
+function exportInvoices() {
+  const invoices = data.documents.filter(doc => doc.type === 'Invoice').sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  if (!invoices.length) { toast('There are no invoices to export yet'); return; }
+  const header = ['Invoice number', 'Date', 'Status', 'Customer', 'Customer GSTIN', 'Place of supply', 'Taxable value', 'CGST', 'SGST', 'IGST', 'Total'];
+  const rows = invoices.map(doc => {
+    const { buyer, tax } = documentDetails(doc);
+    return [doc.id, doc.date, doc.status, buyer.name, buyer.gstin, doc.gst ? stateLabel(tax.placeOfSupply) : '', tax.taxable, tax.cgst, tax.sgst, tax.igst, tax.total];
+  });
+  const fileName = `${organization?.name || 'clearflow'} invoices ${new Date().toISOString().slice(0, 10)}`;
+  if (window.Capacitor?.isNativePlatform?.()) {
+    const cells = row => row.map(value => `<td>${esc(typeof value === 'number' ? rupees(value) : value)}</td>`).join('');
+    printHtml(`<!doctype html><html><head><title>${esc(fileName)}</title><style>body{font:11px Arial,sans-serif;padding:24px}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:5px;border-bottom:1px solid #ddd}</style></head><body><h2>${esc(fileName)}</h2><table><thead><tr>${header.map(name => `<th>${name}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${cells(row)}</tr>`).join('')}</tbody></table></body></html>`, fileName);
+    return;
+  }
+  const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const csv = [header, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8' }));
+  link.download = `${fileName}.csv`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+function printDocument(id) {
+  const doc = data.documents.find(item => item.id === id);
+  if (!doc) return;
+  const { seller, buyer, sellerState, buyerState, tax } = documentDetails(doc);
+  const title = doc.type === 'Quotation' ? 'Quotation' : doc.gst && seller.gstin ? 'Tax Invoice' : 'Invoice';
+  const hasDiscount = tax.discount > 0;
+  const taxHead = tax.interState ? '<th>IGST</th>' : '<th>CGST</th><th>SGST</th>';
+  const taxCell = (amount, rate) => `<td class="n">${rupees(amount)}<small>@ ${rate}%</small></td>`;
+  const rows = tax.rows.map((row, index) => `<tr><td>${index + 1}</td><td>${esc(row.name)}</td><td>${esc(row.hsn || '—')}</td><td class="n">${row.qty} ${esc(row.unit || 'Nos')}</td><td class="n">${rupees(row.price)}</td>${hasDiscount ? `<td class="n">${row.discount ? rupees(row.discount) : '—'}</td>` : ''}<td class="n">${rupees(row.taxable)}</td>${tax.interState ? taxCell(row.igst, row.rate) : taxCell(row.cgst, row.rate / 2) + taxCell(row.sgst, row.rate / 2)}<td class="n">${rupees(row.total)}</td></tr>`).join('');
+  const taxTotals = tax.interState
+    ? `<p><span>IGST</span><strong>${rupees(tax.igst)}</strong></p>`
+    : `<p><span>CGST</span><strong>${rupees(tax.cgst)}</strong></p><p><span>SGST</span><strong>${rupees(tax.sgst)}</strong></p>`;
+  const party = (label, details, state) => `<div class="party"><small>${label}</small><strong>${esc(details.name)}</strong>${details.address ? `<span>${esc(details.address)}</span>` : ''}${details.phone ? `<span>Phone: ${esc(details.phone)}</span>` : ''}${details.gstin ? `<span>GSTIN: ${esc(details.gstin)}</span>` : ''}${state ? `<span>State: ${esc(stateLabel(state))}</span>` : ''}</div>`;
+  const html = `<!doctype html><html><head><title>${esc(doc.id)}</title><style>body{font:13px Arial,sans-serif;color:#24342d;padding:40px}h1{margin:0;font-size:22px}.head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #197c70;padding-bottom:16px}.meta{text-align:right}.meta span{display:block}.parties{display:flex;gap:24px;margin:20px 0}.party{flex:1}.party small{display:block;color:#68756e;text-transform:uppercase;font-size:10px;letter-spacing:.06em;margin-bottom:4px}.party strong,.party span{display:block}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;padding:8px;border-bottom:1px solid #ddd;font-size:12px}th{background:#f4f7f4}.n{text-align:right}td small{display:block;color:#77827c;font-size:10px}.words{margin:16px 0 0;text-align:right}.total{width:300px;margin:20px 0 0 auto}.total p{display:flex;justify-content:space-between;margin:6px 0}.grand{border-top:1px solid #aaa;padding-top:10px;font-size:16px;font-weight:bold}.foot{display:flex;justify-content:space-between;margin-top:60px;color:#77827c;font-size:11px}.sign{text-align:right;color:#24342d}</style></head><body>
+<div class="head"><div><h1>${esc(seller.name)}</h1></div><div class="meta"><h1>${title}</h1><span>${esc(doc.id)}</span><span>Date: ${date(doc.date)}</span><span>${doc.type === 'Quotation' ? 'Valid until' : 'Due date'}: ${date(doc.due)}</span></div></div>
+<div class="parties">${party('From', seller, sellerState)}${party(doc.type === 'Quotation' ? 'Quotation for' : 'Bill to', buyer, buyerState)}</div>
+${doc.gst ? `<p>Place of supply: <strong>${esc(stateLabel(tax.placeOfSupply) || 'Not specified')}</strong> · Reverse charge: No</p>` : '<p>GST not applied to this document.</p>'}
+<table><thead><tr><th>#</th><th>Item</th><th>HSN</th><th class="n">Qty</th><th class="n">Rate</th>${hasDiscount ? '<th class="n">Discount</th>' : ''}<th class="n">Taxable value</th>${taxHead.replace(/<th>/g, '<th class="n">')}<th class="n">Amount</th></tr></thead><tbody>${rows}</tbody></table>
+<div class="total">${hasDiscount ? `<p><span>Discount</span><strong>${rupees(tax.discount)}</strong></p>` : ''}<p><span>Taxable value</span><strong>${rupees(tax.taxable)}</strong></p>${doc.gst ? taxTotals : ''}<p class="grand"><span>Total</span><strong>${rupees(tax.total)}</strong></p></div>
+<p class="words">Amount in words: <strong>${amountInWords(tax.total)}</strong></p>
+<div class="foot"><span>This is a computer-generated document.</span><span class="sign">For ${esc(seller.name)}<br><br><br>Authorised signatory</span></div>
+</body></html>`;
+  printHtml(html, doc.id);
 }
 document.querySelectorAll('.nav-item[data-view]').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
 document.getElementById('role-select').value = roleView;
@@ -638,6 +689,7 @@ document.addEventListener('click', event => {
   if (action === 'more-menu') openMoreMenu();
   if (action === 'my-account') openAccountSettings();
   if (action === 'business-details') openBusinessForm();
+  if (action === 'export-invoices') exportInvoices();
   const nav = event.target.closest('[data-nav]')?.dataset.nav;
   if (nav) { closeModal(); setView(nav); }
   const customerEdit = event.target.closest('[data-edit-customer]')?.dataset.editCustomer;
@@ -669,7 +721,7 @@ document.addEventListener('change', async event => {
     toast(`${doc.id} marked ${next.toLowerCase()}`);
   } catch (error) {
     select.value = doc.status;
-    toast(error instanceof Error ? error.message : 'Could not update document status');
+    toast(errorMessage(error, 'Could not update document status'));
   }
 });
 document.addEventListener('change', async event => {
@@ -684,7 +736,7 @@ document.addEventListener('change', async event => {
     toast('Feedback status updated');
   } catch (error) {
     statusSelect.value = entry.status;
-    toast(error instanceof Error ? error.message : 'Could not update feedback status');
+    toast(errorMessage(error, 'Could not update feedback status'));
   }
 });
 initializeApp();

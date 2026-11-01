@@ -43,7 +43,27 @@ test('invoice within the state shows CGST and SGST with seller and buyer details
   await expect(invoice).toContainText('CGST');
   await expect(invoice).toContainText('SGST');
   await expect(invoice).not.toContainText('IGST');
-  await expect(invoice).toContainText('₹11,800');
+  await expect(invoice).toContainText('@ 9%');
+  await expect(invoice).toContainText('1 Nos');
+  await expect(invoice).toContainText('₹11,800.00');
+  await expect(invoice).toContainText('Rupees Eleven Thousand Eight Hundred Only');
+});
+
+test('a line discount is taken off before GST', async ({ page }) => {
+  await setUpBusiness(page);
+  await addCustomerInState(page, 'Discount Customer', '36');
+  await goTo(page, 'sales');
+  await page.locator('[data-action="new-sale"]').first().click();
+  await page.selectOption('#active-form select[name="docType"]', 'Invoice');
+  await selectOptionContaining(page, '#active-form select[name="customerId"]', 'Discount Customer');
+  await page.fill('#active-form .sale-discount', '1000');
+  await expect(page.locator('#sale-total')).toContainText('₹10,620');
+  await submitModal(page);
+  const [popup] = await Promise.all([page.waitForEvent('popup'), page.locator('[data-print-doc]').first().click()]);
+  const invoice = popup.locator('body');
+  await expect(invoice).toContainText('Discount');
+  await expect(invoice).toContainText('₹9,000.00');
+  await expect(invoice).toContainText('₹10,620.00');
 });
 
 test('invoice to another state shows IGST and keeps the details it was issued with', async ({ page }) => {

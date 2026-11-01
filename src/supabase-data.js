@@ -53,7 +53,9 @@ export async function loadWorkspace(client, profile) {
       qty: Number(item.quantity),
       price: Number(item.unit_price),
       gst: Number(item.gst_rate),
-      hsn: item.hsn_code || ''
+      hsn: item.hsn_code || '',
+      unit: item.unit || 'Nos',
+      discount: Number(item.discount) || 0
     });
   }
 
@@ -77,6 +79,7 @@ export async function loadWorkspace(client, profile) {
       category: item.category,
       description: item.description || '',
       hsn: item.hsn_code || '',
+      unit: item.unit || 'Nos',
       stock: ['owner', 'technician'].includes(profile.role) ? item.stock : null,
       gst: Number(item.gst_rate),
       ...(priceByProduct.get(item.id) || {})
@@ -159,6 +162,7 @@ export async function saveWorkspaceRecords(client, profile, collection, records,
       category: item.category,
       description: item.description || '',
       hsn_code: (item.hsn || '').trim(),
+      unit: item.unit || 'Nos',
       stock: Number(item.stock) || 0,
       gst_rate: Number(item.gst) || 0,
       active: true
@@ -212,7 +216,8 @@ export async function createSalesDocument(client, document) {
   const lineItems = document.items.map(item => ({
     product_id: item.productId,
     quantity: item.qty,
-    unit_price: item.price
+    unit_price: item.price,
+    discount: item.discount || 0
   }));
   const { data, error } = await client.rpc('create_sales_document', {
     p_document_type: document.type,
