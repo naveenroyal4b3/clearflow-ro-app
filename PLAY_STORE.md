@@ -2,32 +2,39 @@
 
 ## Android build
 
-Install Node.js LTS and Android Studio with Android SDK Platform 36. From this folder, run:
+The signed release bundle is built in GitHub Actions. Run **Build Android release** from the Actions tab; it uploads `clearflow-release-aab-<run number>` as a workflow artifact. The workflow:
+
+- generates the Android project and icons, targets Android API 36, and turns off `allowBackup`
+- sets `versionName` from `package.json` and `versionCode` from the workflow run number, so every run can be uploaded
+- signs the bundle with the upload key from the `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` repository secrets (key alias `upload`)
+
+Every push to `main` also builds a debug APK (**Build Android APK**) for testing on devices.
+
+To build locally instead, install Node.js LTS and Android Studio with Android SDK Platform 36, then run:
 
 ```powershell
 npm install
-npm run build
 npx cap add android
-npx cap sync android
+npm run android:sync
 npx cap open android
 ```
 
-In Android Studio, build a signed Android App Bundle (`.aab`) for release. Later rebuilds can use:
+The `android/` folder is generated and not committed. A local build needs the same changes the workflow makes: `allowBackup="false"`, a version code higher than the last upload, and signing with the upload key.
 
-```powershell
-npm run android:bundle
-```
+The app ID is `com.naveenroyal4b3.clearflow`. It cannot be changed after publishing. Keep the upload keystore and its password private and backed up outside this repository.
 
-The app ID is `com.naveenroyal4b3.clearflow`. An app ID cannot be changed after publishing, so confirm this identifier before the first release. Keep the upload key and Play signing credentials private and backed up.
+## Done
+
+- Supabase sign-in, team invitations, password reset, and role-based access, with each business's data kept separate
+- In-app account deletion (More, then My account) and a public account deletion page
+- Privacy policy and terms of service, hosted with the web app on GitHub Pages (`public/privacy.html`, `public/terms.html`, `public/delete-account.html`)
+- Signed release bundle targeting API 36
 
 ## Before submitting
 
-- Replace demo customer, account, job, and product records with production data flows.
-- Add secure sign-in, authorization, and a backend. The current prototype stores records only in each device's browser storage; users do not share data across devices, and account rows are not real login accounts.
-- Publish a privacy policy at a public URL and provide a support contact. Describe the collection, use, retention, deletion, and protection of customer names, phone numbers, addresses, installation records, and business tax details.
-- Create the Play Console app, complete the Data safety and content-rating forms, and prepare the store listing, screenshots, feature graphic, and 512 x 512 app icon.
-- Use a release signing key and increment the Android version code for each upload.
-- Confirm the generated Android project targets API 36 or higher before upload. Google Play requires API 36 for new Android app submissions from August 31, 2026.
-- Test the signed bundle on physical Android devices and complete any Play Console testing requirements for the developer account.
-
-This repository does not contain a generated Android project or signed bundle yet. Those require the Android build tools, a release signing key, and the developer's Play Console account.
+- Create the Play Console app and enter the privacy policy URL and the account deletion URL from GitHub Pages.
+- Complete the Data safety form to match the privacy policy. The app collects account details (name, email, phone), business and customer records, feedback, an activity log, and error reports. Data is encrypted in transit, users can request deletion, and nothing is shared for advertising. Supabase, Brevo, and GitHub Pages are the service providers.
+- Complete the content rating questionnaire and the target audience section (adults; not directed at children).
+- Provide a reviewer login under App access, since the app requires sign-in.
+- Prepare the store listing: description, screenshots, 1024 x 500 feature graphic, 512 x 512 icon, and a support email.
+- Test the signed bundle on physical Android devices and complete the Play Console testing requirements for the developer account, such as the closed test required for new personal accounts.
