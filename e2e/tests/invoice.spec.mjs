@@ -66,6 +66,32 @@ test('invoice to another state shows IGST and keeps the details it was issued wi
   await expect(popup.locator('body')).toContainText('Sri Sai RO');
 });
 
+test('owner marks an invoice paid, and cancelling it returns the stock', async ({ page }) => {
+  await setUpBusiness(page);
+  await addCustomerInState(page, 'Local Customer', '36');
+  await goTo(page, 'sales');
+  await page.locator('[data-action="new-sale"]').first().click();
+  await page.selectOption('#active-form select[name="docType"]', 'Invoice');
+  await selectOptionContaining(page, '#active-form select[name="customerId"]', 'Local Customer');
+  await page.fill('#active-form .sale-qty', '2');
+  await submitModal(page);
+  await goTo(page, 'catalog');
+  await expect(page.locator('#page')).toContainText('3 in stock');
+
+  await goTo(page, 'sales');
+  await page.locator('[data-doc-status]').first().selectOption('Paid');
+  await page.reload();
+  await goTo(page, 'sales');
+  await expect(page.locator('[data-doc-status]').first()).toHaveValue('Paid');
+
+  page.once('dialog', dialog => dialog.accept());
+  await page.locator('[data-doc-status]').first().selectOption('Cancelled');
+  await expect(page.locator('#page .status.cancelled')).toHaveText('Cancelled');
+  await expect(page.locator('[data-doc-status]')).toHaveCount(0);
+  await goTo(page, 'catalog');
+  await expect(page.locator('#page')).toContainText('5 in stock');
+});
+
 test('owner sees changes in the activity log', async ({ page }) => {
   await setUpBusiness(page);
   await goTo(page, 'accounts');

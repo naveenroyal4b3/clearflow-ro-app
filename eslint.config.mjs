@@ -9,7 +9,7 @@ export default [
     languageOptions: { globals: globals.browser }
   },
   {
-    files: ['*.mjs', 'e2e/**/*.mjs', 'test/**/*.mjs'],
+    files: ['*.mjs', 'e2e/**/*.mjs', 'test/**/*.mjs', 'scripts/**/*.mjs'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } }
   }
 ];

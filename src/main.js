@@ -1,5 +1,6 @@
+import { registerPlugin } from '@capacitor/core';
 import { createClient } from '@supabase/supabase-js';
-import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, updateOrganization } from './supabase-data.js';
+import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, updateOrganization } from './supabase-data.js';
 import { stateFromGstin, stateLabel, stateOptions, taxBreakup } from './gst.js';
 import { version as appVersion } from '../package.json';
 import './styles.css';
@@ -234,7 +235,12 @@ async function initializeApp() {
   else renderAuth('sign-in', deleteAccountRequested ? 'Sign in to delete your Clearflow account.' : '');
 }
 function esc(value = '') { return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]); }
-function money(value) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value) || 0); }
+// Whole rupees unless the amount has paise. Printed documents always show paise (see rupees).
+function money(value) {
+  const amount = Math.round((Number(value) || 0) * 100) / 100;
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: Number.isInteger(amount) ? 0 : 2, maximumFractionDigits: 2 }).format(amount);
+}
+function rupees(value) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0); }
 function date(value) { if (!value) return '—'; return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`)); }
 function shortDate(value) { if (!value) return '—'; return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short' }).format(new Date(`${value}T00:00:00`)); }
 function customer(id) { return data.customers.find(item => item.id === id) || { name: 'Unknown customer', phone: '', address: '' }; }
@@ -287,14 +293,14 @@ function renderOverview() {
   const currentDate = new Date();
   const month = new Intl.DateTimeFormat('sv-SE', { year: 'numeric', month: '2-digit' }).format(currentDate);
   const currentMonthLabel = new Intl.DateTimeFormat('en', { month: 'long' }).format(currentDate);
-  const monthDocs = data.documents.filter(doc => doc.type === 'Invoice' && doc.date.startsWith(month));
+  const monthDocs = data.documents.filter(doc => doc.type === 'Invoice' && doc.status !== 'Cancelled' && doc.date.startsWith(month));
   const monthTotal = monthDocs.reduce((sum, doc) => sum + totals(doc).grand, 0);
   const upcoming = [...data.jobs].filter(job => job.status !== 'Completed').sort((a, b) => a.date.localeCompare(b.date)).slice(0, 4);
   const monthlySales = Array.from({ length: 12 }, (_, index) => {
     const monthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 11 + index, 1);
     const key = new Intl.DateTimeFormat('sv-SE', { year: 'numeric', month: '2-digit' }).format(monthDate);
     const label = new Intl.DateTimeFormat('en', { month: 'short' }).format(monthDate);
-    const total = data.documents.filter(doc => doc.type === 'Invoice' && doc.date.startsWith(key)).reduce((sum, doc) => sum + totals(doc).grand, 0);
+    const total = data.documents.filter(doc => doc.type === 'Invoice' && doc.status !== 'Cancelled' && doc.date.startsWith(key)).reduce((sum, doc) => sum + totals(doc).grand, 0);
     return { label, total };
   });
   const chartMaximum = Math.max(1, ...monthlySales.map(item => item.total));
@@ -353,6 +359,11 @@ function totals(doc) {
   const gst = doc.gst ? doc.items.reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.price || 0) * Number(item.gst ?? product(item.productId).gst ?? 18) / 100, 0) : 0;
   return { subtotal, gst, grand: subtotal + gst };
 }
+const documentStatuses = { Invoice: ['Pending', 'Paid', 'Cancelled'], Quotation: ['Draft', 'Sent', 'Cancelled'] };
+function documentStatus(doc, owner) {
+  if (!owner || doc.status === 'Cancelled') return `<span class="status ${doc.status.toLowerCase()}">${esc(doc.status)}</span>`;
+  return `<select class="filter-select" data-doc-status="${esc(doc.id)}" aria-label="Update status for ${esc(doc.id)}">${documentStatuses[doc.type].map(status => `<option ${doc.status === status ? 'selected' : ''}>${status}</option>`).join('')}</select>`;
+}
 function renderSales() {
   const owner = profile.role === 'owner';
   const tabs = ['All documents', 'Quotations', 'Invoices'];
@@ -361,7 +372,7 @@ function renderSales() {
   if (salesTab === 'Invoices') docs = docs.filter(doc => doc.type === 'Invoice');
   page.innerHTML = `${pageHead('Quotes, billing & tax', 'Sales & invoices', 'Prepare quotations and invoices with GST or as non-GST documents.', owner ? `<button class="button" data-action="new-sale">${icons.plus} New document</button>` : '')}
     <div class="notice"><strong>Tax options:</strong> choose GST-inclusive billing (product tax rates apply) or a non-GST document when creating a quotation or invoice.</div>
-    <section class="panel table-panel"><div class="tabs">${tabs.map(tab => `<button class="tab ${salesTab === tab ? 'active' : ''}" data-sales-tab="${tab}">${tab}</button>`).join('')}</div><div class="table-scroll"><table><thead><tr><th>Document</th><th>Customer</th><th>Date</th><th>Due date</th><th>Tax</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody>${docs.length ? docs.map(doc => `<tr><td><strong>${esc(doc.id)}</strong><div class="muted-cell">${esc(doc.type)}</div></td><td>${esc(customer(doc.customerId).name)}</td><td>${date(doc.date)}</td><td>${date(doc.due)}</td><td>${doc.gst ? 'GST' : 'No GST'}</td><td><strong>${money(totals(doc).grand)}</strong></td><td><span class="status ${doc.status.toLowerCase()}">${esc(doc.status)}</span></td><td><button class="row-action" data-print-doc="${esc(doc.id)}" aria-label="Print ${esc(doc.id)}" title="Print document">${icons.download}</button></td></tr>`).join('') : '<tr><td colspan="8" class="empty">No documents in this view yet.</td></tr>'}</tbody></table></div></section>`;
+    <section class="panel table-panel"><div class="tabs">${tabs.map(tab => `<button class="tab ${salesTab === tab ? 'active' : ''}" data-sales-tab="${tab}">${tab}</button>`).join('')}</div><div class="table-scroll"><table><thead><tr><th>Document</th><th>Customer</th><th>Date</th><th>Due date</th><th>Tax</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody>${docs.length ? docs.map(doc => `<tr><td><strong>${esc(doc.id)}</strong><div class="muted-cell">${esc(doc.type)}</div></td><td>${esc(customer(doc.customerId).name)}</td><td>${date(doc.date)}</td><td>${date(doc.due)}</td><td>${doc.gst ? 'GST' : 'No GST'}</td><td><strong>${money(totals(doc).grand)}</strong></td><td>${documentStatus(doc, owner)}</td><td><button class="row-action" data-print-doc="${esc(doc.id)}" aria-label="Print ${esc(doc.id)}" title="Print document">${icons.download}</button></td></tr>`).join('') : '<tr><td colspan="8" class="empty">No documents in this view yet.</td></tr>'}</tbody></table></div></section>`;
 }
 function renderCatalog() {
   const owner = profile.role === 'owner';
@@ -551,7 +562,7 @@ function openSaleForm(type = 'Quotation') {
   const updateTotal = () => {
     const rows = [...modal.querySelectorAll('.line-item')];
     const subtotal = rows.reduce((sum, row) => sum + Number(row.querySelector('.sale-qty').value || 0) * Number(row.querySelector('.sale-price').value || 0), 0);
-    const gst = modal.querySelector('#gst-check').checked ? rows.reduce((sum, row) => { const selected = product(row.querySelector('.sale-product').value); return sum + Number(row.querySelector('.sale-qty').value || 0) * Number(row.querySelector('.sale-price').value || 0) * Number(selected.gst || 18) / 100; }, 0) : 0;
+    const gst = modal.querySelector('#gst-check').checked ? rows.reduce((sum, row) => { const selected = product(row.querySelector('.sale-product').value); return sum + Number(row.querySelector('.sale-qty').value || 0) * Number(row.querySelector('.sale-price').value || 0) * (Number(selected.gst) || 0) / 100; }, 0) : 0;
     modal.querySelector('#sale-total').innerHTML = `<div><span>Subtotal</span><strong>${money(subtotal)}</strong></div><div><span>GST ${gst ? '(product rates)' : '(not applied)'}</span><strong>${money(gst)}</strong></div><div class="grand"><span>Total</span><strong>${money(subtotal + gst)}</strong></div>`;
   };
   const bindRow = row => {
@@ -564,6 +575,9 @@ function openSaleForm(type = 'Quotation') {
   modal.querySelector('#add-line').addEventListener('click', () => { const row = document.createElement('div'); row.className = 'line-item'; row.innerHTML = `<div class="field"><label>Product</label><select name="productId" class="sale-product">${options}</select></div><div class="field"><label>Qty</label><input name="qty" class="sale-qty" type="number" min="1" value="1" required></div><div class="field"><label>Unit price ₹</label><input name="price" class="sale-price" type="number" min="0" value="${price(data.products[0])}" required></div><button class="row-action remove-line" type="button" aria-label="Remove line">${icons.close}</button>`; modal.querySelector('#line-items').append(row); bindRow(row); updateTotal(); });
   updateTotal();
 }
+// The Android WebView ignores window.print(), so the app opens Android's print screen (which can
+// also save a PDF) through the plugin in android-overrides/.
+const NativePrint = registerPlugin('Print');
 function printDocument(id) {
   const doc = data.documents.find(item => item.id === id);
   if (!doc) return;
@@ -576,21 +590,26 @@ function printDocument(id) {
   const tax = taxBreakup(doc.items.map(item => ({ ...item, name: item.name || product(item.productId).name, hsn: item.hsn ?? product(item.productId).hsn ?? '' })), { gstEnabled: doc.gst, sellerState, buyerState });
   const title = doc.type === 'Quotation' ? 'Quotation' : doc.gst && seller.gstin ? 'Tax Invoice' : 'Invoice';
   const taxHead = tax.interState ? '<th>IGST</th>' : '<th>CGST</th><th>SGST</th>';
-  const rows = tax.rows.map((row, index) => `<tr><td>${index + 1}</td><td>${esc(row.name)}</td><td>${esc(row.hsn || '—')}</td><td class="n">${row.qty}</td><td class="n">${money(row.price)}</td><td class="n">${money(row.taxable)}</td><td class="n">${row.rate}%</td>${tax.interState ? `<td class="n">${money(row.igst)}</td>` : `<td class="n">${money(row.cgst)}</td><td class="n">${money(row.sgst)}</td>`}<td class="n">${money(row.total)}</td></tr>`).join('');
+  const rows = tax.rows.map((row, index) => `<tr><td>${index + 1}</td><td>${esc(row.name)}</td><td>${esc(row.hsn || '—')}</td><td class="n">${row.qty}</td><td class="n">${rupees(row.price)}</td><td class="n">${rupees(row.taxable)}</td><td class="n">${row.rate}%</td>${tax.interState ? `<td class="n">${rupees(row.igst)}</td>` : `<td class="n">${rupees(row.cgst)}</td><td class="n">${rupees(row.sgst)}</td>`}<td class="n">${rupees(row.total)}</td></tr>`).join('');
   const taxTotals = tax.interState
-    ? `<p><span>IGST</span><strong>${money(tax.igst)}</strong></p>`
-    : `<p><span>CGST</span><strong>${money(tax.cgst)}</strong></p><p><span>SGST</span><strong>${money(tax.sgst)}</strong></p>`;
+    ? `<p><span>IGST</span><strong>${rupees(tax.igst)}</strong></p>`
+    : `<p><span>CGST</span><strong>${rupees(tax.cgst)}</strong></p><p><span>SGST</span><strong>${rupees(tax.sgst)}</strong></p>`;
   const party = (label, details, state) => `<div class="party"><small>${label}</small><strong>${esc(details.name)}</strong>${details.address ? `<span>${esc(details.address)}</span>` : ''}${details.phone ? `<span>Phone: ${esc(details.phone)}</span>` : ''}${details.gstin ? `<span>GSTIN: ${esc(details.gstin)}</span>` : ''}${state ? `<span>State: ${esc(stateLabel(state))}</span>` : ''}</div>`;
-  const print = window.open('', '_blank', 'width=900,height=800');
-  if (!print) { toast('Allow pop-ups to print this document'); return; }
-  print.document.write(`<!doctype html><html><head><title>${esc(doc.id)}</title><style>body{font:13px Arial,sans-serif;color:#24342d;padding:40px}h1{margin:0;font-size:22px}.head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #197c70;padding-bottom:16px}.meta{text-align:right}.meta span{display:block}.parties{display:flex;gap:24px;margin:20px 0}.party{flex:1}.party small{display:block;color:#68756e;text-transform:uppercase;font-size:10px;letter-spacing:.06em;margin-bottom:4px}.party strong,.party span{display:block}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;padding:8px;border-bottom:1px solid #ddd;font-size:12px}th{background:#f4f7f4}.n{text-align:right}.total{width:300px;margin:20px 0 0 auto}.total p{display:flex;justify-content:space-between;margin:6px 0}.grand{border-top:1px solid #aaa;padding-top:10px;font-size:16px;font-weight:bold}.foot{display:flex;justify-content:space-between;margin-top:60px;color:#77827c;font-size:11px}.sign{text-align:right;color:#24342d}</style></head><body>
+  const html = `<!doctype html><html><head><title>${esc(doc.id)}</title><style>body{font:13px Arial,sans-serif;color:#24342d;padding:40px}h1{margin:0;font-size:22px}.head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #197c70;padding-bottom:16px}.meta{text-align:right}.meta span{display:block}.parties{display:flex;gap:24px;margin:20px 0}.party{flex:1}.party small{display:block;color:#68756e;text-transform:uppercase;font-size:10px;letter-spacing:.06em;margin-bottom:4px}.party strong,.party span{display:block}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;padding:8px;border-bottom:1px solid #ddd;font-size:12px}th{background:#f4f7f4}.n{text-align:right}.total{width:300px;margin:20px 0 0 auto}.total p{display:flex;justify-content:space-between;margin:6px 0}.grand{border-top:1px solid #aaa;padding-top:10px;font-size:16px;font-weight:bold}.foot{display:flex;justify-content:space-between;margin-top:60px;color:#77827c;font-size:11px}.sign{text-align:right;color:#24342d}</style></head><body>
 <div class="head"><div><h1>${esc(seller.name)}</h1></div><div class="meta"><h1>${title}</h1><span>${esc(doc.id)}</span><span>Date: ${date(doc.date)}</span><span>${doc.type === 'Quotation' ? 'Valid until' : 'Due date'}: ${date(doc.due)}</span></div></div>
 <div class="parties">${party('From', seller, sellerState)}${party(doc.type === 'Quotation' ? 'Quotation for' : 'Bill to', buyer, buyerState)}</div>
 ${doc.gst ? `<p>Place of supply: <strong>${esc(stateLabel(tax.placeOfSupply) || 'Not specified')}</strong> · Reverse charge: No</p>` : '<p>GST not applied to this document.</p>'}
 <table><thead><tr><th>#</th><th>Item</th><th>HSN</th><th class="n">Qty</th><th class="n">Rate</th><th class="n">Taxable value</th><th class="n">GST</th>${taxHead.replace(/<th>/g, '<th class="n">')}<th class="n">Amount</th></tr></thead><tbody>${rows}</tbody></table>
-<div class="total"><p><span>Taxable value</span><strong>${money(tax.taxable)}</strong></p>${doc.gst ? taxTotals : ''}<p class="grand"><span>Total</span><strong>${money(tax.total)}</strong></p></div>
+<div class="total"><p><span>Taxable value</span><strong>${rupees(tax.taxable)}</strong></p>${doc.gst ? taxTotals : ''}<p class="grand"><span>Total</span><strong>${rupees(tax.total)}</strong></p></div>
 <div class="foot"><span>This is a computer-generated document.</span><span class="sign">For ${esc(seller.name)}<br><br><br>Authorised signatory</span></div>
-</body></html>`);
+</body></html>`;
+  if (window.Capacitor?.isNativePlatform?.()) {
+    NativePrint.print({ html, name: doc.id }).catch(error => toast(error?.message || 'Could not open printing'));
+    return;
+  }
+  const print = window.open('', '_blank', 'width=900,height=800');
+  if (!print) { toast('Allow pop-ups to print this document'); return; }
+  print.document.write(html);
   print.document.close();
   print.focus();
   print.print();
@@ -633,6 +652,25 @@ document.addEventListener('click', event => {
   if (sales) { salesTab = sales; renderSales(); }
   const catalog = event.target.closest('[data-catalog-tab]')?.dataset.catalogTab;
   if (catalog) { catalogTab = catalog; renderCatalog(); }
+});
+document.addEventListener('change', async event => {
+  const select = event.target.closest('[data-doc-status]');
+  if (!select) return;
+  const doc = data.documents.find(item => item.id === select.dataset.docStatus);
+  if (!doc) return;
+  const next = select.value;
+  const restocks = doc.type === 'Invoice' && next === 'Cancelled';
+  if (next === 'Cancelled' && !confirm(`Cancel ${doc.id}? ${restocks ? 'Its items go back into stock. ' : ''}This cannot be undone.`)) { select.value = doc.status; return; }
+  try {
+    await setSalesDocumentStatus(supabaseClient, doc.id, next);
+    doc.status = next;
+    if (restocks) data = await loadWorkspace(supabaseClient, profile);
+    render();
+    toast(`${doc.id} marked ${next.toLowerCase()}`);
+  } catch (error) {
+    select.value = doc.status;
+    toast(error instanceof Error ? error.message : 'Could not update document status');
+  }
 });
 document.addEventListener('change', async event => {
   const statusSelect = event.target.closest('[data-feedback-status]');
