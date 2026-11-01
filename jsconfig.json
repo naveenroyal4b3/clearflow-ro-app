@@ -3,6 +3,8 @@
   "compilerOptions": {
     "allowJs": true,
     "checkJs": false,
+    // TypeScript 7 turns strict on by default; these JavaScript files are not written for it.
+    "strict": false,
     "noEmit": true,
     "target": "es2022",
     "module": "esnext",
