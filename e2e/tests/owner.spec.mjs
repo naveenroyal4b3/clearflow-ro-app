@@ -1,4 +1,4 @@
-import { test, expect, signUpOwner, signIn, signOut, goTo, submitModal, addCustomer, addProduct, uniqueEmail, emailLink, acceptEmailLink, password } from './helpers.mjs';
+import { test, expect, signUpOwner, signIn, signOut, goTo, submitModal, addCustomer, addProduct, setBusinessGstin, uniqueEmail, emailLink, acceptEmailLink, password } from './helpers.mjs';
 
 test('owner signs up and creates a workspace', async ({ page }) => {
   await signUpOwner(page, { name: 'Asha Rao' });
@@ -27,6 +27,7 @@ test('customers, products and service jobs persist after reload', async ({ page 
 
 test('owner creates a numbered GST invoice and stock goes down', async ({ page }) => {
   await signUpOwner(page);
+  await setBusinessGstin(page);
   await addCustomer(page, 'Priya Sharma');
   await addProduct(page, 'RO membrane', { customer: 2400, stock: 5 });
   await goTo(page, 'sales');
@@ -38,6 +39,23 @@ test('owner creates a numbered GST invoice and stock goes down', async ({ page }
 
   await goTo(page, 'catalog');
   await expect(page.locator('#page')).toContainText('4 in stock');
+});
+
+test('a business without a GSTIN cannot charge GST on an invoice', async ({ page }) => {
+  await signUpOwner(page);
+  await addCustomer(page, 'Walk-in Customer');
+  await addProduct(page, 'Sediment filter', { customer: 300 });
+  await goTo(page, 'sales');
+  await page.locator('[data-action="new-sale"]').first().click();
+  await page.selectOption('#active-form select[name="docType"]', 'Invoice');
+  await expect(page.locator('#gst-check')).not.toBeChecked();
+  await page.check('#gst-check');
+  await page.click('#active-form [type="submit"]');
+  await expect(page.locator('.toast')).toContainText('Add your GSTIN');
+
+  await page.uncheck('#gst-check');
+  await submitModal(page);
+  await expect(page.locator('#page')).toContainText(/INV-\d{2}-\d{2}-0001/);
 });
 
 test('businesses cannot see each other\'s records', async ({ page }) => {

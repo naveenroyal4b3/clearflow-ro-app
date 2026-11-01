@@ -89,6 +89,7 @@ jobs:
           psql -h localhost -U postgres -d clearflow_test -v ON_ERROR_STOP=1 <<'SQL'
           create role anon;
           create role authenticated;
+          create role service_role;
           create schema auth;
           create table auth.users (
             id uuid primary key,

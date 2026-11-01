@@ -199,9 +199,10 @@ td strong { color: #364640; font-size: 10px; font-weight: 700; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 .price-toggle { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; color: #5d6c65; font-size: 10px; }
 .price-toggle input { accent-color: var(--teal); }
-.line-item { display: grid; grid-template-columns: minmax(0, 1fr) 70px 95px 28px; align-items: end; gap: 8px; margin-bottom: 9px; }
+.line-item { display: grid; grid-template-columns: minmax(0, 1fr) 70px 95px 80px 28px; align-items: end; gap: 8px; margin-bottom: 9px; }
 .line-item .field { gap: 4px; }
 .line-item .field label { font-size: 9px; }
+.field small { color: var(--muted); font-size: 10px; }
 .line-item .field input, .line-item .field select { min-height: 34px; padding: 6px 7px; font-size: 10px; }
 .invoice-total { display: grid; gap: 7px; width: 240px; margin: 16px 0 0 auto; padding-top: 12px; border-top: 1px solid var(--line); color: #7a8780; font-size: 10px; }
 .invoice-total div { display: flex; justify-content: space-between; }
@@ -275,7 +276,7 @@ td strong { color: #364640; font-size: 10px; font-weight: 700; }
   .metric-top { font-size: 9px; }
   .quick-grid { gap: 5px; }
   .quick-action span { font-size: 10px; }
-  .line-item { grid-template-columns: minmax(0, 1fr) 48px 75px 25px; gap: 5px; }
+  .line-item { grid-template-columns: minmax(0, 1fr) 44px 66px 58px 25px; gap: 5px; }
 }
 .head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .offline-notice { margin-bottom: 16px; border-color: #e7c66b; background: #fff8e1; }

@@ -29,14 +29,14 @@ test.beforeAll(async () => {
   const created = await admin.auth.admin.createUser({ email: ownerEmail, password, email_confirm: true });
   if (created.error) throw created.error;
   const owner = await signedIn(ownerEmail);
-  const { data: organizationId, error } = await owner.rpc('create_organization', { organization_name: 'Security RO' });
+  const { data: organizationId, error } = await owner.rpc('create_organization', { organization_name: 'Security RO', organization_gstin: '36ABCDE1234F1Z5' });
   if (error) throw error;
   const must = result => { if (result.error) throw result.error; };
   must(await owner.from('customers').insert([
     { organization_id: organizationId, id: 'C-1', name: 'Customer One', phone: '1' },
     { organization_id: organizationId, id: 'C-2', name: 'Customer Two', phone: '2' }
   ]));
-  must(await owner.from('products').insert({ organization_id: organizationId, id: 'P-1', name: 'Filter', category: 'Spare parts', stock: 10 }));
+  must(await owner.from('products').insert({ organization_id: organizationId, id: 'P-1', name: 'Filter', category: 'Spare parts', hsn_code: '8421', stock: 10 }));
   must(await owner.from('product_prices').insert(['customer', 'technician', 'shop'].map((audience, index) => ({ organization_id: organizationId, product_id: 'P-1', audience, amount: 300 - index * 50 }))));
   for (const customerId of ['C-1', 'C-2']) {
     must(await owner.rpc('create_sales_document', { p_document_type: 'Invoice', p_customer_id: customerId, p_document_date: '2026-10-28', p_due_date: null, p_gst_enabled: true, p_line_items: [{ product_id: 'P-1', quantity: 1, unit_price: 300 }] }));

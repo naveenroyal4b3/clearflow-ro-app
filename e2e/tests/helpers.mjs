@@ -83,10 +83,11 @@ export async function addCustomer(page, name, phone = '98480 11111') {
   await submitModal(page);
 }
 
-export async function addProduct(page, name, { customer = 1000, technician = 800, shop = 700, stock = 10 } = {}) {
+export async function addProduct(page, name, { customer = 1000, technician = 800, shop = 700, stock = 10, hsn = '8421' } = {}) {
   await goTo(page, 'catalog');
   await page.click('[data-action="new-product"]');
   await page.fill('#active-form input[name="name"]', name);
+  await page.fill('#active-form input[name="hsn"]', hsn);
   await page.fill('#active-form input[name="customer"]', String(customer));
   await page.fill('#active-form input[name="technician"]', String(technician));
   await page.fill('#active-form input[name="shop"]', String(shop));
@@ -117,6 +118,14 @@ export async function deleteMyAccount(page) {
   await page.fill('#delete-confirm', 'DELETE');
   await page.click('#active-form [type="submit"]');
   await expect(page.locator('.auth-message')).toContainText('Your account has been deleted');
+}
+
+export async function setBusinessGstin(page, gstin = '36ABCDE1234F1Z5', state = '36') {
+  await goTo(page, 'accounts');
+  await page.click('[data-action="business-details"]');
+  await page.fill('#active-form input[name="gstin"]', gstin);
+  await page.selectOption('#active-form select[name="state"]', state);
+  await submitModal(page);
 }
 
 // Selects the option whose visible text contains `text` (option labels also include phone numbers).
