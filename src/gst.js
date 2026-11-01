@@ -1,3 +1,4 @@
+// @ts-check
 // Indian states and union territories with their GST state codes (the first two digits of a GSTIN).
 export const gstStates = {
   '01': 'Jammu and Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab', '04': 'Chandigarh', '05': 'Uttarakhand',

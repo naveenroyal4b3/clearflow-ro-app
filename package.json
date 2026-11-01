@@ -12,7 +12,9 @@
     "android:bundle": "npm run android:sync && cd android && gradlew.bat bundleRelease",
     "e2e:prepare": "node e2e/prepare.mjs",
     "e2e": "playwright test",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "typecheck": "tsc -p jsconfig.json",
+    "test": "node --test \"test/**/*.test.mjs\""
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
