@@ -6,8 +6,15 @@ set -euo pipefail
 dir=$1
 db=$2
 
+# Every Supabase database already has the public schema and Supabase's default privileges, which
+# pg_dump recreates at the top and bottom of the dump. The postgres login may not change those, so
+# leave the statements out.
+schema=$(mktemp)
+trap 'rm -f "$schema"' EXIT
+grep -vE '^(CREATE SCHEMA public;|COMMENT ON SCHEMA public IS |ALTER DEFAULT PRIVILEGES )' "$dir/schema.sql" > "$schema"
+
 psql "$db" --single-transaction -v ON_ERROR_STOP=1 -q \
-  -f "$dir/schema.sql" \
+  -f "$schema" \
   -c 'SET session_replication_role = replica' \
   -f "$dir/auth-data.sql" \
   -f "$dir/data.sql"
