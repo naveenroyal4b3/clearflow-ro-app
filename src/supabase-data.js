@@ -226,6 +226,11 @@ export async function createSalesDocument(client, document) {
   return data;
 }
 
+export async function setSalesDocumentStatus(client, documentId, status) {
+  const { error } = await client.rpc('set_sales_document_status', { p_document_id: documentId, p_status: status });
+  if (error) throw error;
+}
+
 export async function setFeedbackStatus(client, feedbackId, status) {
   const { error } = await client.rpc('set_feedback_status', {
     feedback_id: feedbackId,

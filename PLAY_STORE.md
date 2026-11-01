@@ -17,12 +17,13 @@ To build locally instead, install Node.js LTS and Android Studio with Android SD
 
 ```powershell
 npm install
-npx cap add android
+npm run android:add
+npx capacitor-assets generate --android
 npm run android:sync
 npx cap open android
 ```
 
-The `android/` folder is generated and not committed. A local build needs the same changes the workflow makes: `allowBackup="false"`, a version code higher than the last upload, and signing with the upload key.
+The `android/` folder is generated and not committed. `npm run android:add` generates it and then runs `scripts/prepare-android.mjs`, which copies in the app's native code from `android-overrides/` (the print plugin) and turns off `allowBackup`. A local release build also needs a version code higher than the last upload and signing with the upload key.
 
 The app ID is `com.naveenroyal4b3.clearflow`. It cannot be changed after publishing. Keep the upload keystore and its password private and backed up outside this repository.
 

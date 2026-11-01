@@ -404,6 +404,53 @@ begin
 end;
 $$;
 
+-- Invoices move between Pending and Paid; quotations between Draft and Sent. Either can be
+-- cancelled, which is final and keeps the document number. Cancelling an invoice returns its
+-- items to stock.
+create function public.set_sales_document_status(p_document_id text, p_status text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  org_id uuid := public.current_organization_id();
+  doc public.sales_documents%rowtype;
+begin
+  if public.current_app_role() is distinct from 'owner' then raise exception 'Only an owner can change a document''s status'; end if;
+
+  select * into doc
+  from public.sales_documents d
+  where d.organization_id = org_id and d.id = p_document_id
+  for update;
+  if not found then raise exception 'Document not found'; end if;
+  if doc.status = p_status then return; end if;
+  if doc.status = 'Cancelled' then raise exception 'A cancelled document cannot be changed'; end if;
+  if not (
+    doc.document_type = 'Invoice' and p_status in ('Pending', 'Paid', 'Cancelled')
+    or doc.document_type = 'Quotation' and p_status in ('Draft', 'Sent', 'Cancelled')
+  ) then
+    raise exception 'A % cannot be marked %', lower(doc.document_type), p_status;
+  end if;
+
+  if doc.document_type = 'Invoice' and p_status = 'Cancelled' then
+    update public.products p
+    set stock = p.stock + returned.quantity, updated_at = now()
+    from (
+      select i.product_id, sum(i.quantity)::integer as quantity
+      from public.sales_document_items i
+      where i.organization_id = org_id and i.document_id = doc.id
+      group by i.product_id
+    ) returned
+    where p.organization_id = org_id and p.id = returned.product_id;
+  end if;
+
+  update public.sales_documents
+  set status = p_status
+  where organization_id = org_id and id = doc.id;
+end;
+$$;
+
 revoke all on function public.handle_new_auth_user() from public, anon, authenticated;
 revoke all on function public.current_organization_id() from public, anon;
 revoke all on function public.current_app_role() from public, anon;
@@ -412,6 +459,7 @@ revoke all on function public.create_organization(text, text) from public, anon;
 revoke all on function public.set_feedback_status(text, public.feedback_status) from public, anon;
 revoke all on function public.set_service_job_status(text, text, text) from public, anon;
 revoke all on function public.create_sales_document(text, text, date, date, boolean, jsonb) from public, anon;
+revoke all on function public.set_sales_document_status(text, text) from public, anon;
 grant execute on function public.current_organization_id() to authenticated;
 grant execute on function public.current_app_role() to authenticated;
 grant execute on function public.current_customer_id() to authenticated;
@@ -419,6 +467,7 @@ grant execute on function public.create_organization(text, text) to authenticate
 grant execute on function public.set_feedback_status(text, public.feedback_status) to authenticated;
 grant execute on function public.set_service_job_status(text, text, text) to authenticated;
 grant execute on function public.create_sales_document(text, text, date, date, boolean, jsonb) to authenticated;
+grant execute on function public.set_sales_document_status(text, text) to authenticated;
 
 alter table public.organizations enable row level security;
 alter table public.profiles enable row level security;

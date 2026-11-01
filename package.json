@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "android:add": "cap add android",
+    "android:add": "cap add android && node scripts/prepare-android.mjs",
     "android:sync": "npm run build && cap sync android",
     "android:open": "cap open android",
     "android:bundle": "npm run android:sync && cd android && gradlew.bat bundleRelease",

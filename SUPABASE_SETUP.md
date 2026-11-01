@@ -26,7 +26,7 @@ Run the web version locally with `npm install` and `npm run dev`. Without valid 
 - Confirm Supabase email-confirmation and invitation links return to the app on Android. A native deep-link return flow still needs end-to-end testing before external users are invited.
 - Verify RLS with separate owner, technician, shop, and customer accounts. Never let a client assign its own role or organization.
 - Confirm GSTIN, registered business name/address, tax classification, HSN/SAC codes, intra/inter-state tax treatment, and invoice rules with your accountant before issuing legal GST invoices.
-- Add stock-return/cancellation handling and an audit log before relying on inventory and invoice records for accounting.
+- Cancelling an invoice keeps its number and returns its stock. Ask your accountant whether invoices already reported in a GST return need a credit note instead; the app does not issue credit notes yet.
 - Set up backups, account recovery, email delivery, support contact, and a public privacy policy before external users sign in.
 - Complete Google Play Data safety, privacy policy, store listing, signed release AAB, and personal-account closed testing requirements before production release.
 
