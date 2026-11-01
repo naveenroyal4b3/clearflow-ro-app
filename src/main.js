@@ -81,7 +81,7 @@ function renderAuth(mode = 'sign-in', message = '') {
         await openAuthenticatedApp(result.session);
       }
     } catch (error) {
-      renderAuth(mode, error instanceof Error ? error.message : 'Sign-in failed. Check your details and try again.');
+      renderAuth(mode, errorMessage(error, 'Sign-in failed. Check your details and try again.'));
     }
   });
 }
@@ -173,7 +173,7 @@ async function openAuthenticatedApp(session) {
     cacheWorkspace(session.user.id, { profile, organization, data });
   } catch (error) {
     if (openCachedWorkspace(session)) return;
-    renderAuth('sign-in', error instanceof Error ? error.message : 'Workspace could not be loaded');
+    renderAuth('sign-in', errorMessage(error, 'Workspace could not be loaded'));
     return;
   }
   showWorkspace();
@@ -411,6 +411,11 @@ function bindSearch() {
   const input = page.querySelector('[data-search]');
   input.addEventListener('input', event => { searchQuery = event.target.value; render(); const next = page.querySelector('[data-search]'); next.focus(); next.setSelectionRange(searchQuery.length, searchQuery.length); });
 }
+// Supabase returns database errors as plain objects, not Error instances, so read the message
+// from whatever was thrown.
+function errorMessage(error, fallback) {
+  return typeof error?.message === 'string' && error.message ? error.message : fallback;
+}
 function toast(message) {
   const root = document.getElementById('toast-root');
   root.innerHTML = `<div class="toast">${esc(message)}</div>`;
@@ -427,7 +432,7 @@ function showModal(title, subtitle, body, submitLabel, onSubmit, wide = false) {
     const submit = event.currentTarget.querySelector('[type="submit"]');
     submit.disabled = true;
     try { await onSubmit(new FormData(event.currentTarget), event.currentTarget); }
-    catch (error) { submit.disabled = false; toast(error instanceof Error ? error.message : 'Save failed. Try again.'); }
+    catch (error) { submit.disabled = false; toast(errorMessage(error, 'Save failed. Try again.')); }
   });
 }
 function closeModal() { document.getElementById('modal-root').innerHTML = ''; }
@@ -716,7 +721,7 @@ document.addEventListener('change', async event => {
     toast(`${doc.id} marked ${next.toLowerCase()}`);
   } catch (error) {
     select.value = doc.status;
-    toast(error instanceof Error ? error.message : 'Could not update document status');
+    toast(errorMessage(error, 'Could not update document status'));
   }
 });
 document.addEventListener('change', async event => {
@@ -731,7 +736,7 @@ document.addEventListener('change', async event => {
     toast('Feedback status updated');
   } catch (error) {
     statusSelect.value = entry.status;
-    toast(error instanceof Error ? error.message : 'Could not update feedback status');
+    toast(errorMessage(error, 'Could not update feedback status'));
   }
 });
 initializeApp();
