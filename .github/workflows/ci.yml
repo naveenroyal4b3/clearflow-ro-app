@@ -144,7 +144,11 @@ jobs:
           npx playwright install --with-deps chromium
 
       - name: Start local Supabase
-        run: npm run e2e:prepare
+        # Outgoing connections take local ports from 32768-60999 and occasionally hold one the
+        # local Supabase stack needs (54321-54329), so move them above it first.
+        run: |
+          sudo sysctl -w net.ipv4.ip_local_port_range="55000 65000"
+          npm run e2e:prepare
 
       - name: Run end-to-end tests
         run: npm run e2e

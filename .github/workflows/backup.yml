@@ -82,6 +82,8 @@ jobs:
         run: |
           supabase="npx --yes supabase@2.122.0 --workdir $RUNNER_TEMP/restore-test"
           mkdir -p "$RUNNER_TEMP/restore-test"
+          # Keep outgoing connections off the ports the local Supabase stack needs (54321-54329).
+          sudo sysctl -w net.ipv4.ip_local_port_range="55000 65000"
           $supabase init
           $supabase start -x vector,imgproxy,logflare,supavisor,postgres-meta,studio,realtime,storage-api,edge-runtime
           bash scripts/verify-backup-restore.sh backup "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
