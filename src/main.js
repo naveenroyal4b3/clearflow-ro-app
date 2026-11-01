@@ -189,8 +189,12 @@ function openCachedWorkspace(session) {
   showWorkspace();
   return true;
 }
+// The price tier an owner previews comes from browser storage and the role picker, so only the
+// three real tiers are accepted.
+const priceTiers = ['customer', 'technician', 'shop'];
+function priceTier(value) { return priceTiers.includes(value) ? value : 'customer'; }
 function showWorkspace() {
-  roleView = profile.role === 'owner' ? (localStorage.getItem('clearflow-role') || 'customer') : profile.role;
+  roleView = profile.role === 'owner' ? priceTier(localStorage.getItem('clearflow-role')) : profile.role;
   document.getElementById('role-select').value = roleView;
   updateRoleControl();
   document.getElementById('user-name').textContent = profile.full_name || profile.login_email;
@@ -377,8 +381,8 @@ function renderCatalog() {
   const owner = profile.role === 'owner';
   const tabs = ['All products', 'Purifiers', 'Accessories', 'Spare parts'];
   const products = data.products.filter(item => catalogTab === 'All products' || item.category === catalogTab);
-  page.innerHTML = `${pageHead('Products & pricing', 'Product catalogue', `Purifiers, accessories and spares · prices shown for ${roleView} access`, owner ? `<button class="button" data-action="new-product">${icons.plus} Add product</button>` : '')}
-    <div class="notice">${owner ? `Previewing <strong>${roleView}</strong> pricing. Each signed-in role can only retrieve its own price tier.` : `Showing the <strong>${roleView}</strong> prices assigned to your account.`}</div>
+  page.innerHTML = `${pageHead('Products & pricing', 'Product catalogue', `Purifiers, accessories and spares · prices shown for ${esc(roleView)} access`, owner ? `<button class="button" data-action="new-product">${icons.plus} Add product</button>` : '')}
+    <div class="notice">${owner ? `Previewing <strong>${esc(roleView)}</strong> pricing. Each signed-in role can only retrieve its own price tier.` : `Showing the <strong>${esc(roleView)}</strong> prices assigned to your account.`}</div>
     <section class="panel" style="margin-bottom:15px"><div class="tabs">${tabs.map(tab => `<button class="tab ${catalogTab === tab ? 'active' : ''}" data-catalog-tab="${tab}">${tab}</button>`).join('')}</div></section>
     <div class="product-grid">${products.length ? products.map((item, index) => `<article class="product"><div class="product-top"><div class="product-art ${index % 3 === 1 ? 'blue' : index % 3 === 2 ? 'gold' : ''}">${item.category === 'Purifiers' ? icons.product : item.category === 'Accessories' ? icons.service : icons.invoice}</div><span class="category">${esc(item.category)}</span></div><div class="product-info"><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><div class="product-price"><div><span>${esc(roleView)} price</span><strong>${money(price(item))}</strong></div>${owner || profile.role === 'technician' ? `<span>${item.stock} in stock</span>` : ''}</div>${owner ? `<div class="price-other"><span>Customer <b>${money(item.customer)}</b></span><span>Tech <b>${money(item.technician)}</b></span><span>Shop <b>${money(item.shop)}</b></span></div>` : ''}</div></article>`).join('') : '<div class="empty">No products in this category.</div>'}</div>`;
 }
@@ -669,7 +673,7 @@ document.querySelectorAll('.nav-item[data-view]').forEach(button => button.addEv
 document.getElementById('role-select').value = roleView;
 document.getElementById('role-select').addEventListener('change', event => {
   if (profile?.role !== 'owner') { event.target.value = profile?.role || 'customer'; return; }
-  roleView = event.target.value;
+  roleView = priceTier(event.target.value);
   localStorage.setItem('clearflow-role', roleView);
   render();
 });
