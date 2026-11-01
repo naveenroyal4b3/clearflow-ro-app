@@ -6,11 +6,12 @@ set -euo pipefail
 dir=$1
 db=$2
 
-# Every Supabase database already has the public schema, which pg_dump creates (and comments on)
-# at the top of the dump, so leave those statements out.
+# Every Supabase database already has the public schema and Supabase's default privileges, which
+# pg_dump recreates at the top and bottom of the dump. The postgres login may not change those, so
+# leave the statements out.
 schema=$(mktemp)
 trap 'rm -f "$schema"' EXIT
-grep -vE '^(CREATE SCHEMA public;|COMMENT ON SCHEMA public IS )' "$dir/schema.sql" > "$schema"
+grep -vE '^(CREATE SCHEMA public;|COMMENT ON SCHEMA public IS |ALTER DEFAULT PRIVILEGES )' "$dir/schema.sql" > "$schema"
 
 psql "$db" --single-transaction -v ON_ERROR_STOP=1 -q \
   -f "$schema" \
