@@ -6,18 +6,19 @@
 2. In the Supabase SQL Editor, run `supabase/schema.sql` once.
 3. In Authentication settings, configure email confirmation and the allowed redirect URLs. Validate confirmation and invitation links on a physical Android device before inviting customers.
 4. Copy the project URL and public anon key into a local `.env.local` file based on `.env.example`. The anon key is intended for client apps because RLS protects the tables; never put the `service_role` key in the app, local client config, or GitHub Actions.
-5. In repository Settings > Secrets and variables > Actions, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. The APK workflow injects these only during its Vite build.
-6. Deploy the invitation function with the Supabase CLI:
+5. In repository Settings > Secrets and variables > Actions, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. The CI and release workflows inject these only during their Vite builds.
+6. Deploy the invitation and account deletion functions with the Supabase CLI:
 
 ```powershell
 npx supabase login
 npx supabase link --project-ref YOUR_PROJECT_REF
 npx supabase functions deploy invite-member
+npx supabase functions deploy delete-account
 ```
 
 The SQL creates organization-scoped tables and enables row-level security. Customer, technician, and shop prices are stored as separate rows so one role cannot read another role's price tier. The first signed-up owner creates the organization through `create_organization`. Owner-issued team invitations go through the deployed `invite-member` Edge Function; its service-role key stays server-side.
 
-Run the web version locally with `npm install` and `npm run dev`. Without valid Supabase environment variables, the app displays a setup screen and does not fall back to browser-only business storage. The Android workflow validates the SQL schema and builds an APK; for it to connect to your project, configure the GitHub Actions secrets above first.
+Run the web version locally with `npm install` and `npm run dev`. Without valid Supabase environment variables, the app displays a setup screen and does not fall back to browser-only business storage. The CI workflow validates the SQL schema and builds an APK; for it to connect to your project, configure the GitHub Actions secrets above first.
 
 ## Production checklist
 
@@ -39,7 +40,9 @@ Supabase → SQL Editor. The scripts are safe to run again, and CI checks that t
 ## Backups
 
 The **Database backup** workflow dumps the production database every night at 02:00 IST,
-encrypts it, and keeps 30 days of copies as workflow artifacts. It needs two repository secrets:
+encrypts it, and keeps 30 days of copies as workflow artifacts. It then test-restores each backup
+into a throwaway local Supabase stack and checks every table's row count, so a backup that cannot be
+restored fails the run and GitHub emails you. It needs two repository secrets:
 
 - `SUPABASE_DB_URL`: Supabase → Connect → **Session pooler** connection string, with the database
   password filled in.
@@ -51,8 +54,10 @@ To restore a backup:
 1. Download the artifact from the workflow run and unzip it.
 2. Decrypt and unpack:
    `gpg --decrypt clearflow-backup-*.tar.gz.gpg > backup.tar.gz && tar -xzf backup.tar.gz`
-3. Restore into a new Supabase project with `psql "<connection string>"`, running
-   `backup/schema.sql`, then `backup/auth-data.sql`, then `backup/data.sql`.
+3. Restore into a new Supabase project (Postgres 17 `psql` needed):
+   `bash scripts/verify-backup-restore.sh backup "<connection string>"`. It loads the schema, then
+   the data with triggers switched off (so audit-log triggers don't add rows), in one transaction,
+   and reports each table's row count.
 
 On the Supabase Pro plan, daily backups and point-in-time recovery are also available from the
 dashboard.

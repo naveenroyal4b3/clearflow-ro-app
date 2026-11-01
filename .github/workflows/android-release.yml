@@ -1,64 +1,78 @@
 name: Build Android release
 
-# Builds the signed app bundle (.aab) to upload to Google Play. Run it from the Actions tab.
+# Builds the signed app bundle (.aab) for Google Play. Run it from the Actions tab on main.
+# It only builds a commit that already passed CI, waits for approval if the production
+# environment requires reviewers, and publishes a GitHub release with the bundle, an SBOM and
+# a build provenance attestation. With the PLAY_SERVICE_ACCOUNT_JSON secret set, it also uploads
+# the bundle to the Play internal testing track.
 on:
   workflow_dispatch:
+    inputs:
+      play_status:
+        description: Play internal track release status (use draft until the app has passed its first review)
+        type: choice
+        options: [draft, completed]
+        default: draft
 
 permissions:
   contents: read
 
 jobs:
+  verify-ci:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    steps:
+      - name: Require a main commit that passed CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Releases are built from main only."
+            exit 1
+          fi
+          passed=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&status=success" --jq '.total_count')
+          if [ "$passed" = "0" ]; then
+            echo "::error::CI has not passed on $GITHUB_SHA yet. Wait for the CI workflow to finish, then run this again."
+            exit 1
+          fi
+
   release-aab:
+    needs: verify-ci
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    environment: production
+    permissions:
+      contents: write # create the tag and GitHub release
+      id-token: write # sign the provenance attestation
+      attestations: write
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      AAB: android/app/build/outputs/bundle/release/app-release.aab
     steps:
       - name: Check out source
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Check signing secrets
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        id: secrets
         run: |
           if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
             echo "::error::Add the ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD repository secrets first."
             exit 1
           fi
           echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+          echo "play=$([ -n "$PLAY_SERVICE_ACCOUNT_JSON" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: 24
-
-      - name: Set up Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 21
-
-      - name: Accept Android SDK licenses
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
-
-      - name: Install Android API 36
-        run: |
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"
-
-      - name: Install dependencies and generate Android project
-        run: |
-          npm install
-          npx cap add android
-          npx capacitor-assets generate --android
-          # Keep login sessions and cached business data out of device and cloud backups.
-          sed -i 's/android:allowBackup="true"/android:allowBackup="false"/' android/app/src/main/AndroidManifest.xml
-          grep -q 'android:allowBackup="false"' android/app/src/main/AndroidManifest.xml
-          npm run android:sync
+      - name: Generate Android project
+        uses: ./.github/actions/android-project
 
       - name: Set version
         # Google Play needs a higher versionCode for every upload, so use this workflow's run number.
@@ -66,6 +80,7 @@ jobs:
           version_name=$(node -p "require('./package.json').version")
           sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"$version_name\"/" android/app/build.gradle
           grep -E "versionCode|versionName" android/app/build.gradle
+          echo "TAG=v$version_name-build${{ github.run_number }}" >> "$GITHUB_ENV"
 
       - name: Build signed app bundle
         run: |
@@ -76,12 +91,41 @@ jobs:
             -Pandroid.injected.signing.key.password="$KEYSTORE_PASSWORD"
 
       - name: Verify signature
-        run: jarsigner -verify android/app/build/outputs/bundle/release/app-release.aab | tail -1
+        run: jarsigner -verify "$AAB" | tail -1
+
+      - name: Generate SBOM
+        # Lists every package shipped in the app, so a vulnerable dependency can be traced to a release.
+        run: npm sbom --omit=dev --sbom-format=spdx > sbom.spdx.json
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-path: ${{ env.AAB }}
 
       - name: Upload app bundle
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: clearflow-release-aab-${{ github.run_number }}
-          path: android/app/build/outputs/bundle/release/app-release.aab
+          path: |
+            ${{ env.AAB }}
+            sbom.spdx.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp "$AAB" "clearflow-$TAG.aab"
+          gh release create "$TAG" "clearflow-$TAG.aab" sbom.spdx.json \
+            --target "$GITHUB_SHA" --title "$TAG" --generate-notes
+
+      - name: Upload to Play internal testing
+        if: steps.secrets.outputs.play == 'true'
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.naveenroyal4b3.clearflow
+          releaseFiles: ${{ env.AAB }}
+          track: internal
+          status: ${{ inputs.play_status }}

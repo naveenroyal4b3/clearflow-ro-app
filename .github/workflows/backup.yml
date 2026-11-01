@@ -2,7 +2,8 @@ name: Database backup
 
 # Nightly encrypted backup of the production database. The repository is public, so the dump is
 # encrypted with BACKUP_PASSPHRASE before it is stored as an artifact; without the passphrase
-# the file is unreadable. Restore steps are in SUPABASE_SETUP.md.
+# the file is unreadable. Each backup is then test-restored into a throwaway local Supabase stack,
+# so a backup that cannot be restored fails the run. Restore steps are in SUPABASE_SETUP.md.
 on:
   schedule:
     - cron: '30 20 * * *' # 02:00 IST
@@ -14,7 +15,7 @@ permissions:
 jobs:
   backup:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
@@ -29,6 +30,10 @@ jobs:
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Check out source
+        if: steps.secrets.outputs.ready == 'true'
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
       - name: Install PostgreSQL 17 client
         if: steps.secrets.outputs.ready == 'true'
         # pg_dump must be at least the server's version (Supabase runs Postgres 17).
@@ -36,15 +41,15 @@ jobs:
           sudo apt-get install -y postgresql-common
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get install -y postgresql-client-17
+          echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
 
       - name: Dump database
         if: steps.secrets.outputs.ready == 'true'
         run: |
           mkdir -p backup
-          pg_dump=/usr/lib/postgresql/17/bin/pg_dump
-          $pg_dump "$SUPABASE_DB_URL" --schema=public --schema-only --no-owner -f backup/schema.sql
-          $pg_dump "$SUPABASE_DB_URL" --schema=public --data-only --no-owner -f backup/data.sql
-          $pg_dump "$SUPABASE_DB_URL" --data-only --no-owner --table=auth.users --table=auth.identities -f backup/auth-data.sql
+          pg_dump "$SUPABASE_DB_URL" --schema=public --schema-only --no-owner -f backup/schema.sql
+          pg_dump "$SUPABASE_DB_URL" --schema=public --data-only --no-owner -f backup/data.sql
+          pg_dump "$SUPABASE_DB_URL" --data-only --no-owner --table=auth.users --table=auth.identities -f backup/auth-data.sql
           ls -la backup
 
       - name: Encrypt backup
@@ -53,14 +58,34 @@ jobs:
           name="clearflow-backup-$(date -u +%Y-%m-%dT%H%MZ)"
           tar -czf "$name.tar.gz" backup
           gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" --symmetric --cipher-algo AES256 -o "$name.tar.gz.gpg" "$name.tar.gz"
-          rm -rf backup "$name.tar.gz"
+          rm "$name.tar.gz"
           echo "BACKUP_NAME=$name" >> "$GITHUB_ENV"
 
       - name: Store encrypted backup
         if: steps.secrets.outputs.ready == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ env.BACKUP_NAME }}
           path: ${{ env.BACKUP_NAME }}.tar.gz.gpg
           if-no-files-found: error
           retention-days: 30
+
+      - name: Set up Node.js
+        if: steps.secrets.outputs.ready == 'true'
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+
+      - name: Test-restore backup
+        # Runs after the backup is stored, so a restore problem never loses that night's backup.
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          supabase="npx --yes supabase@2.122.0 --workdir $RUNNER_TEMP/restore-test"
+          mkdir -p "$RUNNER_TEMP/restore-test"
+          $supabase init
+          $supabase start -x vector,imgproxy,logflare,supavisor,postgres-meta,studio,realtime,storage-api,edge-runtime
+          bash scripts/verify-backup-restore.sh backup "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+
+      - name: Remove unencrypted dump
+        if: always()
+        run: rm -rf backup

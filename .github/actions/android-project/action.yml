@@ -1,0 +1,35 @@
+name: Generate Android project
+description: Installs Node, Java and Android API 36, then builds the web app into a fresh Capacitor Android project.
+# The calling job must check out the source and set ANDROID_HOME, VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      with:
+        node-version: 24
+        cache: npm
+
+    - name: Set up Java
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      with:
+        distribution: temurin
+        java-version: 21
+
+    - name: Install Android API 36
+      shell: bash
+      run: |
+        yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+        "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"
+
+    - name: Install dependencies and generate Android project
+      shell: bash
+      run: |
+        npm ci
+        npx cap add android
+        npx capacitor-assets generate --android
+        # Keep login sessions and cached business data out of device and cloud backups.
+        sed -i 's/android:allowBackup="true"/android:allowBackup="false"/' android/app/src/main/AndroidManifest.xml
+        grep -q 'android:allowBackup="false"' android/app/src/main/AndroidManifest.xml
+        npm run android:sync

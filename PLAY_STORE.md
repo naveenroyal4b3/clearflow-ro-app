@@ -2,13 +2,16 @@
 
 ## Android build
 
-The signed release bundle is built in GitHub Actions. Run **Build Android release** from the Actions tab; it uploads `clearflow-release-aab-<run number>` as a workflow artifact. The workflow:
+The signed release bundle is built in GitHub Actions. Run **Build Android release** from the Actions tab on `main`. The workflow:
 
+- refuses to run unless the **CI** workflow has passed on that commit, and waits for approval if the `production` environment has required reviewers
 - generates the Android project and icons, targets Android API 36, and turns off `allowBackup`
 - sets `versionName` from `package.json` and `versionCode` from the workflow run number, so every run can be uploaded
 - signs the bundle with the upload key from the `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` repository secrets (key alias `upload`)
+- publishes a GitHub release tagged `v<version>-build<run number>` with the bundle and an SBOM, and records a signed build provenance attestation (check one with `gh attestation verify <file>.aab --repo naveenroyal4b3/clearflow-ro-app`)
+- uploads the bundle to the Play **internal testing** track when the `PLAY_SERVICE_ACCOUNT_JSON` secret is set. Google requires the first bundle to be uploaded by hand in Play Console; after that, create a service account with release access, add its JSON key as that secret, and run the workflow with `play_status` set to `draft` until the app has passed its first review.
 
-Every push to `main` also builds a debug APK (**Build Android APK**) for testing on devices.
+Every push to `main` also builds a debug APK in the **CI** workflow, after all checks pass, for testing on devices.
 
 To build locally instead, install Node.js LTS and Android Studio with Android SDK Platform 36, then run:
 

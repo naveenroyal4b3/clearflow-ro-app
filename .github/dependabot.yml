@@ -4,11 +4,19 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Wait a week before proposing a new release, so a hijacked package is usually caught and
+    # pulled before it reaches this app.
+    cooldown:
+      default-days: 7
     groups:
       minor-and-patch:
         update-types: [minor, patch]
 
   - package-ecosystem: github-actions
-    directory: /
+    directories:
+      - /
+      - /.github/actions/*
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
