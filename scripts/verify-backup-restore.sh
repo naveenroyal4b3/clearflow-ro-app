@@ -6,8 +6,14 @@ set -euo pipefail
 dir=$1
 db=$2
 
+# Every Supabase database already has the public schema, which pg_dump creates (and comments on)
+# at the top of the dump, so leave those statements out.
+schema=$(mktemp)
+trap 'rm -f "$schema"' EXIT
+grep -vE '^(CREATE SCHEMA public;|COMMENT ON SCHEMA public IS )' "$dir/schema.sql" > "$schema"
+
 psql "$db" --single-transaction -v ON_ERROR_STOP=1 -q \
-  -f "$dir/schema.sql" \
+  -f "$schema" \
   -c 'SET session_replication_role = replica' \
   -f "$dir/auth-data.sql" \
   -f "$dir/data.sql"
