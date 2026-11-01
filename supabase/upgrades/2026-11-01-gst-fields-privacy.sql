@@ -169,7 +169,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 declare
   hourly_limit integer;
 begin
