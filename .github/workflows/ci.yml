@@ -1,7 +1,7 @@
 name: CI
 
-# Every change is checked here. The web app and debug APK are only built from main, and only after
-# every check passes. The release workflow refuses to build a commit unless this workflow passed on it.
+# Every change is checked here, including a debug APK build. The web app is only deployed from
+# main, and only after every check passes. The release workflow refuses to build a commit unless this workflow passed on it.
 on:
   push:
     branches:
@@ -206,8 +206,8 @@ jobs:
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
   debug-apk:
+    # Also runs on pull requests, so a broken Android build is caught before it reaches main.
     needs: [checks, validate-schema, e2e]
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:

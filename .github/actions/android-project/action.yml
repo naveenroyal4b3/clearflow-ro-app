@@ -20,7 +20,8 @@ runs:
     - name: Install Android API 36
       shell: bash
       run: |
-        yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+        # Composite steps run bash with pipefail, and `yes` exits 141 when sdkmanager closes the pipe.
+        (yes || true) | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
         "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"
 
     - name: Install dependencies and generate Android project
