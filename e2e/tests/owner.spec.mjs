@@ -1,5 +1,24 @@
 import { test, expect, signUpOwner, signIn, signOut, goTo, submitModal, addCustomer, addProduct, setBusinessGstin, uniqueEmail, emailLink, acceptEmailLink, password } from './helpers.mjs';
 
+test('a login can be signed in on only one device at a time', async ({ page, browser }) => {
+  const { email } = await signUpOwner(page);
+
+  // A second browser stands in for a second device.
+  const otherDevice = await browser.newPage({ baseURL: test.info().project.use.baseURL });
+  await otherDevice.route(/supabase\.co/, route => route.abort());
+  await otherDevice.goto('/');
+  await otherDevice.fill('input[name="email"]', email);
+  await otherDevice.fill('input[name="password"]', password);
+  await otherDevice.click('#auth-form [type="submit"]');
+  await expect(otherDevice.locator('.auth-message')).toContainText('already signed in on another device');
+  await expect(otherDevice.locator('.nav-item[data-view="overview"]')).toBeHidden();
+
+  // Signing out on the first device frees the login.
+  await signOut(page);
+  await signIn(otherDevice, email);
+  await otherDevice.close();
+});
+
 test('owner signs up and creates a workspace', async ({ page }) => {
   await signUpOwner(page, { name: 'Asha Rao' });
   await expect(page.locator('#user-name')).toHaveText('Asha Rao');

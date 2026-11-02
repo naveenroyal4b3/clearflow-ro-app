@@ -231,6 +231,13 @@ export async function createSalesDocument(client, document) {
   return data;
 }
 
+// True when this account is already signed in on another device. If the check cannot run (for
+// example before the database upgrade), sign-in is allowed rather than locking everyone out.
+export async function signedInElsewhere(client) {
+  const { data, error } = await client.rpc('signed_in_elsewhere');
+  return !error && data === true;
+}
+
 export async function setSalesDocumentStatus(client, documentId, status) {
   const { error } = await client.rpc('set_sales_document_status', { p_document_id: documentId, p_status: status });
   if (error) throw error;
