@@ -1,6 +1,6 @@
 import { registerPlugin } from '@capacitor/core';
 import { createClient } from '@supabase/supabase-js';
-import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, updateOrganization } from './supabase-data.js';
+import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, updateOrganization } from './supabase-data.js';
 import { amountInWords, stateFromGstin, stateLabel, stateOptions, taxBreakup } from './gst.js';
 import { version as appVersion } from '../package.json';
 import './styles.css';
@@ -78,6 +78,12 @@ function renderAuth(mode = 'sign-in', message = '') {
       } else {
         const { data: result, error } = await supabaseClient.auth.signInWithPassword({ email: values.email.trim(), password: values.password });
         if (error) throw error;
+        // One device per login: undo this sign-in while the account is signed in somewhere else.
+        if (await signedInElsewhere(supabaseClient)) {
+          await supabaseClient.auth.signOut({ scope: 'local' });
+          renderAuth('sign-in', 'This account is already signed in on another device. Sign out there first, or use "Forgot password?" to sign out of all devices.');
+          return;
+        }
         await openAuthenticatedApp(result.session);
       }
     } catch (error) {
@@ -121,6 +127,9 @@ function renderSetPassword(session, linkType, message = '') {
     event.currentTarget.querySelector('[type="submit"]').disabled = true;
     const { error } = await supabaseClient.auth.updateUser({ password: values.password });
     if (error) { renderSetPassword(session, linkType, error.message); return; }
+    // A password reset is the way back in when the other device is lost, so it signs out every
+    // other device.
+    if (linkType === 'recovery') await supabaseClient.auth.signOut({ scope: 'others' });
     await openAuthenticatedApp(session);
   });
 }

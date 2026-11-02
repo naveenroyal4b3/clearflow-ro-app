@@ -244,6 +244,22 @@ as $$
   where p.user_id = (select auth.uid()) and p.active and p.role = 'customer';
 $$;
 
+-- One device per login: true when this account has a session other than the caller's, so the app
+-- can refuse a second sign-in until the first device signs out (or the password is reset).
+create function public.signed_in_elsewhere()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from auth.sessions s
+    where s.user_id = (select auth.uid())
+      and s.id is distinct from nullif((select auth.jwt()) ->> 'session_id', '')::uuid
+  );
+$$;
+
 create function public.create_organization(organization_name text, organization_gstin text default null)
 returns uuid
 language plpgsql
@@ -470,6 +486,7 @@ revoke all on function public.handle_new_auth_user() from public, anon, authenti
 revoke all on function public.current_organization_id() from public, anon;
 revoke all on function public.current_app_role() from public, anon;
 revoke all on function public.current_customer_id() from public, anon;
+revoke all on function public.signed_in_elsewhere() from public, anon;
 revoke all on function public.create_organization(text, text) from public, anon;
 revoke all on function public.set_feedback_status(text, public.feedback_status) from public, anon;
 revoke all on function public.set_service_job_status(text, text, text) from public, anon;
@@ -478,6 +495,7 @@ revoke all on function public.set_sales_document_status(text, text) from public,
 grant execute on function public.current_organization_id() to authenticated;
 grant execute on function public.current_app_role() to authenticated;
 grant execute on function public.current_customer_id() to authenticated;
+grant execute on function public.signed_in_elsewhere() to authenticated;
 grant execute on function public.create_organization(text, text) to authenticated;
 grant execute on function public.set_feedback_status(text, public.feedback_status) to authenticated;
 grant execute on function public.set_service_job_status(text, text, text) to authenticated;
