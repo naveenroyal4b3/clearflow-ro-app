@@ -4,15 +4,20 @@ name: Build Android release
 # It only builds a commit that already passed CI, waits for approval if the production
 # environment requires reviewers, and publishes a GitHub release with the bundle, an SBOM and
 # a build provenance attestation. With the PLAY_SERVICE_ACCOUNT_JSON secret set, it also uploads
-# the bundle to the Play internal testing track.
+# the bundle to Google Play (the closed testing track by default) and sends it for review.
 on:
   workflow_dispatch:
     inputs:
-      play_status:
-        description: Play internal track release status (use draft until the app has passed its first review)
+      play_track:
+        description: Play testing track to upload to (alpha is Play's closed testing track)
         type: choice
-        options: [draft, completed]
-        default: draft
+        options: [alpha, internal]
+        default: alpha
+      play_status:
+        description: completed sends the release for review and rolls it out; draft leaves it for you to publish in Play Console
+        type: choice
+        options: [completed, draft]
+        default: completed
 
 permissions:
   contents: read
@@ -120,12 +125,12 @@ jobs:
           gh release create "$TAG" "clearflow-$TAG.aab" sbom.spdx.json \
             --target "$GITHUB_SHA" --title "$TAG" --generate-notes
 
-      - name: Upload to Play internal testing
+      - name: Upload to Google Play
         if: steps.secrets.outputs.play == 'true'
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.naveenroyal4b3.clearflow
           releaseFiles: ${{ env.AAB }}
-          track: internal
+          track: ${{ inputs.play_track }}
           status: ${{ inputs.play_status }}

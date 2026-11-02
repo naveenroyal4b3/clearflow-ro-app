@@ -9,7 +9,7 @@ The signed release bundle is built in GitHub Actions. Run **Build Android releas
 - sets `versionName` from `package.json` and `versionCode` from the workflow run number, so every run can be uploaded
 - signs the bundle with the upload key from the `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` repository secrets (key alias `upload`)
 - publishes a GitHub release tagged `v<version>-build<run number>` with the bundle and an SBOM, and records a signed build provenance attestation (check one with `gh attestation verify <file>.aab --repo naveenroyal4b3/clearflow-ro-app`)
-- uploads the bundle to the Play **internal testing** track when the `PLAY_SERVICE_ACCOUNT_JSON` secret is set. Google requires the first bundle to be uploaded by hand in Play Console; after that, create a service account with release access, add its JSON key as that secret, and run the workflow with `play_status` set to `draft` until the app has passed its first review.
+- uploads the bundle to Google Play when the `PLAY_SERVICE_ACCOUNT_JSON` secret is set: the closed testing track (`alpha`) by default, or `internal`. With `play_status` set to `completed` the release is sent for review and rolled out to testers with no Play Console steps; `draft` leaves it for you to publish by hand. Google requires the first bundle to be uploaded by hand in Play Console; after that, create a service account with release access and add its JSON key as that secret.
 
 Every push to `main` also builds a debug APK in the **CI** workflow, after all checks pass, for testing on devices.
 
