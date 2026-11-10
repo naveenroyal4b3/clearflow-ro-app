@@ -280,3 +280,5 @@ td strong { color: #364640; font-size: 10px; font-weight: 700; }
 }
 .head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .offline-notice { margin-bottom: 16px; border-color: #e7c66b; background: #fff8e1; }
+.plan-notice { border-color: #e7c66b; background: #fff8e1; }
+.plan-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }

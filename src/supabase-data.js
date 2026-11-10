@@ -353,3 +353,11 @@ export function clearCachedWorkspaces() {
     // Nothing cached.
   }
 }
+
+// Starts a Razorpay subscription on the website and returns the payment page to open.
+export async function startSubscription(client, interval) {
+  const { data, error } = await client.functions.invoke('create-subscription', { body: { interval } });
+  if (error) throw new Error(await functionErrorMessage(error));
+  if (data?.error) throw new Error(data.error);
+  return data.url;
+}
