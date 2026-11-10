@@ -132,5 +132,5 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.naveenroyal4b3.clearflow
           releaseFiles: ${{ env.AAB }}
-          track: ${{ inputs.play_track }}
+          tracks: ${{ inputs.play_track }}
           status: ${{ inputs.play_status }}
