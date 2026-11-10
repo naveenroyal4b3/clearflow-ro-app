@@ -8,3 +8,11 @@ verify_jwt = false
 [functions.delete-account]
 # Same as invite-member: the function verifies the caller with auth.getUser().
 verify_jwt = false
+
+[functions.create-subscription]
+# Same as invite-member: the function verifies the caller with auth.getUser().
+verify_jwt = false
+
+[functions.razorpay-webhook]
+# Razorpay sends no Supabase JWT; the function verifies Razorpay's X-Razorpay-Signature instead.
+verify_jwt = false

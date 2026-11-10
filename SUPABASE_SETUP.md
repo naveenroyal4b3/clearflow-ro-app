@@ -66,3 +66,39 @@ dashboard.
 
 Unexpected app errors are stored in the `client_errors` table. View them in Supabase → Table
 Editor → `client_errors`. App users can add rows but never read them.
+
+## Plans and payments (Razorpay)
+
+Each business gets a 7-day free trial (`organizations.trial_ends_at`). After that it needs a paid
+plan (`paid_until` in the future) to add or change records. Without one the workspace stays
+readable, and a database trigger (`require_active_plan`) refuses inserts and updates. Plans are
+₹199/month or ₹1,999/year and are bought only in the **web** app (My account). The Android app
+shows no prices, buttons or links to pay, because Google Play's Payments policy allows a
+"consumption-only" app to unlock a plan bought elsewhere but not to lead users to that payment.
+
+One-time setup:
+
+1. In the Razorpay dashboard, go to **Subscriptions → Plans** and create two plans: monthly ₹199
+   and yearly ₹1,999. Copy both plan IDs (`plan_...`).
+2. Go to **Settings → API keys** and generate a key ID and secret.
+3. Go to **Settings → Webhooks** and add
+   `https://YOUR_PROJECT_REF.supabase.co/functions/v1/razorpay-webhook`, with a secret you choose
+   and the events `subscription.activated`, `subscription.charged` and `subscription.resumed`.
+4. Set the function secrets and deploy:
+
+```powershell
+npx supabase secrets set RAZORPAY_KEY_ID=rzp_live_... RAZORPAY_KEY_SECRET=... RAZORPAY_WEBHOOK_SECRET=... RAZORPAY_PLAN_MONTHLY=plan_... RAZORPAY_PLAN_YEARLY=plan_...
+npx supabase functions deploy create-subscription
+npx supabase functions deploy razorpay-webhook
+```
+
+Use Razorpay's test mode keys and plans first. Switch to live keys after a test payment unlocks
+a test business.
+
+To give a business free access (for example the Google Play reviewer's demo business), set its
+`paid_until` with the service key, for example in the SQL Editor:
+
+```sql
+update public.organizations set paid_until = '2099-12-31'
+where created_by = (select id from auth.users where email = 'naveenroyal4b3+review@gmail.com');
+```

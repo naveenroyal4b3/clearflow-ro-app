@@ -1,6 +1,6 @@
 import { registerPlugin } from '@capacitor/core';
 import { createClient } from '@supabase/supabase-js';
-import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, updateOrganization } from './supabase-data.js';
+import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization } from './supabase-data.js';
 import { amountInWords, stateFromGstin, stateLabel, stateOptions, taxBreakup } from './gst.js';
 import { version as appVersion } from '../package.json';
 import './styles.css';
@@ -278,6 +278,66 @@ function setView(next) {
 function updateRoleControl() {
   document.getElementById('role-control').hidden = profile?.role !== 'owner' || view !== 'catalog';
 }
+// Plans: a free trial, then a paid plan bought on the website. Without one the workspace is
+// read-only (the database enforces this too). The Android app never shows prices, buttons or links
+// to pay: Google Play allows a "consumption-only" app to unlock a plan bought elsewhere, but not to
+// lead users to that payment. Plain text pointing to the website is allowed.
+const isNativeApp = () => Boolean(window.Capacitor?.isNativePlatform?.());
+const webAppAddress = 'naveenroyal4b3.github.io/clearflow-ro-app';
+const planPrices = { monthly: '₹199 / month', yearly: '₹1,999 / year' };
+function planStatus() {
+  // Older cached workspaces (before plans existed) have no trial date; treat them as active.
+  if (!organization?.trial_ends_at) return { active: true };
+  const now = Date.now();
+  const paidUntil = organization.paid_until ? new Date(organization.paid_until) : null;
+  if (paidUntil && paidUntil.getTime() > now) return { active: true, paid: true, until: paidUntil };
+  const trialEnds = new Date(organization.trial_ends_at);
+  if (trialEnds.getTime() > now) return { active: true, trial: true, until: trialEnds, daysLeft: Math.ceil((trialEnds.getTime() - now) / 86400000) };
+  return { active: false };
+}
+function longDate(value) { return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(value); }
+function renewalHint() {
+  return isNativeApp() ? `To renew, sign in on our website, ${webAppAddress}, and open My account.` : 'Choose a plan in My account to continue.';
+}
+const planEndedMessage = 'This business’s plan has ended. You can still view and export records.';
+// True (and explains why) when the plan has ended, so a form or action should not open.
+function planBlocked() {
+  if (planStatus().active) return false;
+  toast(planEndedMessage);
+  return true;
+}
+function planNotice() {
+  const plan = planStatus();
+  if (!plan.active) {
+    const action = profile?.role === 'owner' ? ` ${renewalHint()}` : ' Ask the business owner to renew it.';
+    return `<div class="notice plan-notice" role="status"><strong>Plan ended.</strong> ${esc(planEndedMessage)}${esc(action)}</div>`;
+  }
+  if (plan.trial && profile?.role === 'owner' && plan.daysLeft <= 3) {
+    return `<div class="notice plan-notice" role="status"><strong>Free trial ends on ${esc(longDate(plan.until))}.</strong> ${esc(renewalHint())}</div>`;
+  }
+  return '';
+}
+function planSection() {
+  if (profile.role !== 'owner') return '';
+  const plan = planStatus();
+  const status = plan.paid ? `Active until ${longDate(plan.until)} (renews automatically).`
+    : plan.trial ? `Free trial until ${longDate(plan.until)}.`
+      : 'Ended. The workspace is read-only.';
+  const buy = !plan.paid && !isNativeApp()
+    ? `<span class="plan-buttons">${Object.entries(planPrices).map(([interval, label]) => `<button class="button secondary" type="button" data-action="buy-plan" data-interval="${interval}">Pay ${label}</button>`).join('')}</span>`
+    : !plan.paid ? esc(renewalHint()) : '';
+  return `<div class="notice"><strong>Plan.</strong> ${esc(status)} ${buy}</div>`;
+}
+async function buyPlan(button) {
+  if (isNativeApp() || offlineSince) return;
+  button.disabled = true;
+  try {
+    window.location.href = await startSubscription(supabaseClient, button.dataset.interval);
+  } catch (error) {
+    button.disabled = false;
+    toast(errorMessage(error, 'The payment could not be started. Try again.'));
+  }
+}
 function render() {
   if (profile) updateRoleAccess();
   document.getElementById('customer-count').textContent = data.customers.length;
@@ -289,6 +349,8 @@ function render() {
   if (view === 'catalog') renderCatalog();
   if (view === 'accounts') renderAccounts();
   if (view === 'feedback') renderFeedback();
+  const notice = planNotice();
+  if (notice) page.insertAdjacentHTML('afterbegin', notice);
   if (offlineSince) page.insertAdjacentHTML('afterbegin', `<div class="notice offline-notice" role="status"><strong>Offline.</strong> Showing data last synced ${esc(new Date(offlineSince).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }))}. Changes can be made once you are back online.</div>`);
 }
 window.addEventListener('online', () => { if (offlineSince && authSession) openAuthenticatedApp(authSession); });
@@ -452,6 +514,7 @@ function closeModal() { document.getElementById('modal-root').innerHTML = ''; }
 function customerOptions(selected = '') { return data.customers.map(item => `<option value="${esc(item.id)}" ${item.id === selected ? 'selected' : ''}>${esc(item.name)} · ${esc(item.phone)}</option>`).join(''); }
 function openCustomerForm(existing) {
   if (profile.role !== 'owner') { toast('Only the owner can manage customer records'); return; }
+  if (planBlocked()) return;
   const item = existing || {};
   showModal(existing ? 'Edit customer' : 'Add customer', 'Contact, address and installation details', `<div class="form-grid"><div class="field"><label for="name">Customer / business name *</label><input id="name" name="name" required value="${esc(item.name || '')}"></div><div class="field"><label for="phone">Phone number *</label><input id="phone" name="phone" type="tel" required value="${esc(item.phone || '')}"></div><div class="field"><label for="email">Email</label><input id="email" name="email" type="email" value="${esc(item.email || '')}"></div><div class="field"><label for="type">Customer type</label><select id="type" name="type"><option ${item.type === 'Residential' ? 'selected' : ''}>Residential</option><option ${item.type === 'Commercial' ? 'selected' : ''}>Commercial</option><option ${item.type === 'Apartment' ? 'selected' : ''}>Apartment</option></select></div><div class="field full"><label for="address">Full address</label><textarea id="address" name="address">${esc(item.address || '')}</textarea></div><div class="field"><label for="gstin">Customer GSTIN (business customers)</label><input id="gstin" name="gstin" maxlength="15" value="${esc(item.gstin || '')}"></div><div class="field"><label for="state">State (place of supply)</label><select id="state" name="state">${stateOptions(item.state || '')}</select></div><div class="field"><label for="purifier">Purifier / model installed</label><input id="purifier" name="purifier" value="${esc(item.purifier || '')}"></div><div class="field"><label for="installed">Installation date</label><input id="installed" name="installed" type="date" value="${esc(item.installed || '')}"></div></div>`, existing ? 'Save changes' : 'Add customer', async form => {
     const value = Object.fromEntries(form.entries());
@@ -464,6 +527,7 @@ function openCustomerForm(existing) {
 function openJobForm(existing) {
   if (!data.customers.length) { toast('Add a customer before scheduling a service job'); return; }
   if (profile.role !== 'owner' && (profile.role !== 'technician' || !existing)) { toast('Only an owner can schedule a service job'); return; }
+  if (planBlocked()) return;
   const item = existing || {};
   const technicianMode = profile.role === 'technician';
   const formBody = technicianMode
@@ -541,7 +605,7 @@ function openAccountSettings() {
   const consequence = profile.role === 'owner'
     ? `If you are the only owner, this permanently deletes the <strong>${businessName}</strong> workspace: every customer, service job, product, invoice and feedback item, and the login of every technician, shop and customer you invited. This cannot be undone. GST rules require you to keep invoices for six years, so export them first. <button class="button secondary" type="button" data-action="export-invoices">Export invoices</button>`
     : `This permanently deletes your login and the feedback you submitted. This cannot be undone. <strong>${businessName}</strong> keeps the records it needs for service history and GST invoices; contact them directly if you want those removed.`;
-  showModal('My account', `${profile.login_email} · ${roleLabels[profile.role] || profile.role}`, `<div class="notice"><strong>Signed in on another device?</strong> Sign out everywhere else so you can sign in on a new device. This device stays signed in. <button class="button secondary" type="button" data-action="sign-out-others">Sign out of other devices</button></div><div class="notice"><strong>Delete account.</strong> ${consequence}</div><div class="field"><label for="delete-confirm">Type DELETE to confirm</label><input id="delete-confirm" name="confirm" autocomplete="off" required></div>`, 'Delete account', async form => {
+  showModal('My account', `${profile.login_email} · ${roleLabels[profile.role] || profile.role}`, `${planSection()}<div class="notice"><strong>Signed in on another device?</strong> Sign out everywhere else so you can sign in on a new device. This device stays signed in. <button class="button secondary" type="button" data-action="sign-out-others">Sign out of other devices</button></div><div class="notice"><strong>Delete account.</strong> ${consequence}</div><div class="field"><label for="delete-confirm">Type DELETE to confirm</label><input id="delete-confirm" name="confirm" autocomplete="off" required></div>`, 'Delete account', async form => {
     if (form.get('confirm').trim() !== 'DELETE') throw new Error('Type DELETE to confirm');
     await deleteAccount(supabaseClient);
     closeModal();
@@ -560,6 +624,7 @@ async function signOutOtherDevices(button) {
 const productUnits = ['Nos', 'Pcs', 'Set', 'Box', 'Kg', 'Ltr', 'Mtr'];
 function openProductForm() {
   if (profile.role !== 'owner') { toast('Only the owner can change catalogue items'); return; }
+  if (planBlocked()) return;
   showModal('Add catalogue item', 'Set customer, technician and shop pricing', `<div class="form-grid"><div class="field"><label for="name">Product name *</label><input id="name" name="name" required></div><div class="field"><label for="category">Category</label><select id="category" name="category"><option>Purifiers</option><option>Accessories</option><option>Spare parts</option></select></div><div class="field full"><label for="description">Description</label><input id="description" name="description"></div><div class="field"><label for="hsn">HSN code (needed for GST invoices)</label><input id="hsn" name="hsn" maxlength="8" inputmode="numeric" placeholder="e.g. 8421"></div><div class="field"><label for="unit">Unit</label><select id="unit" name="unit">${productUnits.map(unit => `<option>${unit}</option>`).join('')}</select></div><div class="field"><label for="customer">Customer price (₹)</label><input id="customer" name="customer" type="number" min="0" required></div><div class="field"><label for="technician">Technician price (₹)</label><input id="technician" name="technician" type="number" min="0" required></div><div class="field"><label for="shop">Shop price (₹)</label><input id="shop" name="shop" type="number" min="0" required></div><div class="field"><label for="stock">Stock quantity</label><input id="stock" name="stock" type="number" min="0" value="0"></div><div class="field"><label for="gst">GST rate (%)</label><input id="gst" name="gst" type="number" min="0" max="100" value="18"></div></div>`, 'Add product', async form => {
     const value = Object.fromEntries(form.entries());
     const item = { ...value, id: `P-${crypto.randomUUID().slice(0, 8).toUpperCase()}`, customer: Number(value.customer), technician: Number(value.technician), shop: Number(value.shop), stock: Number(value.stock), gst: Number(value.gst) };
@@ -570,6 +635,7 @@ function openProductForm() {
 }
 function openSaleForm(type = 'Quotation') {
   if (profile.role !== 'owner') { toast('Only the owner can create quotations or invoices'); return; }
+  if (planBlocked()) return;
   if (!data.customers.length || !data.products.length) { toast('Add a customer and product before creating a document'); return; }
   const options = data.products.map(item => `<option value="${esc(item.id)}" data-price="${price(item)}">${esc(item.name)} · ${money(price(item))}</option>`).join('');
   const lineItem = `<div class="field"><label>Product</label><select name="productId" class="sale-product">${options}</select></div><div class="field"><label>Qty</label><input name="qty" class="sale-qty" type="number" min="1" value="1" required></div><div class="field"><label>Unit price ₹</label><input name="price" class="sale-price" type="number" min="0" value="${price(data.products[0])}" required></div><div class="field"><label>Discount ₹</label><input name="discount" class="sale-discount" type="number" min="0" step="0.01" value="0"></div><button class="row-action remove-line" type="button" aria-label="Remove line">${icons.close}</button>`;
@@ -710,6 +776,7 @@ document.addEventListener('click', event => {
   if (action === 'my-account') openAccountSettings();
   if (action === 'business-details') openBusinessForm();
   if (action === 'export-invoices') exportInvoices();
+  if (action === 'buy-plan') buyPlan(event.target.closest('[data-action]'));
   if (action === 'sign-out-others') signOutOtherDevices(event.target.closest('[data-action]'));
   const nav = event.target.closest('[data-nav]')?.dataset.nav;
   if (nav) { closeModal(); setView(nav); }
@@ -733,6 +800,7 @@ document.addEventListener('change', async event => {
   if (!doc) return;
   const next = select.value;
   const restocks = doc.type === 'Invoice' && next === 'Cancelled';
+  if (planBlocked()) { select.value = doc.status; return; }
   if (next === 'Cancelled' && !confirm(`Cancel ${doc.id}? ${restocks ? 'Its items go back into stock. ' : ''}This cannot be undone.`)) { select.value = doc.status; return; }
   try {
     await setSalesDocumentStatus(supabaseClient, doc.id, next);
