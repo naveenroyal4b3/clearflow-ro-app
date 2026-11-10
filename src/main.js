@@ -1,5 +1,6 @@
 import { registerPlugin } from '@capacitor/core';
 import { createClient } from '@supabase/supabase-js';
+import { SocialLogin } from '@capgo/capacitor-social-login';
 import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization } from './supabase-data.js';
 import { amountInWords, stateFromGstin, stateLabel, stateOptions, taxBreakup } from './gst.js';
 import { version as appVersion } from '../package.json';
@@ -14,6 +15,7 @@ const icons = {
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
   calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>',
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18"/></svg>',
+  google: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.5-5.2 3.5-8.7z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3c-1.1.7-2.5 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.3v3.1A12 12 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6h-4a12 12 0 0 0 0 10.8l4-3.1z"/><path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1c.9-2.9 3.6-4.9 6.7-4.9z"/></svg>',
   download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3v12m-5-5 5 5 5-5M4 19v2h16v-2"/></svg>'
 };
 const roleLabels = { owner: 'Owner', technician: 'Technician', shop: 'Shop', customer: 'Customer' };
@@ -21,6 +23,10 @@ const emptyData = { customers: [], jobs: [], products: [], accounts: [], documen
 const environment = import.meta.env;
 const supabaseUrl = environment.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = environment.VITE_SUPABASE_ANON_KEY || '';
+// The Google Cloud "Web application" OAuth client ID. Without it the Google button is hidden.
+const googleWebClientId = environment.VITE_GOOGLE_WEB_CLIENT_ID || '';
+const googleSignInFlag = 'clearflow-google-sign-in';
+const signedInElsewhereMessage = 'This account is already signed in on another device. Sign out there first, or use "Forgot password?" to sign out of all devices.';
 // Read invite/recovery link details before the Supabase client consumes and clears the URL hash.
 const authLinkParams = new URLSearchParams(window.location.hash.slice(1));
 const authLinkType = authLinkParams.get('type');
@@ -57,9 +63,17 @@ function renderAuth(mode = 'sign-in', message = '') {
   authRoot.hidden = false;
   authRoot.className = 'auth-screen';
   const creating = mode === 'sign-up';
-  authRoot.innerHTML = `<section class="auth-card"><div class="auth-brand"><div class="brand-mark">${icons.product}</div><div><div class="brand-name">clearflow</div><div class="brand-caption">WATER SYSTEMS · OPERATIONS</div></div></div><h1>${creating ? 'Create your workspace' : 'Welcome back'}</h1><p>${creating ? 'Set up the owner account for your water business.' : 'Sign in to your water business workspace.'}</p>${message ? `<div class="auth-message" role="status">${esc(message)}</div>` : ''}<form class="auth-form" id="auth-form">${creating ? `<div class="field"><label for="auth-full-name">Your name</label><input id="auth-full-name" name="full_name" autocomplete="name" required maxlength="160"></div><div class="field"><label for="auth-phone">Phone number</label><input id="auth-phone" name="phone" type="tel" autocomplete="tel" required></div><div class="field"><label for="auth-organization">Business name</label><input id="auth-organization" name="organization_name" required maxlength="160"></div><div class="field"><label for="auth-gstin">Business GSTIN (optional)</label><input id="auth-gstin" name="gstin" maxlength="15" autocomplete="off"></div>` : ''}<div class="field"><label for="auth-email">Email</label><input id="auth-email" name="email" type="email" autocomplete="email" required></div><div class="field"><label for="auth-password">Password</label><input id="auth-password" name="password" type="password" autocomplete="${creating ? 'new-password' : 'current-password'}" minlength="8" required></div><button class="button" type="submit">${creating ? 'Create account' : 'Sign in'}</button></form><button class="auth-switch" type="button" data-auth-mode="${creating ? 'sign-in' : 'sign-up'}">${creating ? 'Already have an account? Sign in' : 'New business? Create an account'}</button>${creating ? '<p class="auth-footnote">By creating an account you agree to the <a href="./terms.html" target="_blank" rel="noopener">terms of service</a> and <a href="./privacy.html" target="_blank" rel="noopener">privacy policy</a>.</p>' : '<button class="auth-switch" type="button" data-reset-password>Forgot password?</button>'}<p class="auth-footnote">Invited technicians, shops, and customers: open the invitation email from your business to set your password, then sign in here.</p></section>`;
+  authRoot.innerHTML = `<section class="auth-card"><div class="auth-brand"><div class="brand-mark">${icons.product}</div><div><div class="brand-name">clearflow</div><div class="brand-caption">WATER SYSTEMS · OPERATIONS</div></div></div><h1>${creating ? 'Create your workspace' : 'Welcome back'}</h1><p>${creating ? 'Set up the owner account for your water business.' : 'Sign in to your water business workspace.'}</p>${message ? `<div class="auth-message" role="status">${esc(message)}</div>` : ''}${googleWebClientId ? `<button class="button secondary google-button" type="button" data-google-sign-in>${icons.google} Continue with Google</button><div class="auth-divider"><span>or use email</span></div>` : ''}<form class="auth-form" id="auth-form">${creating ? `<div class="field"><label for="auth-full-name">Your name</label><input id="auth-full-name" name="full_name" autocomplete="name" required maxlength="160"></div><div class="field"><label for="auth-phone">Phone number</label><input id="auth-phone" name="phone" type="tel" autocomplete="tel" required></div><div class="field"><label for="auth-organization">Business name</label><input id="auth-organization" name="organization_name" required maxlength="160"></div><div class="field"><label for="auth-gstin">Business GSTIN (optional)</label><input id="auth-gstin" name="gstin" maxlength="15" autocomplete="off"></div>` : ''}<div class="field"><label for="auth-email">Email</label><input id="auth-email" name="email" type="email" autocomplete="email" required></div><div class="field"><label for="auth-password">Password</label><input id="auth-password" name="password" type="password" autocomplete="${creating ? 'new-password' : 'current-password'}" minlength="8" required></div><button class="button" type="submit">${creating ? 'Create account' : 'Sign in'}</button></form><button class="auth-switch" type="button" data-auth-mode="${creating ? 'sign-in' : 'sign-up'}">${creating ? 'Already have an account? Sign in' : 'New business? Create an account'}</button>${creating ? '<p class="auth-footnote">By creating an account you agree to the <a href="./terms.html" target="_blank" rel="noopener">terms of service</a> and <a href="./privacy.html" target="_blank" rel="noopener">privacy policy</a>.</p>' : '<button class="auth-switch" type="button" data-reset-password>Forgot password?</button>'}<p class="auth-footnote">Invited technicians, shops, and customers: open the invitation email from your business to set your password, then sign in here.</p></section>`;
   authRoot.querySelector('[data-auth-mode]').addEventListener('click', event => renderAuth(event.currentTarget.dataset.authMode));
   authRoot.querySelector('[data-reset-password]')?.addEventListener('click', () => renderPasswordResetRequest());
+  authRoot.querySelector('[data-google-sign-in]')?.addEventListener('click', async event => {
+    event.currentTarget.disabled = true;
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      renderAuth(mode, errorMessage(error, 'Google sign-in failed. Try again.'));
+    }
+  });
   authRoot.querySelector('#auth-form').addEventListener('submit', async event => {
     event.preventDefault();
     const values = Object.fromEntries(new FormData(event.currentTarget).entries());
@@ -78,18 +92,44 @@ function renderAuth(mode = 'sign-in', message = '') {
       } else {
         const { data: result, error } = await supabaseClient.auth.signInWithPassword({ email: values.email.trim(), password: values.password });
         if (error) throw error;
-        // One device per login: undo this sign-in while the account is signed in somewhere else.
-        if (await signedInElsewhere(supabaseClient)) {
-          await supabaseClient.auth.signOut({ scope: 'local' });
-          renderAuth('sign-in', 'This account is already signed in on another device. Sign out there first, or use "Forgot password?" to sign out of all devices.');
-          return;
-        }
-        await openAuthenticatedApp(result.session);
+        await finishSignIn(result.session);
       }
     } catch (error) {
       renderAuth(mode, errorMessage(error, 'Sign-in failed. Check your details and try again.'));
     }
   });
+}
+// One device per login: undo a new sign-in while the account is signed in somewhere else.
+async function finishSignIn(session) {
+  if (await signedInElsewhere(supabaseClient)) {
+    await supabaseClient.auth.signOut({ scope: 'local' });
+    renderAuth('sign-in', signedInElsewhereMessage);
+    return;
+  }
+  await openAuthenticatedApp(session);
+}
+// Google sign-in. In the Android app, Google's account picker (Credential Manager) returns an ID
+// token that Supabase verifies; the nonce ties that token to this attempt. On the web, Supabase
+// redirects to Google and back, and initializeApp() finishes the sign-in.
+let socialLoginReady = null;
+async function signInWithGoogle() {
+  if (isNativeApp()) {
+    socialLoginReady ||= SocialLogin.initialize({ google: { webClientId: googleWebClientId } });
+    await socialLoginReady;
+    const rawNonce = crypto.randomUUID() + crypto.randomUUID();
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawNonce));
+    const hashedNonce = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    const login = await SocialLogin.login({ provider: 'google', options: { nonce: hashedNonce } });
+    const idToken = login.result && 'idToken' in login.result ? login.result.idToken : null;
+    if (!idToken) throw new Error('Google sign-in was cancelled.');
+    const { data: result, error } = await supabaseClient.auth.signInWithIdToken({ provider: 'google', token: idToken, nonce: rawNonce });
+    if (error) throw error;
+    await finishSignIn(result.session);
+    return;
+  }
+  sessionStorage.setItem(googleSignInFlag, '1');
+  const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + window.location.pathname } });
+  if (error) { sessionStorage.removeItem(googleSignInFlag); throw error; }
 }
 // Email links should return to the page they were requested from. In the Android app that page
 // is not reachable from an email link, so let Supabase fall back to its Site URL.
@@ -240,6 +280,14 @@ async function initializeApp() {
     }
   });
   const { data: sessionData, error } = await supabaseClient.auth.getSession();
+  const returningFromGoogle = sessionStorage.getItem(googleSignInFlag) === '1';
+  sessionStorage.removeItem(googleSignInFlag);
+  if (returningFromGoogle && (authLinkError || new URLSearchParams(window.location.search).get('error_description'))) {
+    window.history.replaceState(null, '', window.location.pathname);
+    renderAuth('sign-in', `Google sign-in failed: ${authLinkError || new URLSearchParams(window.location.search).get('error_description')}`);
+    return;
+  }
+  if (returningFromGoogle && sessionData.session) { await finishSignIn(sessionData.session); return; }
   if (authLinkType || authLinkError) window.history.replaceState(null, '', window.location.pathname + window.location.search);
   if (authLinkError) { renderAuth('sign-in', `That email link could not be used: ${authLinkError}. Ask your business owner for a new invitation, or use "Forgot password?".`); return; }
   if (error) { renderAuth('sign-in', error.message); return; }

@@ -282,3 +282,7 @@ td strong { color: #364640; font-size: 10px; font-weight: 700; }
 .offline-notice { margin-bottom: 16px; border-color: #e7c66b; background: #fff8e1; }
 .plan-notice { border-color: #e7c66b; background: #fff8e1; }
 .plan-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.google-button { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; }
+.google-button svg { width: 17px; height: 17px; }
+.auth-divider { display: flex; align-items: center; gap: 10px; margin: 14px 0; color: #8a9893; font-size: 11px; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; border-top: 1px solid #e3e9e5; }

@@ -102,3 +102,27 @@ To give a business free access (for example the Google Play reviewer's demo busi
 update public.organizations set paid_until = '2099-12-31'
 where created_by = (select id from auth.users where email = 'naveenroyal4b3+review@gmail.com');
 ```
+
+## Google sign-in
+
+The sign-in screen shows **Continue with Google** when the build has `VITE_GOOGLE_WEB_CLIENT_ID`.
+On the web, Supabase redirects to Google and back. In the Android app, Google's account picker
+(Credential Manager, through `@capgo/capacitor-social-login`) returns an ID token, which
+`signInWithIdToken` verifies with a nonce. The one-device-per-login rule applies to both. A new
+Google user goes through **Finish business setup**, like an email sign-up.
+
+One-time setup, all in the same Google Cloud project (Clearflow RO):
+
+1. **Google Auth Platform → Branding / Audience:** app name `Clearflow RO`, support email, and
+   links to the privacy policy and terms. Audience **External**, then **Publish app** (the `email`
+   and `profile` scopes need no verification).
+2. **Clients → Create client → Web application**, with authorized redirect URI
+   `https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback`. Copy its client ID and secret.
+3. **Clients → Create client → Android**, package `com.naveenroyal4b3.clearflow`, once for each
+   SHA-1:
+   - Play Console → **Test and release → App integrity → App signing key certificate**
+   - the upload key (`keytool -list -v -keystore <your upload keystore>`)
+4. **Supabase → Authentication → Sign In / Providers → Google:** enable it, paste the Web client ID
+   and secret, and keep "Skip nonce checks" off.
+5. **GitHub → Settings → Secrets and variables → Actions → Variables:** add
+   `VITE_GOOGLE_WEB_CLIENT_ID` with the Web client ID. It is public, so a variable, not a secret.

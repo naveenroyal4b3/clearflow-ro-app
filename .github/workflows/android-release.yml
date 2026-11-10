@@ -57,6 +57,7 @@ jobs:
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_GOOGLE_WEB_CLIENT_ID: ${{ vars.VITE_GOOGLE_WEB_CLIENT_ID }}
       KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       AAB: android/app/build/outputs/bundle/release/app-release.aab
     steps:
