@@ -19,6 +19,15 @@ test('a login can be signed in on only one device at a time', async ({ page, bro
   await otherDevice.close();
 });
 
+test('signing out of other devices from My account keeps this device signed in', async ({ page }) => {
+  await signUpOwner(page);
+  await page.click('[data-action="my-account"]');
+  await page.click('[data-action="sign-out-others"]');
+  await expect(page.locator('.toast')).toContainText('Signed out of all other devices');
+  await page.reload();
+  await expect(page.locator('.nav-item[data-view="overview"]')).toBeVisible();
+});
+
 test('owner signs up and creates a workspace', async ({ page }) => {
   await signUpOwner(page, { name: 'Asha Rao' });
   await expect(page.locator('#user-name')).toHaveText('Asha Rao');
