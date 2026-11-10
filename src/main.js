@@ -541,7 +541,7 @@ function openAccountSettings() {
   const consequence = profile.role === 'owner'
     ? `If you are the only owner, this permanently deletes the <strong>${businessName}</strong> workspace: every customer, service job, product, invoice and feedback item, and the login of every technician, shop and customer you invited. This cannot be undone. GST rules require you to keep invoices for six years, so export them first. <button class="button secondary" type="button" data-action="export-invoices">Export invoices</button>`
     : `This permanently deletes your login and the feedback you submitted. This cannot be undone. <strong>${businessName}</strong> keeps the records it needs for service history and GST invoices; contact them directly if you want those removed.`;
-  showModal('My account', `${profile.login_email} · ${roleLabels[profile.role] || profile.role}`, `<div class="notice"><strong>Delete account.</strong> ${consequence}</div><div class="field"><label for="delete-confirm">Type DELETE to confirm</label><input id="delete-confirm" name="confirm" autocomplete="off" required></div>`, 'Delete account', async form => {
+  showModal('My account', `${profile.login_email} · ${roleLabels[profile.role] || profile.role}`, `<div class="notice"><strong>Signed in on another device?</strong> Sign out everywhere else so you can sign in on a new device. This device stays signed in. <button class="button secondary" type="button" data-action="sign-out-others">Sign out of other devices</button></div><div class="notice"><strong>Delete account.</strong> ${consequence}</div><div class="field"><label for="delete-confirm">Type DELETE to confirm</label><input id="delete-confirm" name="confirm" autocomplete="off" required></div>`, 'Delete account', async form => {
     if (form.get('confirm').trim() !== 'DELETE') throw new Error('Type DELETE to confirm');
     await deleteAccount(supabaseClient);
     closeModal();
@@ -549,6 +549,13 @@ function openAccountSettings() {
     renderAuth('sign-in', 'Your account has been deleted.');
   });
   document.querySelector('#active-form [type="submit"]').classList.add('danger');
+}
+async function signOutOtherDevices(button) {
+  if (offlineSince) { toast('You are offline. Try again once you are back online.'); return; }
+  button.disabled = true;
+  const { error } = await supabaseClient.auth.signOut({ scope: 'others' });
+  button.disabled = false;
+  toast(error ? errorMessage(error, 'Could not sign out other devices. Try again.') : 'Signed out of all other devices');
 }
 const productUnits = ['Nos', 'Pcs', 'Set', 'Box', 'Kg', 'Ltr', 'Mtr'];
 function openProductForm() {
@@ -703,6 +710,7 @@ document.addEventListener('click', event => {
   if (action === 'my-account') openAccountSettings();
   if (action === 'business-details') openBusinessForm();
   if (action === 'export-invoices') exportInvoices();
+  if (action === 'sign-out-others') signOutOtherDevices(event.target.closest('[data-action]'));
   const nav = event.target.closest('[data-nav]')?.dataset.nav;
   if (nav) { closeModal(); setView(nav); }
   const customerEdit = event.target.closest('[data-edit-customer]')?.dataset.editCustomer;
