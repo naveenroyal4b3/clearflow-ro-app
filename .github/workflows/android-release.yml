@@ -63,6 +63,8 @@ jobs:
       ANDROID_VERSION_CODE: ${{ github.run_number }}
       KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       AAB: mobile/android/app/build/outputs/bundle/release/app-release.aab
+      # R8's mapping file, so crash reports in Play Console show readable names.
+      MAPPING: mobile/android/app/build/outputs/mapping/release/mapping.txt
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -135,6 +137,7 @@ jobs:
           name: clearflow-release-aab-${{ github.run_number }}
           path: |
             ${{ env.AAB }}
+            ${{ env.MAPPING }}
             sbom.spdx.json
           if-no-files-found: error
           retention-days: 30
@@ -154,5 +157,6 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.naveenroyal4b3.clearflow
           releaseFiles: ${{ env.AAB }}
+          mappingFile: ${{ env.MAPPING }}
           tracks: ${{ inputs.play_track }}
           status: ${{ inputs.play_status }}
