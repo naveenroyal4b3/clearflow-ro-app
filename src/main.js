@@ -1,9 +1,7 @@
-import { registerPlugin } from '@capacitor/core';
 import { createClient } from '@supabase/supabase-js';
-import { SocialLogin } from '@capgo/capacitor-social-login';
 import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization } from './supabase-data.js';
 import { stateFromGstin, stateOptions, taxBreakup } from './gst.js';
-import { documentDetails as sharedDocumentDetails, documentHtml, invoiceRegisterHeader, invoiceRegisterHtml, invoiceRegisterRows } from './documents.js';
+import { documentDetails as sharedDocumentDetails, documentHtml, invoiceRegisterHeader, invoiceRegisterRows } from './documents.js';
 import { version as appVersion } from '../package.json';
 import './styles.css';
 
@@ -111,33 +109,15 @@ async function finishSignIn(session) {
   }
   await openAuthenticatedApp(session);
 }
-// Google sign-in. In the Android app, Google's account picker (Credential Manager) returns an ID
-// token that Supabase verifies; the nonce ties that token to this attempt. On the web, Supabase
-// redirects to Google and back, and initializeApp() finishes the sign-in.
-let socialLoginReady = null;
+// Google sign-in: Supabase redirects to Google and back, and initializeApp() finishes the sign-in.
 async function signInWithGoogle() {
-  if (isNativeApp()) {
-    socialLoginReady ||= SocialLogin.initialize({ google: { webClientId: googleWebClientId } });
-    await socialLoginReady;
-    const rawNonce = crypto.randomUUID() + crypto.randomUUID();
-    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawNonce));
-    const hashedNonce = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
-    const login = await SocialLogin.login({ provider: 'google', options: { nonce: hashedNonce } });
-    const idToken = login.result && 'idToken' in login.result ? login.result.idToken : null;
-    if (!idToken) throw new Error('Google sign-in was cancelled.');
-    const { data: result, error } = await supabaseClient.auth.signInWithIdToken({ provider: 'google', token: idToken, nonce: rawNonce });
-    if (error) throw error;
-    await finishSignIn(result.session);
-    return;
-  }
   sessionStorage.setItem(googleSignInFlag, '1');
   const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + window.location.pathname } });
   if (error) { sessionStorage.removeItem(googleSignInFlag); throw error; }
 }
-// Email links should return to the page they were requested from. In the Android app that page
-// is not reachable from an email link, so let Supabase fall back to its Site URL.
+// Email links return to the page they were requested from.
 function webRedirectOption(name) {
-  return window.Capacitor?.isNativePlatform?.() ? {} : { [name]: window.location.origin + window.location.pathname };
+  return { [name]: window.location.origin + window.location.pathname };
 }
 function authBrand() {
   return `<div class="auth-brand"><div class="brand-mark">${icons.brand}</div><div><div class="brand-name">clearflow</div><div class="brand-caption">WATER SYSTEMS · OPERATIONS</div></div></div>`;
@@ -328,12 +308,9 @@ function setView(next) {
 function updateRoleControl() {
   document.getElementById('role-control').hidden = profile?.role !== 'owner' || view !== 'catalog';
 }
-// Plans: a free trial, then a paid plan bought on the website. Without one the workspace is
-// read-only (the database enforces this too). The Android app never shows prices, buttons or links
-// to pay: Google Play allows a "consumption-only" app to unlock a plan bought elsewhere, but not to
-// lead users to that payment. Plain text pointing to the website is allowed.
-const isNativeApp = () => Boolean(window.Capacitor?.isNativePlatform?.());
-const webAppAddress = 'naveenroyal4b3.github.io/clearflow-ro-app';
+// Plans: a free trial, then a paid plan bought here on the website. Without one the workspace is
+// read-only (the database enforces this too). The Android app (mobile/) shows plan status as plain
+// text only, as Google Play's consumption-only rule requires.
 const planPrices = { monthly: '₹199 / month', yearly: '₹1,999 / year' };
 function planStatus() {
   // Older cached workspaces (before plans existed) have no trial date; treat them as active.
@@ -347,7 +324,7 @@ function planStatus() {
 }
 function longDate(value) { return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(value); }
 function renewalHint() {
-  return isNativeApp() ? `To renew, sign in on our website, ${webAppAddress}, and open My account.` : 'Choose a plan in My account to continue.';
+  return 'Choose a plan in My account to continue.';
 }
 const planEndedMessage = 'This business’s plan has ended. You can still view and export records.';
 // True (and explains why) when the plan has ended, so a form or action should not open.
@@ -373,13 +350,13 @@ function planSection() {
   const status = plan.paid ? `Active until ${longDate(plan.until)} (renews automatically).`
     : plan.trial ? `Free trial until ${longDate(plan.until)}.`
       : 'Ended. The workspace is read-only.';
-  const buy = !plan.paid && !isNativeApp()
+  const buy = !plan.paid
     ? `<span class="plan-buttons">${Object.entries(planPrices).map(([interval, label]) => `<button class="button secondary" type="button" data-action="buy-plan" data-interval="${interval}">Pay ${label}</button>`).join('')}</span>`
     : !plan.paid ? esc(renewalHint()) : '';
   return `<div class="notice"><strong>Plan.</strong> ${esc(status)} ${buy}</div>`;
 }
 async function buyPlan(button) {
-  if (isNativeApp() || offlineSince) return;
+  if (offlineSince) return;
   button.disabled = true;
   try {
     window.location.href = await startSubscription(supabaseClient, button.dataset.interval);
@@ -726,19 +703,12 @@ function openSaleForm(type = 'Quotation') {
   modal.querySelector('#add-line').addEventListener('click', () => { const row = document.createElement('div'); row.className = 'line-item'; row.innerHTML = lineItem; modal.querySelector('#line-items').append(row); bindRow(row); updateTotal(); });
   updateTotal();
 }
-// The Android WebView ignores window.print(), so the app opens Android's print screen (which can
-// also save a PDF) through the plugin in android-overrides/.
-const NativePrint = registerPlugin('Print');
 // Seller, buyer and tax for a document, as it was issued.
 function documentDetails(doc) {
   return sharedDocumentDetails(doc, { customer: data.customers.find(item => item.id === doc.customerId), products: data.products, organization });
 }
-// Prints on Android through the plugin, or in a pop-up window on the web.
-function printHtml(html, name) {
-  if (window.Capacitor?.isNativePlatform?.()) {
-    NativePrint.print({ html, name }).catch(error => toast(error?.message || 'Could not open printing'));
-    return;
-  }
+// Prints in a pop-up window (the browser's print screen can also save a PDF).
+function printHtml(html) {
   const print = window.open('', '_blank', 'width=900,height=800');
   if (!print) { toast('Allow pop-ups to print this document'); return; }
   print.document.write(html);
@@ -746,16 +716,11 @@ function printHtml(html, name) {
   print.focus();
   print.print();
 }
-// A spreadsheet of every invoice for the accountant: a CSV download on the web, or a printable
-// register (which can be saved as a PDF) in the Android app, where downloads are not available.
+// A spreadsheet (CSV) of every invoice for the accountant.
 function exportInvoices() {
   const rows = invoiceRegisterRows(data.documents, documentDetails);
   if (!rows.length) { toast('There are no invoices to export yet'); return; }
   const fileName = `${organization?.name || 'clearflow'} invoices ${new Date().toISOString().slice(0, 10)}`;
-  if (window.Capacitor?.isNativePlatform?.()) {
-    printHtml(invoiceRegisterHtml(fileName, rows), fileName);
-    return;
-  }
   const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
   const csv = [invoiceRegisterHeader, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
   const link = document.createElement('a');
@@ -767,7 +732,7 @@ function exportInvoices() {
 function printDocument(id) {
   const doc = data.documents.find(item => item.id === id);
   if (!doc) return;
-  printHtml(documentHtml(doc, documentDetails(doc)), doc.id);
+  printHtml(documentHtml(doc, documentDetails(doc)));
 }
 document.querySelectorAll('.nav-item[data-view]').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
 document.getElementById('role-select').value = roleView;
