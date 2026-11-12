@@ -2,30 +2,18 @@
 
 ## Android build
 
-The signed release bundle is built in GitHub Actions. Run **Build Android release** from the Actions tab on `main`. The workflow:
+The Android app is the React Native (Expo) app in `mobile/`. The signed release bundle is built in GitHub Actions. Run **Build Android release** from the Actions tab on `main`. The workflow:
 
 - refuses to run unless the **CI** workflow has passed on that commit, and waits for approval if the `production` environment has required reviewers
-- generates the Android project and icons, targets Android API 36, and turns off `allowBackup`
-- sets `versionName` from `package.json` and `versionCode` from the workflow run number, so every run can be uploaded
+- generates the native Android project with `expo prebuild` (icons, `allowBackup` off, R8 code and resource shrinking, all from `mobile/app.config.ts`)
+- takes `versionName` from `mobile/package.json` and `versionCode` from the workflow run number, so every run can be uploaded
 - signs the bundle with the upload key from the `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` repository secrets (key alias `upload`)
 - publishes a GitHub release tagged `v<version>-build<run number>` with the bundle and an SBOM, and records a signed build provenance attestation (check one with `gh attestation verify <file>.aab --repo naveenroyal4b3/clearflow-ro-app`)
-- uploads the bundle to Google Play when the `PLAY_SERVICE_ACCOUNT_JSON` secret is set: the closed testing track (`alpha`) by default, or `internal`. With `play_status` set to `completed` the release is sent for review and rolled out to testers with no Play Console steps; `draft` leaves it for you to publish by hand. Google requires the first bundle to be uploaded by hand in Play Console; after that, create a service account with release access and add its JSON key as that secret.
+- uploads the bundle and R8's mapping file to Google Play when the `PLAY_SERVICE_ACCOUNT_JSON` secret is set: the closed testing track (`alpha`) by default, or `internal`. With `play_status` set to `completed` the release is sent for review; `draft` leaves it for you to publish by hand.
 
-Every push to `main` also builds a debug APK in the **CI** workflow, after all checks pass, for testing on devices.
+The **Native app** workflow builds an arm64 debug APK whenever `mobile/` or the shared code changes, for testing on devices. To run the app locally, see `mobile/README.md`.
 
-To build locally instead, install Node.js LTS and Android Studio with Android SDK Platform 36, then run:
-
-```powershell
-npm install
-npm run android:add
-npx capacitor-assets generate --android
-npm run android:sync
-npx cap open android
-```
-
-The `android/` folder is generated and not committed. `npm run android:add` generates it and then runs `scripts/prepare-android.mjs`, which copies in the app's native code from `android-overrides/` (the print plugin) and turns off `allowBackup`. A local release build also needs a version code higher than the last upload and signing with the upload key.
-
-The app ID is `com.naveenroyal4b3.clearflow`. It cannot be changed after publishing. Keep the upload keystore and its password private and backed up outside this repository.
+The app ID is `com.naveenroyal4b3.clearflow`. It cannot be changed after publishing. Keep the upload keystore and its password private and backed up outside this repository. The Play Store icon and feature graphic are in `store/`.
 
 ## Done
 

@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv } from 'vite';
 
 // Adds a Content-Security-Policy to web builds (GitHub Pages and the end-to-end tests) when
-// WEB_CSP=1. The Android build leaves it out because Capacitor injects its bridge as an inline script.
+// WEB_CSP=1 (the GitHub Pages deploy and the end-to-end tests).
 function contentSecurityPolicy(supabaseUrl) {
   const supabaseOrigin = supabaseUrl ? new URL(supabaseUrl).origin : '';
   const policy = [

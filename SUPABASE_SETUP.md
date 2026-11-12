@@ -107,7 +107,7 @@ where created_by = (select id from auth.users where email = 'naveenroyal4b3+revi
 
 The sign-in screen shows **Continue with Google** when the build has `VITE_GOOGLE_WEB_CLIENT_ID`.
 On the web, Supabase redirects to Google and back. In the Android app, Google's account picker
-(Credential Manager, through `@capgo/capacitor-social-login`) returns an ID token, which
+(Credential Manager, through `react-native-nitro-google-signin`) returns an ID token, which
 `signInWithIdToken` verifies with a nonce. The one-device-per-login rule applies to both. A new
 Google user goes through **Finish business setup**, like an email sign-up.
 
