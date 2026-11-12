@@ -1,6 +1,6 @@
 name: CI
 
-# Every change is checked here, including a debug APK build. The web app is only deployed from
+# Every change is checked here. The native Android app (mobile/) is built by mobile.yml. The web app is only deployed from
 # main, and only after every check passes. The release workflow refuses to build a commit unless this workflow passed on it.
 on:
   push:
@@ -215,31 +215,3 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
-  debug-apk:
-    # Also runs on pull requests, so a broken Android build is caught before it reaches main.
-    needs: [checks, validate-schema, e2e]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      VITE_GOOGLE_WEB_CLIENT_ID: ${{ vars.VITE_GOOGLE_WEB_CLIENT_ID }}
-    steps:
-      - name: Check out source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Generate Android project
-        uses: ./.github/actions/android-project
-
-      - name: Build debug APK
-        run: cd android && ./gradlew assembleDebug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: clearflow-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14

@@ -1,10 +1,11 @@
 name: Build Android release
 
-# Builds the signed app bundle (.aab) for Google Play. Run it from the Actions tab on main.
-# It only builds a commit that already passed CI, waits for approval if the production
-# environment requires reviewers, and publishes a GitHub release with the bundle, an SBOM and
-# a build provenance attestation. With the PLAY_SERVICE_ACCOUNT_JSON secret set, it also uploads
-# the bundle to Google Play (the closed testing track by default) and sends it for review.
+# Builds the signed app bundle (.aab) for Google Play from the React Native app in mobile/.
+# Run it from the Actions tab on main. It only builds a commit that already passed CI, waits for
+# approval if the production environment requires reviewers, and publishes a GitHub release with
+# the bundle, an SBOM and a build provenance attestation. With the PLAY_SERVICE_ACCOUNT_JSON
+# secret set, it also uploads the bundle to Google Play (the closed testing track by default) and
+# sends it for review.
 on:
   workflow_dispatch:
     inputs:
@@ -46,7 +47,7 @@ jobs:
   release-aab:
     needs: verify-ci
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     environment: production
     permissions:
       contents: write # create the tag and GitHub release
@@ -55,11 +56,13 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      VITE_GOOGLE_WEB_CLIENT_ID: ${{ vars.VITE_GOOGLE_WEB_CLIENT_ID }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ vars.VITE_GOOGLE_WEB_CLIENT_ID }}
+      # Google Play needs a higher versionCode for every upload, so use this workflow's run number.
+      ANDROID_VERSION_CODE: ${{ github.run_number }}
       KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-      AAB: android/app/build/outputs/bundle/release/app-release.aab
+      AAB: mobile/android/app/build/outputs/bundle/release/app-release.aab
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -77,20 +80,37 @@ jobs:
           echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
           echo "play=$([ -n "$PLAY_SERVICE_ACCOUNT_JSON" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
-      - name: Generate Android project
-        uses: ./.github/actions/android-project
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
 
-      - name: Set version
-        # Google Play needs a higher versionCode for every upload, so use this workflow's run number.
+      - name: Set up Java
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: Install dependencies and generate the native Android project
+        working-directory: mobile
         run: |
-          version_name=$(node -p "require('./package.json').version")
-          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"$version_name\"/" android/app/build.gradle
+          npm ci
+          npx expo prebuild --platform android --no-install
           grep -E "versionCode|versionName" android/app/build.gradle
+          version_name=$(node -p "require('./package.json').version")
           echo "TAG=v$version_name-build${{ github.run_number }}" >> "$GITHUB_ENV"
 
       - name: Build signed app bundle
+        # Signed with the same upload key as the earlier Capacitor builds, so Google Play accepts
+        # it as an update to the same app.
+        working-directory: mobile/android
         run: |
-          cd android && ./gradlew bundleRelease \
+          ./gradlew bundleRelease \
             -Pandroid.injected.signing.store.file="$RUNNER_TEMP/upload.jks" \
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias=upload \
@@ -101,7 +121,8 @@ jobs:
 
       - name: Generate SBOM
         # Lists every package shipped in the app, so a vulnerable dependency can be traced to a release.
-        run: npm sbom --omit=dev --sbom-format=spdx > sbom.spdx.json
+        working-directory: mobile
+        run: npm sbom --omit=dev --sbom-format=spdx > ../sbom.spdx.json
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2

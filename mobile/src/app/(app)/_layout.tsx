@@ -35,7 +35,7 @@ export default function AppLayout() {
         <Tabs.Screen name="sales" options={{ title: 'Sales', headerShown: false, tabBarIcon: icon('receipt-outline') }} />
       </Tabs.Protected>
       <Tabs.Screen name="catalog" options={{ title: 'Catalogue', headerShown: false, tabBarIcon: icon('cube-outline') }} />
-      <Tabs.Screen name="account" options={{ title: 'Account', tabBarIcon: icon('person-circle-outline') }} />
+      <Tabs.Screen name="more" options={{ title: 'More', headerShown: false, tabBarIcon: icon('menu-outline') }} />
     </Tabs>
   );
 }

@@ -12,5 +12,6 @@ npx tsc --noEmit; npx expo lint; npx jest
 npx expo run:android           # needs Android Studio / an emulator or device
 ```
 
-CI (`native-app` job) runs the checks and builds a debug APK on every change. Payments stay on the
+The Native app workflow (mobile.yml) runs the checks and builds an arm64 debug APK whenever the app
+or the shared code changes. Payments stay on the
 website: the app shows plan status as plain text only (Google Play consumption-only rule).
