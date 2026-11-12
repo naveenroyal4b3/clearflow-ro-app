@@ -31,8 +31,25 @@ type DataModule = {
   loadAuditLog: (client: SupabaseClient, organizationId: string, limit?: number) => Promise<{ id: number; table_name: string; record_id: string; action: string; changed_by: string | null; changed_at: string }[]>;
 };
 
+export type DocumentDetails = {
+  seller: { name: string; gstin: string; address: string; state: string; phone?: string };
+  buyer: { name: string; gstin: string; address: string; state: string };
+  sellerState: string;
+  buyerState: string;
+  tax: Bill<LineItem>;
+};
+type DocumentsModule = {
+  documentDetails: (doc: SalesDocument, context: { customer: object | undefined; products: object[]; organization: Organization | null }) => DocumentDetails;
+  documentHtml: (doc: SalesDocument, details: DocumentDetails) => string;
+  invoiceRegisterRows: (documents: SalesDocument[], detailsFor: (doc: SalesDocument) => DocumentDetails) => (string | number)[][];
+  invoiceRegisterHtml: (title: string, rows: (string | number)[][]) => string;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const gst: GstModule = require('../../../src/gst.js');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const documents: DocumentsModule = require('../../../src/documents.js');
+export const { documentDetails, documentHtml, invoiceRegisterRows, invoiceRegisterHtml } = documents;
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const data: DataModule = require('../../../src/supabase-data.js');
 

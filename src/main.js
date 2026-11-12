@@ -2,7 +2,8 @@ import { registerPlugin } from '@capacitor/core';
 import { createClient } from '@supabase/supabase-js';
 import { SocialLogin } from '@capgo/capacitor-social-login';
 import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization } from './supabase-data.js';
-import { amountInWords, stateFromGstin, stateLabel, stateOptions, taxBreakup } from './gst.js';
+import { stateFromGstin, stateOptions, taxBreakup } from './gst.js';
+import { documentDetails as sharedDocumentDetails, documentHtml, invoiceRegisterHeader, invoiceRegisterHtml, invoiceRegisterRows } from './documents.js';
 import { version as appVersion } from '../package.json';
 import './styles.css';
 
@@ -303,7 +304,6 @@ function money(value) {
   const amount = Math.round((Number(value) || 0) * 100) / 100;
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: Number.isInteger(amount) ? 0 : 2, maximumFractionDigits: 2 }).format(amount);
 }
-function rupees(value) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0); }
 function date(value) { if (!value) return '—'; return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`)); }
 function shortDate(value) { if (!value) return '—'; return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short' }).format(new Date(`${value}T00:00:00`)); }
 function customer(id) { return data.customers.find(item => item.id === id) || { name: 'Unknown customer', phone: '', address: '' }; }
@@ -731,14 +731,7 @@ function openSaleForm(type = 'Quotation') {
 const NativePrint = registerPlugin('Print');
 // Seller, buyer and tax for a document, as it was issued.
 function documentDetails(doc) {
-  const person = customer(doc.customerId);
-  // Documents issued before seller/buyer snapshots existed fall back to the current details.
-  const seller = doc.seller?.name ? doc.seller : { name: organization?.name || '', gstin: organization?.gstin || '', address: organization?.address || '', state: organization?.state_code || '', phone: organization?.phone || '' };
-  const buyer = doc.buyer?.name ? doc.buyer : { name: person.name, gstin: person.gstin || '', address: person.address, state: person.state || '' };
-  const sellerState = seller.state || stateFromGstin(seller.gstin);
-  const buyerState = buyer.state || stateFromGstin(buyer.gstin);
-  const tax = taxBreakup(doc.items.map(item => ({ ...item, name: item.name || product(item.productId).name, hsn: item.hsn ?? product(item.productId).hsn ?? '' })), { gstEnabled: doc.gst, sellerState, buyerState });
-  return { seller, buyer, sellerState, buyerState, tax };
+  return sharedDocumentDetails(doc, { customer: data.customers.find(item => item.id === doc.customerId), products: data.products, organization });
 }
 // Prints on Android through the plugin, or in a pop-up window on the web.
 function printHtml(html, name) {
@@ -756,21 +749,15 @@ function printHtml(html, name) {
 // A spreadsheet of every invoice for the accountant: a CSV download on the web, or a printable
 // register (which can be saved as a PDF) in the Android app, where downloads are not available.
 function exportInvoices() {
-  const invoices = data.documents.filter(doc => doc.type === 'Invoice').sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
-  if (!invoices.length) { toast('There are no invoices to export yet'); return; }
-  const header = ['Invoice number', 'Date', 'Status', 'Customer', 'Customer GSTIN', 'Place of supply', 'Taxable value', 'CGST', 'SGST', 'IGST', 'Total'];
-  const rows = invoices.map(doc => {
-    const { buyer, tax } = documentDetails(doc);
-    return [doc.id, doc.date, doc.status, buyer.name, buyer.gstin, doc.gst ? stateLabel(tax.placeOfSupply) : '', tax.taxable, tax.cgst, tax.sgst, tax.igst, tax.total];
-  });
+  const rows = invoiceRegisterRows(data.documents, documentDetails);
+  if (!rows.length) { toast('There are no invoices to export yet'); return; }
   const fileName = `${organization?.name || 'clearflow'} invoices ${new Date().toISOString().slice(0, 10)}`;
   if (window.Capacitor?.isNativePlatform?.()) {
-    const cells = row => row.map(value => `<td>${esc(typeof value === 'number' ? rupees(value) : value)}</td>`).join('');
-    printHtml(`<!doctype html><html><head><title>${esc(fileName)}</title><style>body{font:11px Arial,sans-serif;padding:24px}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:5px;border-bottom:1px solid #ddd}</style></head><body><h2>${esc(fileName)}</h2><table><thead><tr>${header.map(name => `<th>${name}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${cells(row)}</tr>`).join('')}</tbody></table></body></html>`, fileName);
+    printHtml(invoiceRegisterHtml(fileName, rows), fileName);
     return;
   }
   const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
-  const csv = [header, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
+  const csv = [invoiceRegisterHeader, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
   const link = document.createElement('a');
   link.href = URL.createObjectURL(new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8' }));
   link.download = `${fileName}.csv`;
@@ -780,26 +767,7 @@ function exportInvoices() {
 function printDocument(id) {
   const doc = data.documents.find(item => item.id === id);
   if (!doc) return;
-  const { seller, buyer, sellerState, buyerState, tax } = documentDetails(doc);
-  const title = doc.type === 'Quotation' ? 'Quotation' : doc.gst && seller.gstin ? 'Tax Invoice' : 'Invoice';
-  const hasDiscount = tax.discount > 0;
-  const taxHead = tax.interState ? '<th>IGST</th>' : '<th>CGST</th><th>SGST</th>';
-  const taxCell = (amount, rate) => `<td class="n">${rupees(amount)}<small>@ ${rate}%</small></td>`;
-  const rows = tax.rows.map((row, index) => `<tr><td>${index + 1}</td><td>${esc(row.name)}</td><td>${esc(row.hsn || '—')}</td><td class="n">${row.qty} ${esc(row.unit || 'Nos')}</td><td class="n">${rupees(row.price)}</td>${hasDiscount ? `<td class="n">${row.discount ? rupees(row.discount) : '—'}</td>` : ''}<td class="n">${rupees(row.taxable)}</td>${tax.interState ? taxCell(row.igst, row.rate) : taxCell(row.cgst, row.rate / 2) + taxCell(row.sgst, row.rate / 2)}<td class="n">${rupees(row.total)}</td></tr>`).join('');
-  const taxTotals = tax.interState
-    ? `<p><span>IGST</span><strong>${rupees(tax.igst)}</strong></p>`
-    : `<p><span>CGST</span><strong>${rupees(tax.cgst)}</strong></p><p><span>SGST</span><strong>${rupees(tax.sgst)}</strong></p>`;
-  const party = (label, details, state) => `<div class="party"><small>${label}</small><strong>${esc(details.name)}</strong>${details.address ? `<span>${esc(details.address)}</span>` : ''}${details.phone ? `<span>Phone: ${esc(details.phone)}</span>` : ''}${details.gstin ? `<span>GSTIN: ${esc(details.gstin)}</span>` : ''}${state ? `<span>State: ${esc(stateLabel(state))}</span>` : ''}</div>`;
-  const html = `<!doctype html><html><head><title>${esc(doc.id)}</title><style>body{font:13px Arial,sans-serif;color:#24342d;padding:40px}h1{margin:0;font-size:22px}.head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #197c70;padding-bottom:16px}.meta{text-align:right}.meta span{display:block}.parties{display:flex;gap:24px;margin:20px 0}.party{flex:1}.party small{display:block;color:#68756e;text-transform:uppercase;font-size:10px;letter-spacing:.06em;margin-bottom:4px}.party strong,.party span{display:block}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;padding:8px;border-bottom:1px solid #ddd;font-size:12px}th{background:#f4f7f4}.n{text-align:right}td small{display:block;color:#77827c;font-size:10px}.words{margin:16px 0 0;text-align:right}.total{width:300px;margin:20px 0 0 auto}.total p{display:flex;justify-content:space-between;margin:6px 0}.grand{border-top:1px solid #aaa;padding-top:10px;font-size:16px;font-weight:bold}.foot{display:flex;justify-content:space-between;margin-top:60px;color:#77827c;font-size:11px}.sign{text-align:right;color:#24342d}</style></head><body>
-<div class="head"><div><h1>${esc(seller.name)}</h1></div><div class="meta"><h1>${title}</h1><span>${esc(doc.id)}</span><span>Date: ${date(doc.date)}</span><span>${doc.type === 'Quotation' ? 'Valid until' : 'Due date'}: ${date(doc.due)}</span></div></div>
-<div class="parties">${party('From', seller, sellerState)}${party(doc.type === 'Quotation' ? 'Quotation for' : 'Bill to', buyer, buyerState)}</div>
-${doc.gst ? `<p>Place of supply: <strong>${esc(stateLabel(tax.placeOfSupply) || 'Not specified')}</strong> · Reverse charge: No</p>` : '<p>GST not applied to this document.</p>'}
-<table><thead><tr><th>#</th><th>Item</th><th>HSN</th><th class="n">Qty</th><th class="n">Rate</th>${hasDiscount ? '<th class="n">Discount</th>' : ''}<th class="n">Taxable value</th>${taxHead.replace(/<th>/g, '<th class="n">')}<th class="n">Amount</th></tr></thead><tbody>${rows}</tbody></table>
-<div class="total">${hasDiscount ? `<p><span>Discount</span><strong>${rupees(tax.discount)}</strong></p>` : ''}<p><span>Taxable value</span><strong>${rupees(tax.taxable)}</strong></p>${doc.gst ? taxTotals : ''}<p class="grand"><span>Total</span><strong>${rupees(tax.total)}</strong></p></div>
-<p class="words">Amount in words: <strong>${amountInWords(tax.total)}</strong></p>
-<div class="foot"><span>This is a computer-generated document.</span><span class="sign">For ${esc(seller.name)}<br><br><br>Authorised signatory</span></div>
-</body></html>`;
-  printHtml(html, doc.id);
+  printHtml(documentHtml(doc, documentDetails(doc)), doc.id);
 }
 document.querySelectorAll('.nav-item[data-view]').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
 document.getElementById('role-select').value = roleView;

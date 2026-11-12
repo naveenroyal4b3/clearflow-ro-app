@@ -13,7 +13,7 @@ function icon(name: IconName) {
 // Each role sees only the tabs it has data for, as in the web app.
 export default function AppLayout() {
   const { profile } = useSession();
-  const owner = profile?.role === 'owner';
+  const role = profile?.role;
   return (
     <Tabs
       screenOptions={{
@@ -25,10 +25,17 @@ export default function AppLayout() {
       }}
     >
       <Tabs.Screen name="home" options={{ title: 'Overview', tabBarIcon: icon('grid-outline') }} />
-      <Tabs.Protected guard={owner}>
+      <Tabs.Protected guard={role === 'owner'}>
         <Tabs.Screen name="customers" options={{ title: 'Customers', headerShown: false, tabBarIcon: icon('people-outline') }} />
       </Tabs.Protected>
-      <Tabs.Screen name="account" options={{ title: 'My account', tabBarIcon: icon('person-circle-outline') }} />
+      <Tabs.Protected guard={role !== 'shop'}>
+        <Tabs.Screen name="jobs" options={{ title: 'Jobs', headerShown: false, tabBarIcon: icon('construct-outline') }} />
+      </Tabs.Protected>
+      <Tabs.Protected guard={role === 'owner' || role === 'customer'}>
+        <Tabs.Screen name="sales" options={{ title: 'Sales', headerShown: false, tabBarIcon: icon('receipt-outline') }} />
+      </Tabs.Protected>
+      <Tabs.Screen name="catalog" options={{ title: 'Catalogue', headerShown: false, tabBarIcon: icon('cube-outline') }} />
+      <Tabs.Screen name="account" options={{ title: 'Account', tabBarIcon: icon('person-circle-outline') }} />
     </Tabs>
   );
 }

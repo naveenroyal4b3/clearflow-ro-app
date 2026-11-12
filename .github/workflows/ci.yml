@@ -167,60 +167,6 @@ jobs:
             test-results
           retention-days: 14
 
-  native-app:
-    # The React Native app in mobile/ (replacing the Capacitor app over the coming releases).
-    # Builds a debug APK on every change, so a broken native build is caught before release.
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    defaults:
-      run:
-        working-directory: mobile
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-      EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ vars.VITE_GOOGLE_WEB_CLIENT_ID }}
-    steps:
-      - name: Check out source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: mobile/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Typecheck, lint and unit tests
-        run: |
-          npx tsc --noEmit
-          CI=1 npx expo lint
-          npx jest --ci
-
-      - name: Set up Java
-        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Generate the native Android project
-        run: npx expo prebuild --platform android --no-install
-
-      - name: Build debug APK
-        run: cd android && ./gradlew assembleDebug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: clearflow-native-debug-apk
-          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
-
   web:
     # Hosts the web app on GitHub Pages so Supabase invite and password-reset email links
     # open a page that works on any device.

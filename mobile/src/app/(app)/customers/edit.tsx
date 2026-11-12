@@ -1,6 +1,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Button, Field, Notice, Screen, Select } from '@/components/ui';
+import { DateField } from '@/components/DateField';
 import { StateSelect } from '@/components/StateSelect';
 import { useReadOnlyReason } from '@/components/PlanNotice';
 import { errorMessage, newId, today } from '@/lib/format';
@@ -50,7 +51,7 @@ export default function EditCustomer() {
       <Field label="Customer GSTIN (business customers)" value={form.gstin} onChangeText={set('gstin')} autoCapitalize="characters" maxLength={15} />
       <StateSelect label="State (place of supply)" value={form.state} onChange={set('state')} />
       <Field label="Purifier / model installed" value={form.purifier} onChangeText={set('purifier')} />
-      <Field label="Installation date" value={form.installed} onChangeText={set('installed')} placeholder="YYYY-MM-DD" hint={validDate ? undefined : 'Use YYYY-MM-DD, not in the future.'} />
+      <DateField label="Installation date" value={form.installed} onChange={set('installed')} optional maximumDate={new Date()} />
       <Field label="Notes" value={form.notes} onChangeText={set('notes')} multiline />
       <Button label={existing ? 'Save changes' : 'Add customer'} onPress={save} disabled={Boolean(readOnly) || !form.name.trim() || !form.phone.trim() || !validDate} />
     </Screen>

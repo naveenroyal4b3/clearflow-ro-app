@@ -51,6 +51,7 @@ export default function Overview() {
           <Card style={{ backgroundColor: colors.tealPale }}>
             <CardTitle title="Set up your RO workspace" note="Add your first customer to start managing service and sales." />
             <Button label="Add customer" onPress={() => router.push('/customers/edit')} />
+            <Button label="Add product" variant="secondary" onPress={() => router.push('/catalog/edit')} />
           </Card>
         ) : null}
 
@@ -69,7 +70,7 @@ export default function Overview() {
         ) : null}
 
         <Card>
-          <CardTitle title="Upcoming service" note="Next scheduled visits" />
+          <CardTitle title="Upcoming service" note="Next scheduled visits" action={profile?.role !== 'shop' ? <Button label="All jobs" variant="link" onPress={() => router.push('/jobs')} /> : undefined} />
           {upcoming.length ? upcoming.map(job => (
             <View key={job.id} style={local.listRow}>
               <View style={ui.flex}>

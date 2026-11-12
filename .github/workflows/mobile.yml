@@ -1,0 +1,88 @@
+name: Native app
+
+# The React Native app in mobile/. Runs only when the app or the code it shares with the web app
+# changes, so website-only changes don't wait on a native build.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - mobile/**
+      - src/gst.js
+      - src/supabase-data.js
+      - src/documents.js
+      - .github/workflows/mobile.yml
+  pull_request:
+    paths:
+      - mobile/**
+      - src/gst.js
+      - src/supabase-data.js
+      - src/documents.js
+      - .github/workflows/mobile.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-app:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ vars.VITE_GOOGLE_WEB_CLIENT_ID }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck, lint and unit tests
+        run: |
+          npx tsc --noEmit
+          CI=1 npx expo lint
+          npx jest --ci
+
+      - name: Set up Java
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # Caches Gradle's downloads and build cache between runs (written only from main).
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: Generate the native Android project
+        run: npx expo prebuild --platform android --no-install
+
+      # A test build for arm64 phones only: compiling React Native's C++ for all four CPU types
+      # is most of the build time. Release builds (android-release.yml) still include all four.
+      - name: Build debug APK
+        run: cd android && ./gradlew assembleDebug --build-cache -PreactNativeArchitectures=arm64-v8a
+
+      - name: Upload APK
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: clearflow-native-debug-apk
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
