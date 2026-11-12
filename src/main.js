@@ -27,7 +27,7 @@ const supabaseAnonKey = environment.VITE_SUPABASE_ANON_KEY || '';
 // The Google Cloud "Web application" OAuth client ID. Without it the Google button is hidden.
 const googleWebClientId = environment.VITE_GOOGLE_WEB_CLIENT_ID || '';
 const googleSignInFlag = 'clearflow-google-sign-in';
-const signedInElsewhereMessage = 'This account is already signed in on another device. Sign out there first, or use "Forgot password?" to sign out of all devices.';
+const signedInElsewhereMessage = 'This account is already signed in on another device. Sign in again and choose OK to sign out the other device, or sign out there first.';
 // Read invite/recovery link details before the Supabase client consumes and clears the URL hash.
 const authLinkParams = new URLSearchParams(window.location.hash.slice(1));
 const authLinkType = authLinkParams.get('type');
@@ -101,11 +101,16 @@ function renderAuth(mode = 'sign-in', message = '') {
   });
 }
 // One device per login: undo a new sign-in while the account is signed in somewhere else.
+// The person has just proved who they are, so they may move the login here instead.
 async function finishSignIn(session) {
   if (await signedInElsewhere(supabaseClient)) {
-    await supabaseClient.auth.signOut({ scope: 'local' });
-    renderAuth('sign-in', signedInElsewhereMessage);
-    return;
+    const moved = window.confirm('This account is signed in on another device. Sign it out there and continue here?')
+      && !(await supabaseClient.auth.signOut({ scope: 'others' })).error;
+    if (!moved) {
+      await supabaseClient.auth.signOut({ scope: 'local' });
+      renderAuth('sign-in', signedInElsewhereMessage);
+      return;
+    }
   }
   await openAuthenticatedApp(session);
 }

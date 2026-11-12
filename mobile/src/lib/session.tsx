@@ -1,6 +1,7 @@
 import NetInfo from '@react-native-community/netinfo';
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Alert } from 'react-native';
 import { cachedWorkspace, cacheWorkspace, clearCachedWorkspace } from './cache';
 import { reportError } from './errors';
 import { errorMessage } from './format';
@@ -32,7 +33,21 @@ type SessionContextValue = SessionState & {
   setData: (update: (data: WorkspaceData) => WorkspaceData) => void;
 };
 
-export const signedInElsewhereMessage = 'This account is already signed in on another device. Sign out there first, or use "Forgot password?" to sign out of all devices.';
+export const signedInElsewhereMessage = 'This account is already signed in on another device. Sign in again and choose "Sign out other device", or sign out there first.';
+
+function confirmMoveHere() {
+  return new Promise<boolean>(resolve => {
+    Alert.alert(
+      'Signed in on another device',
+      'This account is signed in on another device. Sign it out there and continue on this phone?',
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Sign out other device', onPress: () => resolve(true) }
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) }
+    );
+  });
+}
 
 const initialState: SessionState = { status: 'loading', session: null, profile: null, organization: null, data: emptyData, offlineSince: null, authMessage: '' };
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -105,10 +120,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SessionContextValue>(() => ({
     ...state,
     finishSignIn: async session => {
+      // The person has just proved who they are, so let them move the login to this phone.
       if (await signedInElsewhere(supabase)) {
-        await supabase.auth.signOut({ scope: 'local' });
-        signedOut(signedInElsewhereMessage);
-        return;
+        const moved = await confirmMoveHere() && !(await supabase.auth.signOut({ scope: 'others' })).error;
+        if (!moved) {
+          await supabase.auth.signOut({ scope: 'local' });
+          signedOut(signedInElsewhereMessage);
+          return;
+        }
       }
       await openWorkspace(session);
     },

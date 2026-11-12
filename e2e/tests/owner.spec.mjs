@@ -19,6 +19,16 @@ test('a login can be signed in on only one device at a time', async ({ page, bro
   await otherDevice.close();
 });
 
+test('a new device can sign out the other device and continue', async ({ page, browser }) => {
+  const { email } = await signUpOwner(page);
+
+  const otherDevice = await browser.newPage({ baseURL: test.info().project.use.baseURL });
+  await otherDevice.goto('/');
+  otherDevice.once('dialog', dialog => dialog.accept());
+  await signIn(otherDevice, email);
+  await otherDevice.close();
+});
+
 test('signing out of other devices from My account keeps this device signed in', async ({ page }) => {
   await signUpOwner(page);
   await page.click('[data-action="my-account"]');
