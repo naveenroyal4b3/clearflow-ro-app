@@ -11,6 +11,8 @@ on:
       - src/gst.js
       - src/supabase-data.js
       - src/documents.js
+      - src/i18n.js
+      - src/locales/**
       - .github/workflows/mobile.yml
   pull_request:
     paths:
@@ -18,6 +20,8 @@ on:
       - src/gst.js
       - src/supabase-data.js
       - src/documents.js
+      - src/i18n.js
+      - src/locales/**
       - .github/workflows/mobile.yml
   workflow_dispatch:
 
