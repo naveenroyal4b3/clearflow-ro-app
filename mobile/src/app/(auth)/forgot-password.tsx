@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Brand, Button, Card, Field, Heading, Notice, Screen } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 
@@ -15,7 +16,7 @@ export default function ForgotPassword() {
     setError('');
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim());
     if (resetError) { setError(resetError.message); return; }
-    setAuthMessage('If that email has an account, a password reset link is on its way. Open it, choose a new password, then sign in here.');
+    setAuthMessage(t('If that email has an account, a password reset link is on its way. Open it, choose a new password, then sign in here.'));
     router.replace('/sign-in');
   };
 
@@ -23,11 +24,11 @@ export default function ForgotPassword() {
     <Screen>
       <Card>
         <Brand />
-        <Heading title="Reset your password" subtitle="Enter your account email and we'll send you a link to choose a new password." />
+        <Heading title={t('Reset your password')} subtitle={t("Enter your account email and we'll send you a link to choose a new password.")} />
         {error ? <Notice tone="error">{error}</Notice> : null}
-        <Field label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
-        <Button label="Send reset link" onPress={send} disabled={!email.trim()} />
-        <Button label="Back to sign in" variant="link" onPress={() => router.back()} />
+        <Field label={t('Email')} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
+        <Button label={t('Send reset link')} onPress={send} disabled={!email.trim()} />
+        <Button label={t('Back to sign in')} variant="link" onPress={() => router.back()} />
       </Card>
     </Screen>
   );

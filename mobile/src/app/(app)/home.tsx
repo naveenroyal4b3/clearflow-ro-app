@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Badge, Button, Card, CardTitle, colors, Empty, Heading, styles as ui } from '@/components/ui';
 import { PlanNotice } from '@/components/PlanNotice';
 import { money, shortDate, today, totals } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
 function monthKey(date: Date) {
@@ -27,10 +28,10 @@ export default function Overview() {
   const chartMax = Math.max(1, ...months.map(item => item.total));
   const openJobs = data.jobs.filter(job => job.status !== 'Completed' && job.status !== 'Cancelled');
   const upcoming = [...openJobs].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 4);
-  const customerName = (id: string) => data.customers.find(item => item.id === id)?.name || 'Customer';
-  const firstName = profile?.full_name?.split(/\s+/)[0] || 'there';
+  const customerName = (id: string) => data.customers.find(item => item.id === id)?.name || t('Customer');
+  const firstName = profile?.full_name?.split(/\s+/)[0] || t('there');
   const hour = now.getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const greeting = hour < 12 ? t('Good morning, {name}', { name: firstName }) : hour < 17 ? t('Good afternoon, {name}', { name: firstName }) : t('Good evening, {name}', { name: firstName });
 
   const refresh = async () => { setRefreshing(true); await reload(); setRefreshing(false); };
 
@@ -38,26 +39,26 @@ export default function Overview() {
     <SafeAreaView style={ui.screen} edges={['left', 'right']}>
       <ScrollView contentContainerStyle={ui.padded} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} colors={[colors.teal]} />}>
         <PlanNotice />
-        <Heading eyebrow={new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long' }).format(now)} title={`${greeting}, ${firstName}`} subtitle="Here’s what’s happening across your water business today." />
+        <Heading eyebrow={new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long' }).format(now)} title={greeting} subtitle={t('Here’s what’s happening across your water business today.')} />
 
         <View style={local.metrics}>
-          <Metric label={`${new Intl.DateTimeFormat('en', { month: 'long' }).format(now)} sales`} value={money(monthTotal)} />
-          <Metric label="Customers" value={String(data.customers.length)} />
-          <Metric label="Open service jobs" value={String(openJobs.length)} />
-          <Metric label="Products" value={String(data.products.length)} />
+          <Metric label={t('{month} sales', { month: new Intl.DateTimeFormat('en', { month: 'long' }).format(now) })} value={money(monthTotal)} />
+          <Metric label={t('Customers')} value={String(data.customers.length)} />
+          <Metric label={t('Open service jobs')} value={String(openJobs.length)} />
+          <Metric label={t('Products')} value={String(data.products.length)} />
         </View>
 
         {owner && !data.customers.length && !data.products.length ? (
           <Card style={{ backgroundColor: colors.tealPale }}>
-            <CardTitle title="Set up your RO workspace" note="Add your first customer to start managing service and sales." />
-            <Button label="Add customer" onPress={() => router.push('/customers/edit')} />
-            <Button label="Add product" variant="secondary" onPress={() => router.push('/catalog/edit')} />
+            <CardTitle title={t('Set up your RO workspace')} note={t('Add your first customer to start managing service and sales.')} />
+            <Button label={t('Add customer')} onPress={() => router.push('/customers/edit')} />
+            <Button label={t('Add product')} variant="secondary" onPress={() => router.push('/catalog/edit')} />
           </Card>
         ) : null}
 
         {owner ? (
           <Card>
-            <CardTitle title="Sales overview" note="Invoice value · last 6 months" />
+            <CardTitle title={t('Sales overview')} note={t('Invoice value · last 6 months')} />
             <View style={local.chart} accessibilityLabel={months.map(item => `${item.label} ${money(item.total)}`).join(', ')}>
               {months.map((item, index) => (
                 <View key={item.label} style={local.barGroup}>
@@ -70,30 +71,30 @@ export default function Overview() {
         ) : null}
 
         <Card>
-          <CardTitle title="Upcoming service" note="Next scheduled visits" action={profile?.role !== 'shop' ? <Button label="All jobs" variant="link" onPress={() => router.push('/jobs')} /> : undefined} />
+          <CardTitle title={t('Upcoming service')} note={t('Next scheduled visits')} action={profile?.role !== 'shop' ? <Button label={t('All jobs')} variant="link" onPress={() => router.push('/jobs')} /> : undefined} />
           {upcoming.length ? upcoming.map(job => (
             <View key={job.id} style={local.listRow}>
               <View style={ui.flex}>
                 <Text style={local.rowTitle}>{customerName(job.customerId)}</Text>
-                <Text style={local.rowNote}>{`${job.type} · ${job.date < today() ? 'overdue · ' : ''}${shortDate(job.date)} · ${job.technician || 'Unassigned'}`}</Text>
+                <Text style={local.rowNote}>{`${t(job.type)} · ${job.date < today() ? `${t('overdue')} · ` : ''}${shortDate(job.date)} · ${job.technician || t('Unassigned')}`}</Text>
               </View>
-              <Badge label={job.status} tone={job.status === 'In progress' ? 'good' : 'warning'} />
+              <Badge label={t(job.status)} tone={job.status === 'In progress' ? 'good' : 'warning'} />
             </View>
-          )) : <Empty text="No upcoming service jobs." />}
+          )) : <Empty text={t('No upcoming service jobs.')} />}
         </Card>
 
         {canViewStock ? (
           <Card>
-            <CardTitle title="Stock watch" note="Current availability" />
+            <CardTitle title={t('Stock watch')} note={t('Current availability')} />
             {data.products.length ? data.products.slice(0, 5).map(item => (
               <View key={item.id} style={local.listRow}>
                 <View style={ui.flex}>
                   <Text style={local.rowTitle}>{item.name}</Text>
-                  <Text style={local.rowNote}>{`${item.category} · ${item.stock ?? 0} in stock`}</Text>
+                  <Text style={local.rowNote}>{`${t(item.category)} · ${t('{count} in stock', { count: item.stock ?? 0 })}`}</Text>
                 </View>
-                <Badge label={(item.stock ?? 0) < 5 ? 'Low stock' : 'In stock'} tone={(item.stock ?? 0) < 5 ? 'warning' : 'good'} />
+                <Badge label={(item.stock ?? 0) < 5 ? t('Low stock') : t('In stock')} tone={(item.stock ?? 0) < 5 ? 'warning' : 'good'} />
               </View>
-            )) : <Empty text="Add products to start tracking stock." />}
+            )) : <Empty text={t('Add products to start tracking stock.')} />}
           </Card>
         ) : null}
       </ScrollView>

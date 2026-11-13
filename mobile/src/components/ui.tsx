@@ -4,6 +4,7 @@ import {
   type KeyboardTypeOptions, type StyleProp, type TextInputProps, type ViewStyle
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { t } from '@/lib/i18n';
 
 export const colors = {
   ink: '#1c2927',
@@ -120,14 +121,14 @@ export function Field({ label, hint, multiline, ...input }: FieldProps) {
 type Option = { value: string; label: string };
 
 // A field that opens a list to choose from.
-export function Select({ label, value, options, onChange, placeholder = 'Select' }: { label: string; value: string; options: Option[]; onChange: (value: string) => void; placeholder?: string }) {
+export function Select({ label, value, options, onChange, placeholder }: { label: string; value: string; options: Option[]; onChange: (value: string) => void; placeholder?: string }) {
   const [open, setOpen] = useState(false);
   const selected = options.find(option => option.value === value);
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={label} style={styles.input} onPress={() => setOpen(true)}>
-        <Text style={selected ? styles.selectText : styles.placeholder}>{selected?.label || placeholder}</Text>
+        <Text style={selected ? styles.selectText : styles.placeholder}>{selected?.label || placeholder || t('Select')}</Text>
       </Pressable>
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.sheetBackdrop} onPress={() => setOpen(false)}>

@@ -5,6 +5,7 @@ import { Alert } from 'react-native';
 import { cachedWorkspace, cacheWorkspace, clearCachedWorkspace } from './cache';
 import { reportError } from './errors';
 import { errorMessage } from './format';
+import { t } from './i18n';
 import { loadWorkspace, signedInElsewhere } from './shared';
 import { supabase } from './supabase';
 import { emptyData, type Organization, type Profile, type WorkspaceData } from './types';
@@ -33,16 +34,16 @@ type SessionContextValue = SessionState & {
   setData: (update: (data: WorkspaceData) => WorkspaceData) => void;
 };
 
-export const signedInElsewhereMessage = 'This account is already signed in on another device. Sign in again and choose "Sign out other device", or sign out there first.';
+export const signedInElsewhereMessage = () => t('This account is already signed in on another device. Sign in again and choose "Sign out other device", or sign out there first.');
 
 function confirmMoveHere() {
   return new Promise<boolean>(resolve => {
     Alert.alert(
-      'Signed in on another device',
-      'This account is signed in on another device. Sign it out there and continue on this phone?',
+      t('Signed in on another device'),
+      t('This account is signed in on another device. Sign it out there and continue on this phone?'),
       [
-        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-        { text: 'Sign out other device', onPress: () => resolve(true) }
+        { text: t('Cancel'), style: 'cancel', onPress: () => resolve(false) },
+        { text: t('Sign out other device'), onPress: () => resolve(true) }
       ],
       { cancelable: true, onDismiss: () => resolve(false) }
     );
@@ -75,7 +76,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (profileError) throw profileError;
       if (!profile.active) {
         await supabase.auth.signOut({ scope: 'local' });
-        signedOut('This account has been disabled. Contact your business owner.');
+        signedOut(t('This account has been disabled. Contact your business owner.'));
         return;
       }
       if (!profile.organization_id) {
@@ -97,7 +98,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       reportError(error, 'openWorkspace');
       await supabase.auth.signOut({ scope: 'local' });
-      signedOut(errorMessage(error, 'Your business could not be loaded. Try again.'));
+      signedOut(errorMessage(error, t('Your business could not be loaded. Try again.')));
     }
   }, [signedOut]);
 
@@ -125,7 +126,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const moved = await confirmMoveHere() && !(await supabase.auth.signOut({ scope: 'others' })).error;
         if (!moved) {
           await supabase.auth.signOut({ scope: 'local' });
-          signedOut(signedInElsewhereMessage);
+          signedOut(signedInElsewhereMessage());
           return;
         }
       }

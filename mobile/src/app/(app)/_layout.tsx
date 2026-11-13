@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router/js-tabs';
 import { colors } from '@/components/ui';
+import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -24,18 +25,18 @@ export default function AppLayout() {
         sceneStyle: { backgroundColor: colors.canvas }
       }}
     >
-      <Tabs.Screen name="home" options={{ title: 'Overview', tabBarIcon: icon('grid-outline') }} />
+      <Tabs.Screen name="home" options={{ title: t('Overview'), tabBarIcon: icon('grid-outline') }} />
       <Tabs.Protected guard={role === 'owner'}>
-        <Tabs.Screen name="customers" options={{ title: 'Customers', headerShown: false, tabBarIcon: icon('people-outline') }} />
+        <Tabs.Screen name="customers" options={{ title: t('Customers'), headerShown: false, tabBarIcon: icon('people-outline') }} />
       </Tabs.Protected>
       <Tabs.Protected guard={role !== 'shop'}>
-        <Tabs.Screen name="jobs" options={{ title: 'Jobs', headerShown: false, tabBarIcon: icon('construct-outline') }} />
+        <Tabs.Screen name="jobs" options={{ title: t('Jobs'), headerShown: false, tabBarIcon: icon('construct-outline') }} />
       </Tabs.Protected>
       <Tabs.Protected guard={role === 'owner' || role === 'customer'}>
-        <Tabs.Screen name="sales" options={{ title: 'Sales', headerShown: false, tabBarIcon: icon('receipt-outline') }} />
+        <Tabs.Screen name="sales" options={{ title: t('Sales'), headerShown: false, tabBarIcon: icon('receipt-outline') }} />
       </Tabs.Protected>
-      <Tabs.Screen name="catalog" options={{ title: 'Catalogue', headerShown: false, tabBarIcon: icon('cube-outline') }} />
-      <Tabs.Screen name="more" options={{ title: 'More', headerShown: false, tabBarIcon: icon('menu-outline') }} />
+      <Tabs.Screen name="catalog" options={{ title: t('Catalogue'), headerShown: false, tabBarIcon: icon('cube-outline') }} />
+      <Tabs.Screen name="more" options={{ title: t('More'), headerShown: false, tabBarIcon: icon('menu-outline') }} />
     </Tabs>
   );
 }

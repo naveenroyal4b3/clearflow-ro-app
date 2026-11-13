@@ -48,6 +48,9 @@
     "preset": "jest-expo",
     "modulePaths": [
       "<rootDir>/node_modules"
-    ]
+    ],
+    "moduleNameMapper": {
+      "^expo-sqlite/localStorage/install$": "<rootDir>/jest/empty-module.js"
+    }
   }
 }

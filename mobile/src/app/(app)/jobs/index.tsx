@@ -6,9 +6,10 @@ import { Chips } from '@/components/Chips';
 import { PlanNotice, useReadOnlyReason } from '@/components/PlanNotice';
 import { Badge, colors, Empty, styles as ui } from '@/components/ui';
 import { formatDate, today } from '@/lib/format';
+import { msg, t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
-const statuses = ['Open', 'All', 'Scheduled', 'In progress', 'Completed', 'Cancelled'] as const;
+const statuses = [msg('Open'), msg('All'), msg('Scheduled'), msg('In progress'), msg('Completed'), msg('Cancelled')] as const;
 
 function jobTone(status: string) {
   return status === 'Completed' ? 'good' : status === 'Cancelled' ? 'neutral' : status === 'In progress' ? 'good' : 'warning';
@@ -33,8 +34,8 @@ export default function Jobs() {
   [data.jobs, data.customers, query, status]);
 
   const add = () => {
-    if (readOnly) { Alert.alert('Can’t schedule a job', readOnly); return; }
-    if (!data.customers.length) { Alert.alert('Add a customer first', 'Add a customer before scheduling a service job.'); return; }
+    if (readOnly) { Alert.alert(t('Can’t schedule a job'), readOnly); return; }
+    if (!data.customers.length) { Alert.alert(t('Add a customer first'), t('Add a customer before scheduling a service job.')); return; }
     router.push('/jobs/edit');
   };
 
@@ -42,7 +43,7 @@ export default function Jobs() {
     <View style={ui.screen}>
       {owner ? (
         <Stack.Screen options={{ headerRight: () => (
-          <Pressable accessibilityRole="button" accessibilityLabel="Schedule service" onPress={add} hitSlop={12} style={{ paddingHorizontal: 8 }}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t('Schedule service')} onPress={add} hitSlop={12} style={{ paddingHorizontal: 8 }}>
             <Ionicons name="add-circle" size={28} color={colors.teal} />
           </Pressable>
         ) }} />
@@ -55,11 +56,11 @@ export default function Jobs() {
         ListHeaderComponent={
           <View style={{ gap: 10 }}>
             <PlanNotice />
-            <TextInput style={ui.input} placeholder="Search customer, job or technician…" placeholderTextColor={colors.muted} value={query} onChangeText={setQuery} accessibilityLabel="Search jobs" />
-            <Chips label="Filter by status" options={statuses} value={status} onChange={setStatus} />
+            <TextInput style={ui.input} placeholder={t('Search customer, job or technician…')} placeholderTextColor={colors.muted} value={query} onChangeText={setQuery} accessibilityLabel={t('Search jobs')} />
+            <Chips label={t('Filter by status')} options={statuses} value={status} onChange={setStatus} />
           </View>
         }
-        ListEmptyComponent={<Empty text={data.jobs.length ? 'No matching service jobs.' : owner ? 'No service jobs yet. Tap + to schedule one.' : 'No service jobs yet.'} />}
+        ListEmptyComponent={<Empty text={data.jobs.length ? t('No matching service jobs.') : owner ? t('No service jobs yet. Tap + to schedule one.') : t('No service jobs yet.')} />}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         renderItem={({ item }) => {
           const person = customer(item.customerId);
@@ -69,18 +70,18 @@ export default function Jobs() {
               style={local.card}
               disabled={!owner && !technician}
               onPress={() => router.push({ pathname: '/jobs/edit', params: { id: item.id } })}
-              accessibilityHint={owner || technician ? 'Opens the job to update it' : undefined}
+              accessibilityHint={owner || technician ? t('Opens the job to update it') : undefined}
             >
               <View style={ui.flex}>
-                <Text style={local.title}>{person?.name || 'Customer'}</Text>
-                <Text style={local.note}>{`${item.type} · ${item.id}`}</Text>
-                <Text style={[local.note, overdue && { color: colors.red, fontWeight: '700' }]}>{`${overdue ? 'Overdue · ' : ''}${formatDate(item.date)} · ${item.technician || 'Unassigned'}`}</Text>
+                <Text style={local.title}>{person?.name || t('Customer')}</Text>
+                <Text style={local.note}>{`${t(item.type)} · ${item.id}`}</Text>
+                <Text style={[local.note, overdue && { color: colors.red, fontWeight: '700' }]}>{`${overdue ? `${t('Overdue')} · ` : ''}${formatDate(item.date)} · ${item.technician || t('Unassigned')}`}</Text>
                 {item.notes ? <Text style={local.note} numberOfLines={2}>{item.notes}</Text> : null}
               </View>
               <View style={{ alignItems: 'flex-end', gap: 8 }}>
-                <Badge label={item.status} tone={jobTone(item.status)} />
+                <Badge label={t(item.status)} tone={jobTone(item.status)} />
                 {person?.phone && (owner || technician) ? (
-                  <Pressable accessibilityRole="button" accessibilityLabel={`Call ${person.name}`} hitSlop={10} onPress={() => Linking.openURL(`tel:${person.phone.replace(/\s/g, '')}`)} style={local.call}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={t('Call {name}', { name: person.name })} hitSlop={10} onPress={() => Linking.openURL(`tel:${person.phone.replace(/\s/g, '')}`)} style={local.call}>
                     <Ionicons name="call" size={16} color={colors.teal} />
                   </Pressable>
                 ) : null}

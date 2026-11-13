@@ -1,4 +1,4 @@
-import { planStatus } from '../plan';
+import { planStatus, renewalHint, webAppAddress } from '../plan';
 import type { Organization } from '../types';
 
 const base: Organization = { id: 'o', name: 'Test', gstin: null, address: '', state_code: '', phone: '' };
@@ -27,5 +27,9 @@ describe('planStatus', () => {
 
   it('ends when the paid period has run out', () => {
     expect(planStatus({ ...base, trial_ends_at: new Date(now - 40 * day).toISOString(), paid_until: new Date(now - day).toISOString() }, now)).toEqual({ active: false });
+  });
+
+  it('names the website in the renewal hint', () => {
+    expect(renewalHint()).toBe(`To renew, sign in on our website, ${webAppAddress}, and open My account.`);
   });
 });

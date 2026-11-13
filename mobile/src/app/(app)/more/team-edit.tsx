@@ -3,11 +3,13 @@ import { useState } from 'react';
 import { Text } from 'react-native';
 import { Button, Field, Notice, Screen, Select, styles } from '@/components/ui';
 import { errorMessage } from '@/lib/format';
+import { msg, t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { inviteMember, loadWorkspace } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
 
-const toOptions = (values: string[]) => values.map(value => ({ value, label: value }));
+// Values are stored in English and shown translated.
+const toOptions = (values: string[]) => values.map(value => ({ value, label: t(value) }));
 
 // Invites a technician, shop or customer by email (Supabase sends the sign-up link), or edits an
 // existing team member's role, details and access.
@@ -21,8 +23,8 @@ export default function EditTeamMember() {
   });
   const [error, setError] = useState('');
   const set = (key: keyof typeof form) => (value: string) => setForm(current => ({ ...current, [key]: value }));
-  const roles = existing ? ['Technician', 'Shop', 'Customer', 'Owner'] : ['Technician', 'Shop', 'Customer'];
-  const customerOptions = [{ value: '', label: 'Not linked' }, ...data.customers.map(item => ({ value: item.id, label: `${item.name} · ${item.phone}` }))];
+  const roles = existing ? [msg('Technician'), msg('Shop'), msg('Customer'), msg('Owner')] : [msg('Technician'), msg('Shop'), msg('Customer')];
+  const customerOptions = [{ value: '', label: t('Not linked') }, ...data.customers.map(item => ({ value: item.id, label: `${item.name} · ${item.phone}` }))];
   const valid = form.name.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) && (form.role !== 'Customer' || form.linked);
 
   const save = async () => {
@@ -48,25 +50,25 @@ export default function EditTeamMember() {
       setData(() => fresh);
       router.back();
     } catch (saveError) {
-      setError(errorMessage(saveError, 'Save failed. Try again.'));
+      setError(errorMessage(saveError, t('Save failed. Try again.')));
     }
   };
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: existing ? 'Edit team member' : 'Invite team member' }} />
-      {offlineSince ? <Notice tone="warning">You are offline. Changes can be made once you are back online.</Notice> : null}
+      <Stack.Screen options={{ title: existing ? t('Edit team member') : t('Invite team member') }} />
+      {offlineSince ? <Notice tone="warning">{t('You are offline. Changes can be made once you are back online.')}</Notice> : null}
       {error ? <Notice tone="error">{error}</Notice> : null}
-      <Field label="Name / business *" value={form.name} onChangeText={set('name')} />
-      <Field label="Login email *" value={form.email} onChangeText={set('email')} keyboardType="email-address" autoCapitalize="none" editable={!existing} />
-      <Select label="Access role" value={form.role} options={toOptions(roles)} onChange={set('role')} />
-      <Field label="Phone number" value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
-      <Field label="Shop / business address" value={form.address} onChangeText={set('address')} />
-      <Field label="GSTIN" value={form.gstin} onChangeText={set('gstin')} autoCapitalize="characters" maxLength={15} />
-      {form.role === 'Customer' ? <Select label="Linked customer record *" value={form.linked} options={customerOptions} onChange={set('linked')} /> : null}
-      {existing ? <Select label="Account status" value={form.status} options={toOptions(['Active', 'Inactive'])} onChange={set('status')} /> : null}
-      <Text style={styles.hint}>{existing ? 'Inactive accounts can no longer sign in.' : 'They receive an email to set their own password. Passwords are never stored here.'}</Text>
-      <Button label={existing ? 'Save changes' : 'Send invitation'} onPress={save} disabled={Boolean(offlineSince) || !valid} />
+      <Field label={t('Name / business *')} value={form.name} onChangeText={set('name')} />
+      <Field label={t('Login email *')} value={form.email} onChangeText={set('email')} keyboardType="email-address" autoCapitalize="none" editable={!existing} />
+      <Select label={t('Access role')} value={form.role} options={toOptions(roles)} onChange={set('role')} />
+      <Field label={t('Phone number')} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
+      <Field label={t('Shop / business address')} value={form.address} onChangeText={set('address')} />
+      <Field label={t('GSTIN')} value={form.gstin} onChangeText={set('gstin')} autoCapitalize="characters" maxLength={15} />
+      {form.role === 'Customer' ? <Select label={t('Linked customer record *')} value={form.linked} options={customerOptions} onChange={set('linked')} /> : null}
+      {existing ? <Select label={t('Account status')} value={form.status} options={toOptions([msg('Active'), msg('Inactive')])} onChange={set('status')} /> : null}
+      <Text style={styles.hint}>{existing ? t('Inactive accounts can no longer sign in.') : t('They receive an email to set their own password. Passwords are never stored here.')}</Text>
+      <Button label={existing ? t('Save changes') : t('Send invitation')} onPress={save} disabled={Boolean(offlineSince) || !valid} />
     </Screen>
   );
 }

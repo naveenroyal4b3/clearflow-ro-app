@@ -2,6 +2,7 @@ import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Pressable, Text, View } from 'react-native';
 import { styles } from './ui';
 import { formatDate, today } from '@/lib/format';
+import { t } from '@/lib/i18n';
 
 // A date field that opens Android's calendar. Values are YYYY-MM-DD strings, like the database.
 export function DateField({ label, value, onChange, optional, maximumDate, minimumDate }: {
@@ -18,12 +19,12 @@ export function DateField({ label, value, onChange, optional, maximumDate, minim
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${value ? formatDate(value) : 'not set'}`} style={[styles.input, { flex: 1 }]} onPress={open}>
-          <Text style={value ? styles.selectText : styles.placeholder}>{value ? formatDate(value) : 'Choose a date'}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${value ? formatDate(value) : t('not set')}`} style={[styles.input, { flex: 1 }]} onPress={open}>
+          <Text style={value ? styles.selectText : styles.placeholder}>{value ? formatDate(value) : t('Choose a date')}</Text>
         </Pressable>
         {optional && value ? (
-          <Pressable accessibilityRole="button" accessibilityLabel={`Clear ${label}`} style={[styles.input, { paddingHorizontal: 14 }]} onPress={() => onChange('')}>
-            <Text style={styles.placeholder}>Clear</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={t('Clear {label}', { label })} style={[styles.input, { paddingHorizontal: 14 }]} onPress={() => onChange('')}>
+            <Text style={styles.placeholder}>{t('Clear')}</Text>
           </Pressable>
         ) : null}
       </View>

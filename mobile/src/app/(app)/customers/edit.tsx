@@ -5,12 +5,13 @@ import { DateField } from '@/components/DateField';
 import { StateSelect } from '@/components/StateSelect';
 import { useReadOnlyReason } from '@/components/PlanNotice';
 import { errorMessage, newId, today } from '@/lib/format';
+import { msg, t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { saveWorkspaceRecords, stateFromGstin } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
 import type { Customer } from '@/lib/types';
 
-const customerTypes = ['Residential', 'Commercial', 'Apartment'].map(value => ({ value, label: value }));
+const customerTypes = [msg('Residential'), msg('Commercial'), msg('Apartment')];
 
 export default function EditCustomer() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -31,7 +32,7 @@ export default function EditCustomer() {
     try {
       await saveWorkspaceRecords(supabase, profile, 'customers', [next]);
     } catch (saveError) {
-      setError(errorMessage(saveError, 'Save failed. Try again.'));
+      setError(errorMessage(saveError, t('Save failed. Try again.')));
       return;
     }
     setData(current => ({ ...current, customers: existing ? current.customers.map(item => item.id === next.id ? next : item) : [next, ...current.customers] }));
@@ -40,20 +41,20 @@ export default function EditCustomer() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: existing ? 'Edit customer' : 'Add customer' }} />
+      <Stack.Screen options={{ title: existing ? t('Edit customer') : t('Add customer') }} />
       {readOnly ? <Notice tone="warning">{readOnly}</Notice> : null}
       {error ? <Notice tone="error">{error}</Notice> : null}
-      <Field label="Customer / business name *" value={form.name} onChangeText={set('name')} maxLength={160} />
-      <Field label="Phone number *" value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
-      <Field label="Email" value={form.email} onChangeText={set('email')} keyboardType="email-address" autoCapitalize="none" />
-      <Select label="Customer type" value={form.type} options={customerTypes} onChange={set('type')} />
-      <Field label="Full address" value={form.address} onChangeText={set('address')} multiline />
-      <Field label="Customer GSTIN (business customers)" value={form.gstin} onChangeText={set('gstin')} autoCapitalize="characters" maxLength={15} />
-      <StateSelect label="State (place of supply)" value={form.state} onChange={set('state')} />
-      <Field label="Purifier / model installed" value={form.purifier} onChangeText={set('purifier')} />
-      <DateField label="Installation date" value={form.installed} onChange={set('installed')} optional maximumDate={new Date()} />
-      <Field label="Notes" value={form.notes} onChangeText={set('notes')} multiline />
-      <Button label={existing ? 'Save changes' : 'Add customer'} onPress={save} disabled={Boolean(readOnly) || !form.name.trim() || !form.phone.trim() || !validDate} />
+      <Field label={t('Customer / business name *')} value={form.name} onChangeText={set('name')} maxLength={160} />
+      <Field label={t('Phone number *')} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
+      <Field label={t('Email')} value={form.email} onChangeText={set('email')} keyboardType="email-address" autoCapitalize="none" />
+      <Select label={t('Customer type')} value={form.type} options={customerTypes.map(value => ({ value, label: t(value) }))} onChange={set('type')} />
+      <Field label={t('Full address')} value={form.address} onChangeText={set('address')} multiline />
+      <Field label={t('Customer GSTIN (business customers)')} value={form.gstin} onChangeText={set('gstin')} autoCapitalize="characters" maxLength={15} />
+      <StateSelect label={t('State (place of supply)')} value={form.state} onChange={set('state')} />
+      <Field label={t('Purifier / model installed')} value={form.purifier} onChangeText={set('purifier')} />
+      <DateField label={t('Installation date')} value={form.installed} onChange={set('installed')} optional maximumDate={new Date()} />
+      <Field label={t('Notes')} value={form.notes} onChangeText={set('notes')} multiline />
+      <Button label={existing ? t('Save changes') : t('Add customer')} onPress={save} disabled={Boolean(readOnly) || !form.name.trim() || !form.phone.trim() || !validDate} />
     </Screen>
   );
 }
