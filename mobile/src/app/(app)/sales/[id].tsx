@@ -5,6 +5,7 @@ import { useReadOnlyReason } from '@/components/PlanNotice';
 import { Badge, Button, Card, CardTitle, colors, Divider, Empty, Notice, Screen, styles as ui } from '@/components/ui';
 import { detailsFor, documentStatuses, htmlFor, statusTone } from '@/lib/documents';
 import { errorMessage, formatDate, rupees } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { printDocument, sharePdf } from '@/lib/pdf';
 import { useSession } from '@/lib/session';
 import { amountInWords, setSalesDocumentStatus, stateLabel } from '@/lib/shared';
@@ -15,14 +16,14 @@ export default function DocumentView() {
   const { data, profile, organization, setData, reload } = useSession();
   const readOnly = useReadOnlyReason();
   const doc = data.documents.find(item => item.id === id);
-  if (!doc) return <Screen><Empty text="This document is no longer available." /></Screen>;
+  if (!doc) return <Screen><Empty text={t('This document is no longer available.')} /></Screen>;
   const owner = profile?.role === 'owner';
   const { seller, buyer, tax } = detailsFor(doc, data, organization);
   const html = () => htmlFor(doc, data, organization);
 
   const setStatus = (next: string) => {
     if (next === doc.status) return;
-    if (readOnly) { Alert.alert('Can’t change the status', readOnly); return; }
+    if (readOnly) { Alert.alert(t('Can’t change the status'), readOnly); return; }
     const apply = async () => {
       try {
         await setSalesDocumentStatus(supabase, doc.id, next);
@@ -30,21 +31,21 @@ export default function DocumentView() {
         if (doc.type === 'Invoice' && next === 'Cancelled') await reload();
         else setData(current => ({ ...current, documents: current.documents.map(item => item.id === doc.id ? { ...item, status: next } : item) }));
       } catch (error) {
-        Alert.alert('Status not changed', errorMessage(error, 'Try again.'));
+        Alert.alert(t('Status not changed'), errorMessage(error, t('Try again.')));
       }
     };
     if (next === 'Cancelled') {
-      Alert.alert(`Cancel ${doc.id}?`, `${doc.type === 'Invoice' ? 'Its items go back into stock. ' : ''}This cannot be undone.`, [
-        { text: 'Keep it', style: 'cancel' },
-        { text: 'Cancel document', style: 'destructive', onPress: apply }
+      Alert.alert(t('Cancel {id}?', { id: doc.id }), doc.type === 'Invoice' ? t('Its items go back into stock. This cannot be undone.') : t('This cannot be undone.'), [
+        { text: t('Keep it'), style: 'cancel' },
+        { text: t('Cancel document'), style: 'destructive', onPress: apply }
       ]);
     } else {
       apply();
     }
   };
 
-  const share = async () => { try { await sharePdf(html(), doc.id); } catch (error) { Alert.alert('Could not share', errorMessage(error, 'Try again.')); } };
-  const print = async () => { try { await printDocument(html()); } catch (error) { Alert.alert('Could not print', errorMessage(error, 'Try again.')); } };
+  const share = async () => { try { await sharePdf(html(), doc.id); } catch (error) { Alert.alert(t('Could not share'), errorMessage(error, t('Try again.'))); } };
+  const print = async () => { try { await printDocument(html()); } catch (error) { Alert.alert(t('Could not print'), errorMessage(error, t('Try again.'))); } };
 
   return (
     <Screen>
@@ -52,30 +53,30 @@ export default function DocumentView() {
       <Card>
         <View style={local.row}>
           <View style={ui.flex}>
-            <Text style={local.kind}>{doc.type === 'Quotation' ? 'Quotation' : doc.gst && seller.gstin ? 'Tax invoice' : 'Invoice'}</Text>
+            <Text style={local.kind}>{doc.type === 'Quotation' ? t('Quotation') : doc.gst && seller.gstin ? t('Tax invoice') : t('Invoice')}</Text>
             <Text style={local.total}>{rupees(tax.total)}</Text>
           </View>
-          <Badge label={doc.status} tone={statusTone(doc.status)} />
+          <Badge label={t(doc.status)} tone={statusTone(doc.status)} />
         </View>
-        <Text style={ui.hint}>{`${formatDate(doc.date)} · ${doc.type === 'Quotation' ? 'Valid until' : 'Due'} ${formatDate(doc.due)}`}</Text>
-        <Text style={ui.hint}>{`For ${buyer.name}${buyer.gstin ? ` · GSTIN ${buyer.gstin}` : ''}`}</Text>
-        {doc.gst ? <Text style={ui.hint}>{`Place of supply: ${stateLabel(tax.placeOfSupply) || 'Not specified'}`}</Text> : <Text style={ui.hint}>GST not applied.</Text>}
+        <Text style={ui.hint}>{doc.type === 'Quotation' ? t('{date} · Valid until {due}', { date: formatDate(doc.date), due: formatDate(doc.due) }) : t('{date} · Due {due}', { date: formatDate(doc.date), due: formatDate(doc.due) })}</Text>
+        <Text style={ui.hint}>{`${t('For {name}', { name: buyer.name })}${buyer.gstin ? ` · GSTIN ${buyer.gstin}` : ''}`}</Text>
+        {doc.gst ? <Text style={ui.hint}>{t('Place of supply: {state}', { state: stateLabel(tax.placeOfSupply) || t('Not specified') })}</Text> : <Text style={ui.hint}>{t('GST not applied.')}</Text>}
       </Card>
 
       <View style={{ gap: 10 }}>
-        <Button label="Share PDF" onPress={share} />
-        <Button label="Print or save as PDF" variant="secondary" onPress={print} />
+        <Button label={t('Share PDF')} onPress={share} />
+        <Button label={t('Print or save as PDF')} variant="secondary" onPress={print} />
       </View>
 
       {owner && doc.status !== 'Cancelled' ? (
         <Card>
-          <CardTitle title="Status" note={doc.type === 'Invoice' ? 'Mark paid when the customer pays.' : 'Mark sent once you share it.'} />
-          <Chips label="Status" options={documentStatuses[doc.type]} value={doc.status} onChange={setStatus} />
+          <CardTitle title={t('Status')} note={doc.type === 'Invoice' ? t('Mark paid when the customer pays.') : t('Mark sent once you share it.')} />
+          <Chips label={t('Status')} options={documentStatuses[doc.type]} value={doc.status} onChange={setStatus} />
         </Card>
       ) : null}
 
       <Card>
-        <CardTitle title="Items" />
+        <CardTitle title={t('Items')} />
         {tax.rows.map((row, index) => (
           <View key={`${row.productId}-${index}`} style={{ gap: 2 }}>
             <View style={local.row}>
@@ -86,13 +87,13 @@ export default function DocumentView() {
           </View>
         ))}
         <Divider />
-        {tax.discount ? <Line label="Discount" value={rupees(tax.discount)} /> : null}
-        <Line label="Taxable value" value={rupees(tax.taxable)} />
+        {tax.discount ? <Line label={t('Discount')} value={rupees(tax.discount)} /> : null}
+        <Line label={t('Taxable value')} value={rupees(tax.taxable)} />
         {doc.gst ? (tax.interState ? <Line label="IGST" value={rupees(tax.igst)} /> : <><Line label="CGST" value={rupees(tax.cgst)} /><Line label="SGST" value={rupees(tax.sgst)} /></>) : null}
-        <Line label="Total" value={rupees(tax.total)} strong />
-        <Text style={ui.hint}>{`Amount in words: ${amountInWords(tax.total)}`}</Text>
+        <Line label={t('Total')} value={rupees(tax.total)} strong />
+        <Text style={ui.hint}>{t('Amount in words: {amount}', { amount: amountInWords(tax.total) })}</Text>
       </Card>
-      {doc.status === 'Cancelled' ? <Notice tone="warning">This document is cancelled. Its number is kept, as GST rules require.</Notice> : null}
+      {doc.status === 'Cancelled' ? <Notice tone="warning">{t('This document is cancelled. Its number is kept, as GST rules require.')}</Notice> : null}
     </Screen>
   );
 }

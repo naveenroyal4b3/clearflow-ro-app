@@ -1,5 +1,6 @@
 import { Notice } from './ui';
 import { longDate } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { planEndedMessage, planStatus, renewalHint } from '@/lib/plan';
 import { useSession } from '@/lib/session';
 
@@ -10,16 +11,16 @@ export function PlanNotice() {
   const notices = [];
   if (offlineSince) {
     notices.push(
-      <Notice key="offline" tone="warning" title="Offline.">
-        {`Showing data last synced ${new Date(offlineSince).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}. Changes can be made once you are back online.`}
+      <Notice key="offline" tone="warning" title={t('Offline.')}>
+        {t('Showing data last synced {time}. Changes can be made once you are back online.', { time: new Date(offlineSince).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) })}
       </Notice>
     );
   }
   if (!plan.active) {
-    const action = profile?.role === 'owner' ? ` ${renewalHint}` : ' Ask the business owner to renew it.';
-    notices.push(<Notice key="plan" tone="warning" title="Plan ended.">{planEndedMessage + action}</Notice>);
+    const action = profile?.role === 'owner' ? renewalHint() : t('Ask the business owner to renew it.');
+    notices.push(<Notice key="plan" tone="warning" title={t('Plan ended.')}>{`${planEndedMessage()} ${action}`}</Notice>);
   } else if (plan.trial && profile?.role === 'owner' && plan.daysLeft <= 3) {
-    notices.push(<Notice key="plan" tone="warning" title={`Free trial ends on ${longDate(plan.until)}.`}>{renewalHint}</Notice>);
+    notices.push(<Notice key="plan" tone="warning" title={t('Free trial ends on {date}.', { date: longDate(plan.until) })}>{renewalHint()}</Notice>);
   }
   return <>{notices}</>;
 }
@@ -27,7 +28,7 @@ export function PlanNotice() {
 // True when changes are blocked; the caller shows why.
 export function useReadOnlyReason() {
   const { organization, offlineSince } = useSession();
-  if (offlineSince) return 'You are offline. Changes can be made once you are back online.';
-  if (!planStatus(organization).active) return planEndedMessage;
+  if (offlineSince) return t('You are offline. Changes can be made once you are back online.');
+  if (!planStatus(organization).active) return planEndedMessage();
   return '';
 }

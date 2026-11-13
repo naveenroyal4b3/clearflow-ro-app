@@ -1,6 +1,7 @@
 import { File, Paths } from 'expo-file-system';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { t } from './i18n';
 
 // Saves the HTML as a PDF named after the document (for example INV-26-27-0001.pdf) and opens
 // Android's share sheet, so it can go to WhatsApp, email or Drive.
@@ -9,7 +10,7 @@ export async function sharePdf(html: string, name: string) {
   const file = new File(uri);
   const named = new File(Paths.cache, `${name.replace(/[^\w.-]+/g, '-')}.pdf`);
   file.moveSync(named, { overwrite: true });
-  if (!(await Sharing.isAvailableAsync())) throw new Error('Sharing is not available on this device.');
+  if (!(await Sharing.isAvailableAsync())) throw new Error(t('Sharing is not available on this device.'));
   await Sharing.shareAsync(named.uri, { mimeType: 'application/pdf', dialogTitle: name, UTI: 'com.adobe.pdf' });
 }
 

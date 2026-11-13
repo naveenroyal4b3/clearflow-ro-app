@@ -1,3 +1,5 @@
+import { msg } from './i18n';
+
 export type Role = 'owner' | 'technician' | 'shop' | 'customer';
 
 export type Profile = {
@@ -57,4 +59,5 @@ export type WorkspaceData = {
 };
 
 export const emptyData: WorkspaceData = { customers: [], products: [], jobs: [], documents: [], feedback: [], accounts: [] };
-export const roleLabels: Record<Role, string> = { owner: 'Business owner', technician: 'Technician', shop: 'Shop', customer: 'Customer' };
+// English labels; show them with t(roleLabels[role]).
+export const roleLabels: Record<Role, string> = { owner: msg('Business owner'), technician: msg('Technician'), shop: msg('Shop'), customer: msg('Customer') };

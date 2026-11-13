@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors } from '@/components/ui';
+import { LanguageProvider } from '@/lib/i18n';
 import { SessionProvider, useSession } from '@/lib/session';
 
 function Navigator() {
@@ -27,7 +28,10 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <SessionProvider>
         <StatusBar style="dark" />
-        <Navigator />
+        {/* Changing the language redraws the screens but keeps the signed-in session. */}
+        <LanguageProvider>
+          <Navigator />
+        </LanguageProvider>
       </SessionProvider>
     </SafeAreaProvider>
   );

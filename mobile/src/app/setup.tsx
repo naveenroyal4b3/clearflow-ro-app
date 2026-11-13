@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Brand, Button, Card, Field, Heading, Notice, Screen } from '@/components/ui';
 import { StateSelect } from '@/components/StateSelect';
 import { errorMessage } from '@/lib/format';
+import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { stateFromGstin, updateOrganization } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
@@ -21,7 +22,7 @@ export default function Setup() {
     try {
       await updateOrganization(supabase, organizationId, { ...form, state: form.state || stateFromGstin(form.gstin) });
     } catch (detailsError) {
-      setError(`Workspace created, but the business details were not saved: ${errorMessage(detailsError, 'unknown error')}`);
+      setError(t('Workspace created, but the business details were not saved: {error}', { error: errorMessage(detailsError, t('unknown error')) }));
     }
     await reload();
   };
@@ -30,15 +31,15 @@ export default function Setup() {
     <Screen>
       <Card>
         <Brand />
-        <Heading title="Finish business setup" subtitle="Confirm the legal details for your business before adding customers or issuing invoices." />
+        <Heading title={t('Finish business setup')} subtitle={t('Confirm the legal details for your business before adding customers or issuing invoices.')} />
         {error ? <Notice tone="error">{error}</Notice> : null}
-        <Field label="Business name" value={form.name} onChangeText={set('name')} maxLength={160} />
-        <Field label="GSTIN (optional)" value={form.gstin} onChangeText={set('gstin')} autoCapitalize="characters" maxLength={15} />
-        <Field label="Business address" value={form.address} onChangeText={set('address')} multiline maxLength={300} />
-        <StateSelect label="State" value={form.state} onChange={set('state')} />
-        <Field label="Business phone" value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
-        <Button label="Create workspace" onPress={create} disabled={form.name.trim().length < 2} />
-        <Button label="Sign out" variant="link" onPress={signOut} />
+        <Field label={t('Business name')} value={form.name} onChangeText={set('name')} maxLength={160} />
+        <Field label={t('GSTIN (optional)')} value={form.gstin} onChangeText={set('gstin')} autoCapitalize="characters" maxLength={15} />
+        <Field label={t('Business address')} value={form.address} onChangeText={set('address')} multiline maxLength={300} />
+        <StateSelect label={t('State')} value={form.state} onChange={set('state')} />
+        <Field label={t('Business phone')} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
+        <Button label={t('Create workspace')} onPress={create} disabled={form.name.trim().length < 2} />
+        <Button label={t('Sign out')} variant="link" onPress={signOut} />
       </Card>
     </Screen>
   );

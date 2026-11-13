@@ -6,11 +6,12 @@ import { Chips } from '@/components/Chips';
 import { PlanNotice, useReadOnlyReason } from '@/components/PlanNotice';
 import { Badge, colors, Empty, Notice, styles as ui } from '@/components/ui';
 import { money } from '@/lib/format';
+import { msg, t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import type { Product } from '@/lib/types';
 
-const categories = ['All', 'Purifiers', 'Accessories', 'Spare parts'] as const;
-const tiers = ['Customer', 'Technician', 'Shop'] as const;
+const categories = [msg('All'), msg('Purifiers'), msg('Accessories'), msg('Spare parts')] as const;
+const tiers = [msg('Customer'), msg('Technician'), msg('Shop')] as const;
 type Tier = 'customer' | 'technician' | 'shop';
 
 // Each role sees only its own price tier (enforced in the database); the owner can preview each.
@@ -27,7 +28,7 @@ export default function Catalog() {
   const price = (item: Product) => item[tier] ?? item.customer ?? 0;
 
   const add = () => {
-    if (readOnly) { Alert.alert('Can’t add products', readOnly); return; }
+    if (readOnly) { Alert.alert(t('Can’t add products'), readOnly); return; }
     router.push('/catalog/edit');
   };
 
@@ -35,7 +36,7 @@ export default function Catalog() {
     <View style={ui.screen}>
       {owner ? (
         <Stack.Screen options={{ headerRight: () => (
-          <Pressable accessibilityRole="button" accessibilityLabel="Add product" onPress={add} hitSlop={12} style={{ paddingHorizontal: 8 }}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t('Add product')} onPress={add} hitSlop={12} style={{ paddingHorizontal: 8 }}>
             <Ionicons name="add-circle" size={28} color={colors.teal} />
           </Pressable>
         ) }} />
@@ -50,32 +51,44 @@ export default function Catalog() {
             <PlanNotice />
             {owner ? (
               <>
-                <Notice>{`Previewing ${preview.toLowerCase()} prices. Each signed-in role can only see its own price tier.`}</Notice>
-                <Chips label="Price list" options={tiers} value={preview} onChange={setPreview} />
+                <Notice>{previewNotice(tier)}</Notice>
+                <Chips label={t('Price list')} options={tiers} value={preview} onChange={setPreview} />
               </>
-            ) : <Notice>{`Showing the ${tier} prices assigned to your account.`}</Notice>}
-            <Chips label="Category" options={categories} value={category} onChange={setCategory} />
+            ) : <Notice>{tierNotice(tier)}</Notice>}
+            <Chips label={t('Category')} options={categories} value={category} onChange={setCategory} />
           </View>
         }
-        ListEmptyComponent={<Empty text={data.products.length ? 'No products in this category.' : owner ? 'No products yet. Tap + to add one.' : 'No products yet.'} />}
+        ListEmptyComponent={<Empty text={data.products.length ? t('No products in this category.') : owner ? t('No products yet. Tap + to add one.') : t('No products yet.')} />}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         renderItem={({ item }) => (
-          <Pressable style={local.card} disabled={!owner} onPress={() => router.push({ pathname: '/catalog/edit', params: { id: item.id } })} accessibilityHint={owner ? 'Opens the product to edit it' : undefined}>
+          <Pressable style={local.card} disabled={!owner} onPress={() => router.push({ pathname: '/catalog/edit', params: { id: item.id } })} accessibilityHint={owner ? t('Opens the product to edit it') : undefined}>
             <View style={local.top}>
               <View style={ui.flex}>
                 <Text style={local.title}>{item.name}</Text>
-                <Text style={local.note}>{`${item.category}${item.hsn ? ` · HSN ${item.hsn}` : ''} · GST ${item.gst}%`}</Text>
+                <Text style={local.note}>{`${t(item.category)}${item.hsn ? ` · HSN ${item.hsn}` : ''} · GST ${item.gst}%`}</Text>
               </View>
-              {canViewStock ? <Badge label={`${item.stock ?? 0} in stock`} tone={(item.stock ?? 0) < 5 ? 'warning' : 'good'} /> : null}
+              {canViewStock ? <Badge label={t('{count} in stock', { count: item.stock ?? 0 })} tone={(item.stock ?? 0) < 5 ? 'warning' : 'good'} /> : null}
             </View>
             {item.description ? <Text style={local.note}>{item.description}</Text> : null}
-            <Text style={local.price}>{`${money(price(item))} per ${item.unit}`}</Text>
-            {owner ? <Text style={local.note}>{`Customer ${money(item.customer ?? 0)} · Technician ${money(item.technician ?? 0)} · Shop ${money(item.shop ?? 0)}`}</Text> : null}
+            <Text style={local.price}>{t('{price} per {unit}', { price: money(price(item)), unit: item.unit })}</Text>
+            {owner ? <Text style={local.note}>{t('Customer {customer} · Technician {technician} · Shop {shop}', { customer: money(item.customer ?? 0), technician: money(item.technician ?? 0), shop: money(item.shop ?? 0) })}</Text> : null}
           </Pressable>
         )}
       />
     </View>
   );
+}
+
+function previewNotice(tier: Tier) {
+  if (tier === 'technician') return t('Previewing technician prices. Each signed-in role can only see its own price tier.');
+  if (tier === 'shop') return t('Previewing shop prices. Each signed-in role can only see its own price tier.');
+  return t('Previewing customer prices. Each signed-in role can only see its own price tier.');
+}
+
+function tierNotice(tier: Tier) {
+  if (tier === 'technician') return t('Showing the technician prices assigned to your account.');
+  if (tier === 'shop') return t('Showing the shop prices assigned to your account.');
+  return t('Showing the customer prices assigned to your account.');
 }
 
 const local = StyleSheet.create({

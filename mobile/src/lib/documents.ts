@@ -1,7 +1,9 @@
+import { msg } from './i18n';
 import { documentDetails, documentHtml } from './shared';
 import type { Organization, SalesDocument, WorkspaceData } from './types';
 
-export const documentStatuses: Record<SalesDocument['type'], string[]> = { Invoice: ['Pending', 'Paid', 'Cancelled'], Quotation: ['Draft', 'Sent', 'Cancelled'] };
+// Stored values; show them with t(status).
+export const documentStatuses: Record<SalesDocument['type'], string[]> = { Invoice: [msg('Pending'), msg('Paid'), msg('Cancelled')], Quotation: [msg('Draft'), msg('Sent'), msg('Cancelled')] };
 
 export function statusTone(status: string) {
   return status === 'Paid' ? 'good' : status === 'Cancelled' ? 'bad' : status === 'Sent' ? 'good' : 'warning';

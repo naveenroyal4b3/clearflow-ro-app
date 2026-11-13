@@ -8,10 +8,11 @@ import { Badge, Button, colors, Empty, styles as ui } from '@/components/ui';
 import { detailsFor, statusTone } from '@/lib/documents';
 import { errorMessage, formatDate, money, today, totals } from '@/lib/format';
 import { sharePdf } from '@/lib/pdf';
+import { msg, t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { invoiceRegisterHtml, invoiceRegisterRows } from '@/lib/shared';
 
-const tabs = ['All', 'Quotations', 'Invoices'] as const;
+const tabs = [msg('All'), msg('Quotations'), msg('Invoices')] as const;
 
 export default function Sales() {
   const { data, profile, organization, reload } = useSession();
@@ -22,27 +23,27 @@ export default function Sales() {
   const docs = [...data.documents]
     .filter(doc => tab === 'All' || (tab === 'Quotations' ? doc.type === 'Quotation' : doc.type === 'Invoice'))
     .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
-  const customerName = (id: string) => data.customers.find(item => item.id === id)?.name || 'Customer';
+  const customerName = (id: string) => data.customers.find(item => item.id === id)?.name || t('Customer');
 
   const add = () => {
-    if (readOnly) { Alert.alert('Can’t create documents', readOnly); return; }
-    if (!data.customers.length || !data.products.length) { Alert.alert('Add a customer and a product first', 'A quotation or invoice needs a customer and at least one product.'); return; }
+    if (readOnly) { Alert.alert(t('Can’t create documents'), readOnly); return; }
+    if (!data.customers.length || !data.products.length) { Alert.alert(t('Add a customer and a product first'), t('A quotation or invoice needs a customer and at least one product.')); return; }
     router.push('/sales/new');
   };
 
   // A PDF register of every invoice for the accountant.
   const exportInvoices = async () => {
     const rows = invoiceRegisterRows(data.documents, doc => detailsFor(doc, data, organization));
-    if (!rows.length) { Alert.alert('No invoices yet', 'There are no invoices to export yet.'); return; }
+    if (!rows.length) { Alert.alert(t('No invoices yet'), t('There are no invoices to export yet.')); return; }
     const title = `${organization?.name || 'Clearflow'} invoices ${today()}`;
-    try { await sharePdf(invoiceRegisterHtml(title, rows), title); } catch (error) { Alert.alert('Export failed', errorMessage(error, 'Try again.')); }
+    try { await sharePdf(invoiceRegisterHtml(title, rows), title); } catch (error) { Alert.alert(t('Export failed'), errorMessage(error, t('Try again.'))); }
   };
 
   return (
     <View style={ui.screen}>
       {owner ? (
         <Stack.Screen options={{ headerRight: () => (
-          <Pressable accessibilityRole="button" accessibilityLabel="New quotation or invoice" onPress={add} hitSlop={12} style={{ paddingHorizontal: 8 }}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t('New quotation or invoice')} onPress={add} hitSlop={12} style={{ paddingHorizontal: 8 }}>
             <Ionicons name="add-circle" size={28} color={colors.teal} />
           </Pressable>
         ) }} />
@@ -55,22 +56,22 @@ export default function Sales() {
         ListHeaderComponent={
           <View style={{ gap: 10 }}>
             <PlanNotice />
-            <Chips label="Document type" options={tabs} value={tab} onChange={setTab} />
+            <Chips label={t('Document type')} options={tabs} value={tab} onChange={setTab} />
           </View>
         }
-        ListEmptyComponent={<Empty text={owner ? 'No documents yet. Tap + to create a quotation or invoice.' : 'No documents yet.'} />}
-        ListFooterComponent={owner && data.documents.some(doc => doc.type === 'Invoice') ? <View style={{ marginTop: 14 }}><Button label="Export invoice register (PDF)" variant="secondary" onPress={exportInvoices} /></View> : undefined}
+        ListEmptyComponent={<Empty text={owner ? t('No documents yet. Tap + to create a quotation or invoice.') : t('No documents yet.')} />}
+        ListFooterComponent={owner && data.documents.some(doc => doc.type === 'Invoice') ? <View style={{ marginTop: 14 }}><Button label={t('Export invoice register (PDF)')} variant="secondary" onPress={exportInvoices} /></View> : undefined}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         renderItem={({ item }) => (
-          <Pressable style={local.card} onPress={() => router.push({ pathname: '/sales/[id]', params: { id: item.id } })} accessibilityHint="Opens the document">
+          <Pressable style={local.card} onPress={() => router.push({ pathname: '/sales/[id]', params: { id: item.id } })} accessibilityHint={t('Opens the document')}>
             <View style={ui.flex}>
               <Text style={local.title}>{customerName(item.customerId)}</Text>
-              <Text style={local.note}>{`${item.type} · ${item.id}`}</Text>
-              <Text style={local.note}>{`${formatDate(item.date)} · ${item.gst ? 'GST' : 'No GST'}`}</Text>
+              <Text style={local.note}>{`${t(item.type)} · ${item.id}`}</Text>
+              <Text style={local.note}>{`${formatDate(item.date)} · ${item.gst ? 'GST' : t('No GST')}`}</Text>
             </View>
             <View style={{ alignItems: 'flex-end', gap: 8 }}>
               <Text style={local.amount}>{money(totals(item).grand)}</Text>
-              <Badge label={item.status} tone={statusTone(item.status)} />
+              <Badge label={t(item.status)} tone={statusTone(item.status)} />
             </View>
           </Pressable>
         )}

@@ -2,12 +2,14 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Button, Field, Notice, Screen, Select } from '@/components/ui';
 import { errorMessage, newId, today } from '@/lib/format';
+import { msg, t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { saveWorkspaceRecords } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
 import type { Feedback } from '@/lib/types';
 
-const toOptions = (values: string[]) => values.map(value => ({ value, label: value }));
+// Values are stored in English and shown translated.
+const toOptions = (values: string[]) => values.map(value => ({ value, label: t(value) }));
 
 // Feedback is allowed even when the plan has ended, so people can still report problems.
 export default function NewFeedback() {
@@ -26,7 +28,7 @@ export default function NewFeedback() {
     try {
       await saveWorkspaceRecords(supabase, profile, 'feedback', [entry]);
     } catch (saveError) {
-      setError(errorMessage(saveError, 'Not sent. Try again.'));
+      setError(errorMessage(saveError, t('Not sent. Try again.')));
       return;
     }
     setData(current => ({ ...current, feedback: [entry, ...current.feedback] }));
@@ -35,14 +37,14 @@ export default function NewFeedback() {
 
   return (
     <Screen>
-      {offlineSince ? <Notice tone="warning">You are offline. Feedback can be sent once you are back online.</Notice> : null}
+      {offlineSince ? <Notice tone="warning">{t('You are offline. Feedback can be sent once you are back online.')}</Notice> : null}
       {error ? <Notice tone="error">{error}</Notice> : null}
-      <Select label="What would you like to share? *" value={form.type} options={toOptions(['Customer feedback', 'Issue', 'Bug', 'Feature request'])} onChange={set('type')} />
-      <Select label="Priority" value={form.priority} options={toOptions(['Normal', 'High', 'Urgent'])} onChange={set('priority')} />
-      <Field label="Product, job or invoice reference" value={form.reference} onChangeText={set('reference')} placeholder="Optional" />
-      <Field label="Subject *" value={form.title} onChangeText={set('title')} maxLength={100} />
-      <Field label="Details *" value={form.description} onChangeText={set('description')} multiline maxLength={2000} />
-      <Button label="Send feedback" onPress={send} disabled={Boolean(offlineSince) || !form.title.trim() || !form.description.trim()} />
+      <Select label={t('What would you like to share? *')} value={form.type} options={toOptions([msg('Customer feedback'), msg('Issue'), msg('Bug'), msg('Feature request')])} onChange={set('type')} />
+      <Select label={t('Priority')} value={form.priority} options={toOptions([msg('Normal'), msg('High'), msg('Urgent')])} onChange={set('priority')} />
+      <Field label={t('Product, job or invoice reference')} value={form.reference} onChangeText={set('reference')} placeholder={t('Optional')} />
+      <Field label={t('Subject *')} value={form.title} onChangeText={set('title')} maxLength={100} />
+      <Field label={t('Details *')} value={form.description} onChangeText={set('description')} multiline maxLength={2000} />
+      <Button label={t('Send feedback')} onPress={send} disabled={Boolean(offlineSince) || !form.title.trim() || !form.description.trim()} />
     </Screen>
   );
 }

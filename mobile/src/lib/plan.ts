@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import type { Organization } from './types';
 
 // The same rules as the web app and the database's require_active_plan trigger.
@@ -20,5 +21,5 @@ export function planStatus(organization: Organization | null, now = Date.now()):
 // Google Play allows this app to unlock a plan bought on the website, but not to link to that
 // payment or show prices. Plain text naming the website is allowed.
 export const webAppAddress = 'naveenroyal4b3.github.io/clearflow-ro-app';
-export const renewalHint = `To renew, sign in on our website, ${webAppAddress}, and open My account.`;
-export const planEndedMessage = 'This business’s plan has ended. You can still view records.';
+export const renewalHint = () => t('To renew, sign in on our website, {address}, and open My account.', { address: webAppAddress });
+export const planEndedMessage = () => t('This business’s plan has ended. You can still view records.');

@@ -5,14 +5,16 @@ import { DateField } from '@/components/DateField';
 import { useReadOnlyReason } from '@/components/PlanNotice';
 import { Button, Card, CardTitle, Field, Notice, Screen, Select, styles } from '@/components/ui';
 import { errorMessage, newId, today } from '@/lib/format';
+import { msg, t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { saveWorkspaceRecords } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
 import type { Job } from '@/lib/types';
 
-const jobTypes = ['Installation', 'Filter replacement', 'Routine maintenance', 'Quarterly maintenance', 'Low water flow', 'Repair', 'Other'];
-const allStatuses = ['Scheduled', 'In progress', 'Completed', 'Cancelled'];
-const toOptions = (values: string[]) => values.map(value => ({ value, label: value }));
+const jobTypes = [msg('Installation'), msg('Filter replacement'), msg('Routine maintenance'), msg('Quarterly maintenance'), msg('Low water flow'), msg('Repair'), msg('Other')];
+const allStatuses = [msg('Scheduled'), msg('In progress'), msg('Completed'), msg('Cancelled')];
+// Values are stored in English and shown translated.
+const toOptions = (values: string[]) => values.map(value => ({ value, label: t(value) }));
 
 // Owners schedule and edit jobs; technicians can only start or complete their assigned jobs.
 export default function EditJob() {
@@ -26,7 +28,7 @@ export default function EditJob() {
   const set = (key: keyof Job) => (value: string) => setForm(current => ({ ...current, [key]: value }));
   const customer = data.customers.find(item => item.id === form.customerId);
   const technicians = data.accounts.filter(account => account.role === 'Technician' && account.status === 'Active');
-  const technicianOptions = [{ value: '', label: 'Unassigned' }, ...technicians.map(account => ({ value: account.name, label: account.name }))];
+  const technicianOptions = [{ value: '', label: t('Unassigned') }, ...technicians.map(account => ({ value: account.name, label: account.name }))];
   if (form.technician && !technicians.some(account => account.name === form.technician)) technicianOptions.push({ value: form.technician, label: form.technician });
 
   const save = async () => {
@@ -44,39 +46,39 @@ export default function EditJob() {
       }
       router.back();
     } catch (saveError) {
-      setError(errorMessage(saveError, 'Save failed. Try again.'));
+      setError(errorMessage(saveError, t('Save failed. Try again.')));
     }
   };
 
   if (technicianMode && existing) {
     return (
       <Screen>
-        <Stack.Screen options={{ title: 'Update service job' }} />
+        <Stack.Screen options={{ title: t('Update service job') }} />
         {readOnly ? <Notice tone="warning">{readOnly}</Notice> : null}
         {error ? <Notice tone="error">{error}</Notice> : null}
         <Card>
-          <CardTitle title={customer?.name || 'Customer'} note={`${existing.type} · ${existing.id}`} />
+          <CardTitle title={customer?.name || t('Customer')} note={`${t(existing.type)} · ${existing.id}`} />
           {customer?.address ? <Text style={styles.hint}>{customer.address}</Text> : null}
         </Card>
-        <Select label="Status" value={form.status} options={toOptions(['In progress', 'Completed'])} onChange={set('status')} />
-        <Field label="Service notes" value={form.notes} onChangeText={set('notes')} multiline placeholder="What was done, parts used, readings…" />
-        <Button label="Save update" onPress={save} disabled={Boolean(readOnly)} />
+        <Select label={t('Status')} value={form.status} options={toOptions(['In progress', 'Completed'])} onChange={set('status')} />
+        <Field label={t('Service notes')} value={form.notes} onChangeText={set('notes')} multiline placeholder={t('What was done, parts used, readings…')} />
+        <Button label={t('Save update')} onPress={save} disabled={Boolean(readOnly)} />
       </Screen>
     );
   }
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: existing ? 'Edit service job' : 'Schedule service' }} />
+      <Stack.Screen options={{ title: existing ? t('Edit service job') : t('Schedule service') }} />
       {readOnly ? <Notice tone="warning">{readOnly}</Notice> : null}
       {error ? <Notice tone="error">{error}</Notice> : null}
-      <Select label="Customer *" value={form.customerId} options={data.customers.map(item => ({ value: item.id, label: `${item.name} · ${item.phone}` }))} onChange={set('customerId')} />
-      <Select label="Service type *" value={form.type} options={toOptions(jobTypes)} onChange={set('type')} />
-      <DateField label="Visit date *" value={form.date} onChange={set('date')} />
-      <Select label="Technician" value={form.technician} options={technicianOptions} onChange={set('technician')} />
-      <Select label="Status" value={form.status} options={toOptions(allStatuses)} onChange={set('status')} />
-      <Field label="Job notes" value={form.notes} onChangeText={set('notes')} multiline />
-      <Button label={existing ? 'Save changes' : 'Schedule job'} onPress={save} disabled={Boolean(readOnly) || !form.customerId || !form.date} />
+      <Select label={t('Customer *')} value={form.customerId} options={data.customers.map(item => ({ value: item.id, label: `${item.name} · ${item.phone}` }))} onChange={set('customerId')} />
+      <Select label={t('Service type *')} value={form.type} options={toOptions(jobTypes)} onChange={set('type')} />
+      <DateField label={t('Visit date *')} value={form.date} onChange={set('date')} />
+      <Select label={t('Technician')} value={form.technician} options={technicianOptions} onChange={set('technician')} />
+      <Select label={t('Status')} value={form.status} options={toOptions(allStatuses)} onChange={set('status')} />
+      <Field label={t('Job notes')} value={form.notes} onChangeText={set('notes')} multiline />
+      <Button label={existing ? t('Save changes') : t('Schedule job')} onPress={save} disabled={Boolean(readOnly) || !form.customerId || !form.date} />
     </Screen>
   );
 }

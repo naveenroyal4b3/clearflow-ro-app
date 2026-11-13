@@ -3,12 +3,14 @@ import { useState } from 'react';
 import { useReadOnlyReason } from '@/components/PlanNotice';
 import { Button, Field, Notice, Screen, Select } from '@/components/ui';
 import { errorMessage, newId } from '@/lib/format';
+import { msg, t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { saveWorkspaceRecords } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
 import type { Product } from '@/lib/types';
 
-const categories = ['Purifiers', 'Accessories', 'Spare parts'].map(value => ({ value, label: value }));
+const categories = [msg('Purifiers'), msg('Accessories'), msg('Spare parts')];
+// Unit codes are printed on GST invoices as they are.
 const units = ['Nos', 'Pcs', 'Set', 'Box', 'Kg', 'Ltr', 'Mtr'].map(value => ({ value, label: value }));
 type Form = { name: string; category: string; description: string; hsn: string; unit: string; customer: string; technician: string; shop: string; stock: string; gst: string };
 
@@ -39,7 +41,7 @@ export default function EditProduct() {
     try {
       await saveWorkspaceRecords(supabase, profile, 'products', [next]);
     } catch (saveError) {
-      setError(errorMessage(saveError, 'Save failed. Try again.'));
+      setError(errorMessage(saveError, t('Save failed. Try again.')));
       return;
     }
     setData(current => ({ ...current, products: existing ? current.products.map(item => item.id === next.id ? next : item) : [...current.products, next] }));
@@ -48,20 +50,20 @@ export default function EditProduct() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: existing ? 'Edit product' : 'Add product' }} />
+      <Stack.Screen options={{ title: existing ? t('Edit product') : t('Add product') }} />
       {readOnly ? <Notice tone="warning">{readOnly}</Notice> : null}
       {error ? <Notice tone="error">{error}</Notice> : null}
-      <Field label="Product name *" value={form.name} onChangeText={set('name')} />
-      <Select label="Category" value={form.category} options={categories} onChange={set('category')} />
-      <Field label="Description" value={form.description} onChangeText={set('description')} />
-      <Field label="HSN code (needed for GST invoices)" value={form.hsn} onChangeText={set('hsn')} keyboardType="number-pad" maxLength={8} placeholder="e.g. 8421" />
-      <Select label="Unit" value={form.unit} options={units} onChange={set('unit')} />
-      <Field label="Customer price (₹) *" value={form.customer} onChangeText={set('customer')} keyboardType="decimal-pad" />
-      <Field label="Technician price (₹) *" value={form.technician} onChangeText={set('technician')} keyboardType="decimal-pad" />
-      <Field label="Shop price (₹) *" value={form.shop} onChangeText={set('shop')} keyboardType="decimal-pad" />
-      <Field label="Stock quantity" value={form.stock} onChangeText={set('stock')} keyboardType="number-pad" />
-      <Field label="GST rate (%)" value={form.gst} onChangeText={set('gst')} keyboardType="decimal-pad" />
-      <Button label={existing ? 'Save changes' : 'Add product'} onPress={save} disabled={Boolean(readOnly) || !valid} />
+      <Field label={t('Product name *')} value={form.name} onChangeText={set('name')} />
+      <Select label={t('Category')} value={form.category} options={categories.map(value => ({ value, label: t(value) }))} onChange={set('category')} />
+      <Field label={t('Description')} value={form.description} onChangeText={set('description')} />
+      <Field label={t('HSN code (needed for GST invoices)')} value={form.hsn} onChangeText={set('hsn')} keyboardType="number-pad" maxLength={8} placeholder={t('e.g. 8421')} />
+      <Select label={t('Unit')} value={form.unit} options={units} onChange={set('unit')} />
+      <Field label={t('Customer price (₹) *')} value={form.customer} onChangeText={set('customer')} keyboardType="decimal-pad" />
+      <Field label={t('Technician price (₹) *')} value={form.technician} onChangeText={set('technician')} keyboardType="decimal-pad" />
+      <Field label={t('Shop price (₹) *')} value={form.shop} onChangeText={set('shop')} keyboardType="decimal-pad" />
+      <Field label={t('Stock quantity')} value={form.stock} onChangeText={set('stock')} keyboardType="number-pad" />
+      <Field label={t('GST rate (%)')} value={form.gst} onChangeText={set('gst')} keyboardType="decimal-pad" />
+      <Button label={existing ? t('Save changes') : t('Add product')} onPress={save} disabled={Boolean(readOnly) || !valid} />
     </Screen>
   );
 }

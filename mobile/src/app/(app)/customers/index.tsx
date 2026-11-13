@@ -5,9 +5,10 @@ import { Alert, FlatList, Linking, Pressable, RefreshControl, StyleSheet, Text, 
 import { colors, Empty, styles as ui } from '@/components/ui';
 import { PlanNotice, useReadOnlyReason } from '@/components/PlanNotice';
 import { formatDate, initials } from '@/lib/format';
+import { msg, t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
-const types = ['All', 'Residential', 'Commercial', 'Apartment'];
+const types = [msg('All'), msg('Residential'), msg('Commercial'), msg('Apartment')];
 
 export default function Customers() {
   const { data, reload } = useSession();
@@ -22,14 +23,14 @@ export default function Customers() {
     .sort((a, b) => a.name.localeCompare(b.name)), [data.customers, query, type]);
 
   const add = () => {
-    if (readOnly) { Alert.alert('Can’t add customers', readOnly); return; }
+    if (readOnly) { Alert.alert(t('Can’t add customers'), readOnly); return; }
     router.push('/customers/edit');
   };
 
   return (
     <View style={ui.screen}>
       <Stack.Screen options={{ headerRight: () => (
-        <Pressable accessibilityRole="button" accessibilityLabel="Add customer" onPress={add} hitSlop={12} style={{ paddingHorizontal: 8 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('Add customer')} onPress={add} hitSlop={12} style={{ paddingHorizontal: 8 }}>
           <Ionicons name="add-circle" size={28} color={colors.teal} />
         </Pressable>
       ) }} />
@@ -41,28 +42,28 @@ export default function Customers() {
         ListHeaderComponent={
           <View style={{ gap: 10 }}>
             <PlanNotice />
-            <TextInput style={ui.input} placeholder="Search name, phone, address…" placeholderTextColor={colors.muted} value={query} onChangeText={setQuery} accessibilityLabel="Search customers" />
+            <TextInput style={ui.input} placeholder={t('Search name, phone, address…')} placeholderTextColor={colors.muted} value={query} onChangeText={setQuery} accessibilityLabel={t('Search customers')} />
             <View style={local.chips}>
               {types.map(item => (
                 <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected: item === type }} onPress={() => setType(item)} style={[local.chip, item === type && local.chipActive]}>
-                  <Text style={[local.chipText, item === type && local.chipTextActive]}>{item}</Text>
+                  <Text style={[local.chipText, item === type && local.chipTextActive]}>{t(item)}</Text>
                 </Pressable>
               ))}
             </View>
-            <Text style={ui.hint}>{`${customers.length} of ${data.customers.length} customers`}</Text>
+            <Text style={ui.hint}>{t('{shown} of {total} customers', { shown: customers.length, total: data.customers.length })}</Text>
           </View>
         }
-        ListEmptyComponent={<Empty text={data.customers.length ? 'No matching customers.' : 'No customers yet. Tap + to add one.'} />}
+        ListEmptyComponent={<Empty text={data.customers.length ? t('No matching customers.') : t('No customers yet. Tap + to add one.')} />}
         renderItem={({ item }) => (
-          <Pressable style={local.card} onPress={() => router.push({ pathname: '/customers/edit', params: { id: item.id } })} accessibilityHint="Opens the customer to view or edit">
+          <Pressable style={local.card} onPress={() => router.push({ pathname: '/customers/edit', params: { id: item.id } })} accessibilityHint={t('Opens the customer to view or edit')}>
             <View style={local.avatar}><Text style={local.avatarText}>{initials(item.name)}</Text></View>
             <View style={ui.flex}>
               <Text style={local.name}>{item.name}</Text>
-              <Text style={local.note}>{`${item.type} · ${item.purifier || 'No unit recorded'}`}</Text>
-              {item.installed ? <Text style={local.note}>{`Installed ${formatDate(item.installed)}`}</Text> : null}
+              <Text style={local.note}>{`${t(item.type)} · ${item.purifier || t('No unit recorded')}`}</Text>
+              {item.installed ? <Text style={local.note}>{t('Installed {date}', { date: formatDate(item.installed) })}</Text> : null}
               {item.address ? <Text style={local.note} numberOfLines={2}>{item.address}</Text> : null}
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Call ${item.name}`} hitSlop={10} onPress={() => Linking.openURL(`tel:${item.phone.replace(/\s/g, '')}`)} style={local.call}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('Call {name}', { name: item.name })} hitSlop={10} onPress={() => Linking.openURL(`tel:${item.phone.replace(/\s/g, '')}`)} style={local.call}>
               <Ionicons name="call" size={18} color={colors.teal} />
             </Pressable>
           </Pressable>
