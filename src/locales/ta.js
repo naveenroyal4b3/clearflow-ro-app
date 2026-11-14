@@ -599,5 +599,9 @@ export default {
   "{table} {record} {action} by {person}": "{table} {record} — {person} {action}",
   "{tier} price": "{tier} விலை",
   "₹1,999 / year": "₹1,999 / ஆண்டு",
-  "₹199 / month": "₹199 / மாதம்"
+  "₹199 / month": "₹199 / மாதம்",
+  "Add your GSTIN in More → Business details to charge GST.": "GST வசூலிக்க மேலும் → தொழில் விவரங்களில் உங்கள் GSTIN-ஐச் சேர்க்கவும்.",
+  "Add your GSTIN first": "முதலில் உங்கள் GSTIN-ஐச் சேர்க்கவும்",
+  "Only a GST-registered business can charge GST. Add your GSTIN in Business details, then come back to this invoice.": "GST பதிவு செய்த வணிகம் மட்டுமே GST வசூலிக்க முடியும். தொழில் விவரங்களில் உங்கள் GSTIN-ஐச் சேர்த்து, இந்த இன்வாய்ஸுக்குத் திரும்பவும்.",
+  "Add GSTIN": "GSTIN சேர்",
 };

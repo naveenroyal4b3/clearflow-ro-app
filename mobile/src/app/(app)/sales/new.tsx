@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, Stack } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { Chips } from '@/components/Chips';
 import { DateField } from '@/components/DateField';
 import { useReadOnlyReason } from '@/components/PlanNotice';
@@ -43,6 +43,15 @@ export default function NewDocument() {
     : type === 'Invoice' && parsed.some(line => !Number.isInteger(line.qty)) ? t('Invoice quantities must be whole units.')
       : parsed.some(line => line.discount < 0 || line.discount > line.qty * line.price) ? t('A discount cannot be more than the line amount.') : '';
   const bill = taxBreakup(parsed, { gstEnabled: gst });
+
+  // Without a GSTIN the switch stays off and explains how to add one.
+  const applyGst = (value: boolean) => {
+    if (!value || organization?.gstin) { setGst(value); return; }
+    Alert.alert(t('Add your GSTIN first'), t('Only a GST-registered business can charge GST. Add your GSTIN in Business details, then come back to this invoice.'), [
+      { text: t('Cancel'), style: 'cancel' },
+      { text: t('Add GSTIN'), onPress: () => router.push('/more/business') }
+    ]);
+  };
 
   const save = async () => {
     setError('');
@@ -88,9 +97,9 @@ export default function NewDocument() {
       <Card>
         <View style={local.row}>
           <View style={ui.flex}>
-            <CardTitle title={t('Apply GST')} note={organization?.gstin ? t('At each product’s rate.') : t('Add your GSTIN on the website (Accounts → Business details) to charge GST.')} />
+            <CardTitle title={t('Apply GST')} note={organization?.gstin ? t('At each product’s rate.') : t('Add your GSTIN in More → Business details to charge GST.')} />
           </View>
-          <Switch value={gst} onValueChange={setGst} disabled={!organization?.gstin} trackColor={{ true: colors.teal, false: colors.line }} accessibilityLabel={t('Apply GST')} />
+          <Switch value={gst} onValueChange={applyGst} trackColor={{ true: colors.teal, false: colors.line }} accessibilityLabel={t('Apply GST')} />
         </View>
         {bill.discount ? <Total label={t('Discount')} value={`−${money(bill.discount)}`} /> : null}
         <Total label={t('Taxable value')} value={money(bill.taxable)} />
