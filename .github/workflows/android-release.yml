@@ -1,19 +1,24 @@
 name: Build Android release
 
 # Builds the signed app bundle (.aab) for Google Play from the React Native app in mobile/.
-# Run it from the Actions tab on main. It only builds a commit that already passed CI, waits for
-# approval if the production environment requires reviewers, and publishes a GitHub release with
-# the bundle, an SBOM and a build provenance attestation. With the PLAY_SERVICE_ACCOUNT_JSON
-# secret set, it also uploads the bundle to Google Play (the closed testing track by default) and
+# It runs by itself after CI passes on main when a merge changed the app (mobile/ or the shared
+# code in src/), and uploads to the internal testing track. It can also be run from the Actions
+# tab. It only builds a commit that already passed CI, needs no approval, and publishes a GitHub
+# release with the bundle, an SBOM and a build provenance attestation. With the PLAY_SERVICE_ACCOUNT_JSON
+# secret set, it also uploads the bundle to Google Play (the internal testing track by default) and
 # sends it for review.
 on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       play_track:
         description: Play testing track to upload to (alpha is Play's closed testing track)
         type: choice
         options: [alpha, internal]
-        default: alpha
+        default: internal
       play_status:
         description: completed sends the release for review and rolls it out; draft leaves it for you to publish in Play Console
         type: choice
@@ -23,32 +28,65 @@ on:
 permissions:
   contents: read
 
+# One release at a time; a merge made during a build waits for it instead of cancelling it.
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+env:
+  # After CI, build the commit CI tested; when run by hand, the commit it was started on.
+  SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+  PLAY_TRACK: ${{ inputs.play_track || 'internal' }}
+  PLAY_STATUS: ${{ inputs.play_status || 'completed' }}
+
 jobs:
   verify-ci:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       actions: read
+      contents: read
+    outputs:
+      build: ${{ steps.check.outputs.build }}
     steps:
       - name: Require a main commit that passed CI
+        id: check
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          RUN_EVENT: ${{ github.event.workflow_run.event }}
+          RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         run: |
+          if [ "$EVENT" = "workflow_run" ]; then
+            # Only merges to main whose CI passed, and only when the app itself changed.
+            if [ "$RUN_EVENT" != "push" ] || [ "$RUN_CONCLUSION" != "success" ]; then
+              echo "build=false" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            changed=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA" --jq '.files[].filename')
+            if echo "$changed" | grep -qE '^(mobile/|src/(gst|supabase-data|documents|i18n).js$|src/locales/|.github/workflows/android-release.yml$)'; then
+              echo "build=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "No app changes in $SHA; skipping the release."
+              echo "build=false" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
           if [ "$GITHUB_REF" != "refs/heads/main" ]; then
             echo "::error::Releases are built from main only."
             exit 1
           fi
-          passed=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&status=success" --jq '.total_count')
+          passed=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$SHA&status=success" --jq '.total_count')
           if [ "$passed" = "0" ]; then
-            echo "::error::CI has not passed on $GITHUB_SHA yet. Wait for the CI workflow to finish, then run this again."
+            echo "::error::CI has not passed on $SHA yet. Wait for the CI workflow to finish, then run this again."
             exit 1
           fi
+          echo "build=true" >> "$GITHUB_OUTPUT"
 
   release-aab:
     needs: verify-ci
+    if: needs.verify-ci.outputs.build == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    environment: production
     permissions:
       contents: write # create the tag and GitHub release
       id-token: write # sign the provenance attestation
@@ -68,6 +106,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.SHA }}
 
       - name: Check signing secrets
         env:
@@ -148,7 +188,7 @@ jobs:
         run: |
           cp "$AAB" "clearflow-$TAG.aab"
           gh release create "$TAG" "clearflow-$TAG.aab" sbom.spdx.json \
-            --target "$GITHUB_SHA" --title "$TAG" --generate-notes
+            --target "$SHA" --title "$TAG" --generate-notes
 
       - name: Upload to Google Play
         if: steps.secrets.outputs.play == 'true'
@@ -158,5 +198,5 @@ jobs:
           packageName: com.naveenroyal4b3.clearflow
           releaseFiles: ${{ env.AAB }}
           mappingFile: ${{ env.MAPPING }}
-          tracks: ${{ inputs.play_track }}
-          status: ${{ inputs.play_status }}
+          tracks: ${{ env.PLAY_TRACK }}
+          status: ${{ env.PLAY_STATUS }}
