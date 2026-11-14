@@ -3,10 +3,10 @@ name: Build Android release
 # Builds the signed app bundle (.aab) for Google Play from the React Native app in mobile/.
 # It runs by itself after CI passes on main when a merge changed the app (mobile/ or the shared
 # code in src/), and uploads to the internal testing track. It can also be run from the Actions
-# tab. It only builds a commit that already passed CI, waits for
-# approval if the production environment requires reviewers, and publishes a GitHub release with
+# tab. It only builds a commit that already passed CI, needs no approval, and publishes a GitHub
+# release with
 # the bundle, an SBOM and a build provenance attestation. With the PLAY_SERVICE_ACCOUNT_JSON
-# secret set, it also uploads the bundle to Google Play (the closed testing track by default) and
+# secret set, it also uploads the bundle to Google Play (the internal testing track by default) and
 # sends it for review.
 on:
   workflow_run:
@@ -88,7 +88,6 @@ jobs:
     if: needs.verify-ci.outputs.build == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    environment: production
     permissions:
       contents: write # create the tag and GitHub release
       id-token: write # sign the provenance attestation
