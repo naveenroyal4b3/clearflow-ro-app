@@ -141,3 +141,14 @@ test('unknown sign-in is rejected', async ({ page }) => {
   await page.click('#auth-form [type="submit"]');
   await expect(page.locator('.auth-message')).toContainText(/invalid/i);
 });
+
+test('a product can be started from the ready-made catalogue', async ({ page }) => {
+  await signUpOwner(page);
+  await goTo(page, 'catalog');
+  await page.click('[data-action="new-product"]');
+  await page.fill('#catalog-pick', 'Kent Grand Plus RO+UV+UF+TDS Control');
+  await expect(page.locator('#name')).toHaveValue('Kent Grand Plus RO+UV+UF+TDS Control');
+  await expect(page.locator('#hsn')).toHaveValue('84212120');
+  await expect(page.locator('#gst')).toHaveValue('18');
+  await expect(page.locator('#category')).toHaveValue('Purifiers');
+});

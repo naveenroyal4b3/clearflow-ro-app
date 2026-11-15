@@ -29,7 +29,7 @@ export default function Catalog() {
 
   const add = () => {
     if (readOnly) { Alert.alert(t('Can’t add products'), readOnly); return; }
-    router.push('/catalog/edit');
+    router.push('/catalog/pick');
   };
 
   return (

@@ -6,6 +6,7 @@ export default function CatalogLayout() {
   return (
     <Stack screenOptions={{ headerStyle: { backgroundColor: colors.paper }, headerTitleStyle: { color: colors.ink, fontWeight: '700' }, contentStyle: { backgroundColor: colors.canvas } }}>
       <Stack.Screen name="index" options={{ title: t('Product catalogue') }} />
+      <Stack.Screen name="pick" options={{ title: t('Add product'), presentation: 'modal' }} />
       <Stack.Screen name="edit" options={{ title: t('Product'), presentation: 'modal' }} />
     </Stack>
   );

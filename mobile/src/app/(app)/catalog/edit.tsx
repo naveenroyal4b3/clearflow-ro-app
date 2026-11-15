@@ -1,6 +1,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { useReadOnlyReason } from '@/components/PlanNotice';
+import { catalogItem } from '@/lib/catalog';
 import { Button, Field, Notice, Screen, Select } from '@/components/ui';
 import { errorMessage, newId } from '@/lib/format';
 import { msg, t } from '@/lib/i18n';
@@ -17,14 +18,16 @@ type Form = { name: string; category: string; description: string; hsn: string; 
 const isAmount = (value: string) => value.trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
 
 export default function EditProduct() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  // id edits a product; from starts a new one from a catalogue item.
+  const { id, from } = useLocalSearchParams<{ id?: string; from?: string }>();
   const { data, profile, setData } = useSession();
   const readOnly = useReadOnlyReason();
   const existing = data.products.find(item => item.id === id);
+  const template = existing ? undefined : catalogItem(from || '');
   const [form, setForm] = useState<Form>({
-    name: existing?.name || '', category: existing?.category || 'Purifiers', description: existing?.description || '', hsn: existing?.hsn || '',
-    unit: existing?.unit || 'Nos', customer: String(existing?.customer ?? ''), technician: String(existing?.technician ?? ''), shop: String(existing?.shop ?? ''),
-    stock: String(existing?.stock ?? 0), gst: String(existing?.gst ?? 18)
+    name: existing?.name || template?.name || '', category: existing?.category || template?.category || 'Purifiers', description: existing?.description || '', hsn: existing?.hsn || template?.hsn || '',
+    unit: existing?.unit || template?.unit || 'Nos', customer: String(existing?.customer ?? ''), technician: String(existing?.technician ?? ''), shop: String(existing?.shop ?? ''),
+    stock: String(existing?.stock ?? 0), gst: String(existing?.gst ?? template?.gst ?? 18)
   });
   const [error, setError] = useState('');
   const set = (key: keyof Form) => (value: string) => setForm(current => ({ ...current, [key]: value }));
