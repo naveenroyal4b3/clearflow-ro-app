@@ -38,6 +38,8 @@ const config: ExpoConfig = {
       photosPermission: 'Allow $(PRODUCT_NAME) to open your photos so you can choose a product photo.',
       microphonePermission: false
     }],
+    // Taking a photo is optional, so devices without a camera can still install the app.
+    './plugins/optional-camera',
     // Release builds: R8 removes unused code and resources, so the app is smaller and faster.
     // The keep rules cover code that native libraries reach only through JNI or reflection.
     ['expo-build-properties', {
