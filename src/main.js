@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization } from './supabase-data.js';
+import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization, uploadProductImage, productImageUrls } from './supabase-data.js';
+import { productIconSvg } from './product-icons.js';
 import { stateFromGstin, stateOptions, taxBreakup } from './gst.js';
 import { catalog, catalogItem } from './catalog.js';
 import { documentDetails as sharedDocumentDetails, documentHtml, invoiceRegisterHeader, invoiceRegisterRows } from './documents.js';
@@ -509,6 +510,33 @@ function renderSales() {
     <div class="notice"><strong>${t('Tax options:')}</strong> ${t('choose GST-inclusive billing (product tax rates apply) or a non-GST document when creating a quotation or invoice.')}</div>
     <section class="panel table-panel"><div class="tabs">${tabs.map(tab => `<button class="tab ${salesTab === tab ? 'active' : ''}" data-sales-tab="${tab}">${t(tab)}</button>`).join('')}</div><div class="table-scroll"><table><thead><tr><th>${t('Document')}</th><th>${t('Customer')}</th><th>${t('Date')}</th><th>${t('Due date')}</th><th>${t('Tax')}</th><th>${t('Amount')}</th><th>${t('Status')}</th><th></th></tr></thead><tbody>${docs.length ? docs.map(doc => `<tr><td><strong>${esc(doc.id)}</strong><div class="muted-cell">${esc(t(doc.type))}</div></td><td>${esc(customer(doc.customerId).name)}</td><td>${date(doc.date)}</td><td>${date(doc.due)}</td><td>${doc.gst ? t('GST') : t('No GST')}</td><td><strong>${money(totals(doc).grand)}</strong></td><td>${documentStatus(doc, owner)}</td><td><button class="row-action" data-print-doc="${esc(doc.id)}" aria-label="${esc(t('Print {id}', { id: doc.id }))}" title="${esc(t('Print document'))}">${icons.download}</button></td></tr>`).join('') : `<tr><td colspan="8" class="empty">${t('No documents in this view yet.')}</td></tr>`}</tbody></table></div></section>`;
 }
+// Temporary links to product photos, by storage path ('' when a link could not be made).
+const productPhotoUrls = new Map();
+function loadProductPhotos(products) {
+  const missing = [...new Set(products.map(item => item.image).filter(path => path && !productPhotoUrls.has(path)))];
+  if (!missing.length || offlineSince) return;
+  missing.forEach(path => productPhotoUrls.set(path, ''));
+  productImageUrls(supabaseClient, missing)
+    .then(urls => {
+      Object.entries(urls).forEach(([path, url]) => productPhotoUrls.set(path, url));
+      if (view === 'catalog') renderCatalog();
+    })
+    .catch(() => { /* photos are optional; the icon stays */ });
+}
+function productArt(item) {
+  const url = item.image && productPhotoUrls.get(item.image);
+  return url ? `<img src="${esc(url)}" alt="" loading="lazy">` : productIconSvg(item);
+}
+// Shrinks a photo to at most 1000 px on its longest side as a JPEG, well under the 1 MB limit.
+async function resizePhoto(file) {
+  const bitmap = await createImageBitmap(file).catch(() => { throw new Error(t('That photo could not be read. Try another one.')); });
+  const scale = Math.min(1, 1000 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  return new Promise((resolve, reject) => canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error(t('That photo could not be read. Try another one.')))), 'image/jpeg', 0.75));
+}
 function renderCatalog() {
   const owner = profile.role === 'owner';
   // Tab values are product categories stored in English (catalogTab); only their labels are translated.
@@ -518,7 +546,8 @@ function renderCatalog() {
   page.innerHTML = `${pageHead(t('Products & pricing'), t('Product catalogue'), t('Purifiers, accessories and spares · prices shown for {tier} access', { tier }), owner ? `<button class="button" data-action="new-product">${icons.plus} ${t('Add product')}</button>` : '')}
     <div class="notice">${owner ? t('Previewing {tier} pricing. Each signed-in role can only retrieve its own price tier.', { tier: `<strong>${tier}</strong>` }) : t('Showing the {tier} prices assigned to your account.', { tier: `<strong>${tier}</strong>` })}</div>
     <section class="panel" style="margin-bottom:15px"><div class="tabs">${tabs.map(tab => `<button class="tab ${catalogTab === tab ? 'active' : ''}" data-catalog-tab="${tab}">${t(tab)}</button>`).join('')}</div></section>
-    <div class="product-grid">${products.length ? products.map((item, index) => `<article class="product"><div class="product-top"><div class="product-art ${index % 3 === 1 ? 'blue' : index % 3 === 2 ? 'gold' : ''}">${item.category === 'Purifiers' ? icons.product : item.category === 'Accessories' ? icons.service : icons.invoice}</div><span class="category">${esc(t(item.category))}</span></div><div class="product-info"><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><div class="product-price"><div><span>${t('{tier} price', { tier })}</span><strong>${money(price(item))}</strong></div>${owner || profile.role === 'technician' ? `<span>${esc(t('{count} in stock', { count: item.stock }))}</span>` : ''}</div>${owner ? `<div class="price-other"><span>${t('Customer')} <b>${money(item.customer)}</b></span><span>${t('Tech')} <b>${money(item.technician)}</b></span><span>${t('Shop')} <b>${money(item.shop)}</b></span></div>` : ''}</div></article>`).join('') : `<div class="empty">${t('No products in this category.')}</div>`}</div>`;
+    <div class="product-grid">${products.length ? products.map((item, index) => `<article class="product"><div class="product-top"><div class="product-art ${item.image && productPhotoUrls.get(item.image) ? 'photo' : index % 3 === 1 ? 'blue' : index % 3 === 2 ? 'gold' : ''}">${productArt(item)}</div><span class="category">${esc(t(item.category))}</span></div><div class="product-info"><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><div class="product-price"><div><span>${t('{tier} price', { tier })}</span><strong>${money(price(item))}</strong></div>${owner || profile.role === 'technician' ? `<span>${esc(t('{count} in stock', { count: item.stock }))}</span>` : ''}</div>${owner ? `<div class="price-other"><span>${t('Customer')} <b>${money(item.customer)}</b></span><span>${t('Tech')} <b>${money(item.technician)}</b></span><span>${t('Shop')} <b>${money(item.shop)}</b></span></div>` : ''}</div></article>`).join('') : `<div class="empty">${t('No products in this category.')}</div>`}</div>`;
+  loadProductPhotos(products);
 }
 function renderAccounts() {
   if (profile.role !== 'owner') { page.innerHTML = `<div class="empty">${t('Only the organization owner can manage accounts.')}</div>`; return; }
@@ -700,9 +729,11 @@ function openProductForm() {
   if (profile.role !== 'owner') { toast(t('Only the owner can change catalogue items')); return; }
   if (planBlocked()) return;
   const categories = [msg('Purifiers'), msg('Accessories'), msg('Spare parts')];
-  showModal(t('Add catalogue item'), t('Set customer, technician and shop pricing'), `<div class="form-grid"><div class="field full"><label for="catalog-pick">${t('Choose from catalogue')}</label><input id="catalog-pick" list="catalog-items" autocomplete="off" placeholder="${esc(t('Search model or part, e.g. Kent Grand, membrane 80'))}"><datalist id="catalog-items">${catalog.map(item => `<option value="${esc(item.name)}"></option>`).join('')}</datalist><small>${t('Fills in the name, HSN and GST. Not listed? Type your own product below.')}</small></div><div class="field"><label for="name">${t('Product name *')}</label><input id="name" name="name" required></div><div class="field"><label for="category">${t('Category')}</label><select id="category" name="category">${categories.map(category => `<option value="${category}">${t(category)}</option>`).join('')}</select></div><div class="field full"><label for="description">${t('Description')}</label><input id="description" name="description"></div><div class="field"><label for="hsn">${t('HSN code (needed for GST invoices)')}</label><input id="hsn" name="hsn" maxlength="8" inputmode="numeric" placeholder="${esc(t('e.g. 8421'))}"></div><div class="field"><label for="unit">${t('Unit')}</label><select id="unit" name="unit">${productUnits.map(unit => `<option>${unit}</option>`).join('')}</select></div><div class="field"><label for="customer">${t('Customer price (₹)')}</label><input id="customer" name="customer" type="number" min="0" required></div><div class="field"><label for="technician">${t('Technician price (₹)')}</label><input id="technician" name="technician" type="number" min="0" required></div><div class="field"><label for="shop">${t('Shop price (₹)')}</label><input id="shop" name="shop" type="number" min="0" required></div><div class="field"><label for="stock">${t('Stock quantity')}</label><input id="stock" name="stock" type="number" min="0" value="0"></div><div class="field"><label for="gst">${t('GST rate (%)')}</label><input id="gst" name="gst" type="number" min="0" max="100" value="18"></div></div>`, t('Add product'), async form => {
-    const value = Object.fromEntries(form.entries());
-    const item = { ...value, id: `P-${crypto.randomUUID().slice(0, 8).toUpperCase()}`, customer: Number(value.customer), technician: Number(value.technician), shop: Number(value.shop), stock: Number(value.stock), gst: Number(value.gst) };
+  showModal(t('Add catalogue item'), t('Set customer, technician and shop pricing'), `<div class="form-grid"><div class="field full"><label for="catalog-pick">${t('Choose from catalogue')}</label><input id="catalog-pick" list="catalog-items" autocomplete="off" placeholder="${esc(t('Search model or part, e.g. Kent Grand, membrane 80'))}"><datalist id="catalog-items">${catalog.map(item => `<option value="${esc(item.name)}"></option>`).join('')}</datalist><small>${t('Fills in the name, HSN and GST. Not listed? Type your own product below.')}</small></div><div class="field"><label for="name">${t('Product name *')}</label><input id="name" name="name" required></div><div class="field"><label for="category">${t('Category')}</label><select id="category" name="category">${categories.map(category => `<option value="${category}">${t(category)}</option>`).join('')}</select></div><div class="field full"><label for="description">${t('Description')}</label><input id="description" name="description"></div><div class="field"><label for="hsn">${t('HSN code (needed for GST invoices)')}</label><input id="hsn" name="hsn" maxlength="8" inputmode="numeric" placeholder="${esc(t('e.g. 8421'))}"></div><div class="field"><label for="unit">${t('Unit')}</label><select id="unit" name="unit">${productUnits.map(unit => `<option>${unit}</option>`).join('')}</select></div><div class="field"><label for="customer">${t('Customer price (₹)')}</label><input id="customer" name="customer" type="number" min="0" required></div><div class="field"><label for="technician">${t('Technician price (₹)')}</label><input id="technician" name="technician" type="number" min="0" required></div><div class="field"><label for="shop">${t('Shop price (₹)')}</label><input id="shop" name="shop" type="number" min="0" required></div><div class="field"><label for="stock">${t('Stock quantity')}</label><input id="stock" name="stock" type="number" min="0" value="0"></div><div class="field"><label for="gst">${t('GST rate (%)')}</label><input id="gst" name="gst" type="number" min="0" max="100" value="18"></div><div class="field full"><label for="photo">${t('Photo (optional)')}</label><input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp"><small>${t('Without a photo, the product shows an icon for its type.')}</small></div></div>`, t('Add product'), async form => {
+    const { photo, ...value } = Object.fromEntries(form.entries());
+    const id = `P-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    const image = photo && photo.size ? await uploadProductImage(supabaseClient, organization.id, id, await resizePhoto(photo)) : '';
+    const item = { ...value, id, image, customer: Number(value.customer), technician: Number(value.technician), shop: Number(value.shop), stock: Number(value.stock), gst: Number(value.gst) };
     await save('products', [item]);
     data.products.push(item);
     closeModal(); render(); toast(t('Product added to catalogue'));

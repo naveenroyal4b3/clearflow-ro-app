@@ -30,6 +30,14 @@ const config: ExpoConfig = {
     'expo-router',
     'expo-sqlite',
     'expo-sharing',
+    // Product photos. Choosing a photo uses Android's system photo picker, which needs no storage
+    // permission; the camera permission is asked only when the owner taps "Take photo". Product
+    // photos never record sound, so the microphone permission is blocked.
+    ['expo-image-picker', {
+      cameraPermission: 'Allow $(PRODUCT_NAME) to use the camera to take product photos.',
+      photosPermission: 'Allow $(PRODUCT_NAME) to open your photos so you can choose a product photo.',
+      microphonePermission: false
+    }],
     // Release builds: R8 removes unused code and resources, so the app is smaller and faster.
     // The keep rules cover code that native libraries reach only through JNI or reflection.
     ['expo-build-properties', {

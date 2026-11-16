@@ -33,7 +33,8 @@ export type Customer = {
 };
 export type Product = {
   id: string; name: string; category: string; description: string; hsn: string; unit: string;
-  stock: number | null; gst: number; customer?: number; technician?: number; shop?: number;
+  // image is the photo's storage path ('' when there is none).
+  stock: number | null; gst: number; image?: string; customer?: number; technician?: number; shop?: number;
 };
 export type Job = { id: string; customerId: string; type: string; date: string; technician: string; status: string; notes: string };
 export type LineItem = { productId: string; name: string; qty: number; price: number; gst: number; hsn: string; unit: string; discount: number };

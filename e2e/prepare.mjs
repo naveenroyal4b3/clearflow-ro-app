@@ -21,4 +21,4 @@ try {
   // Not running yet.
 }
 if (running) run(`${supabase} db reset --local ${workdir}`);
-else run(`${supabase} start ${workdir} -x vector,imgproxy,logflare,supavisor,postgres-meta,studio,realtime,storage-api`);
+else run(`${supabase} start ${workdir} -x vector,imgproxy,logflare,supavisor,postgres-meta,studio,realtime`);

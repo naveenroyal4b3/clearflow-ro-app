@@ -152,3 +152,25 @@ test('a product can be started from the ready-made catalogue', async ({ page }) 
   await expect(page.locator('#gst')).toHaveValue('18');
   await expect(page.locator('#category')).toHaveValue('Purifiers');
 });
+
+test('a product photo is uploaded and shown', async ({ page }) => {
+  await signUpOwner(page);
+  await goTo(page, 'catalog');
+  await page.click('[data-action="new-product"]');
+  await page.fill('#catalog-pick', 'Kent Grand Plus RO+UV+UF+TDS Control');
+  await page.fill('#customer', '15000');
+  await page.fill('#technician', '13000');
+  await page.fill('#shop', '12500');
+  // A small red square, drawn by the browser, stands in for a phone photo.
+  const png = Buffer.from(await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 16;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#c33';
+    context.fillRect(0, 0, 16, 16);
+    return canvas.toDataURL('image/png').split(',')[1];
+  }), 'base64');
+  await page.setInputFiles('#photo', { name: 'purifier.png', mimeType: 'image/png', buffer: png });
+  await page.click('#active-form [type="submit"]');
+  await expect(page.locator('.product', { hasText: 'Kent Grand Plus' }).locator('.product-art img')).toBeVisible();
+});

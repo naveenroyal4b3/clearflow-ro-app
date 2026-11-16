@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Chips } from '@/components/Chips';
+import { ProductImage } from '@/components/ProductImage';
 import { Button, colors, Empty, styles as ui } from '@/components/ui';
 import { catalogBrands, searchCatalog } from '@/lib/catalog';
 import { msg, t } from '@/lib/i18n';
@@ -52,6 +53,7 @@ export default function PickProduct() {
               accessibilityRole="button"
               accessibilityHint={t('Opens a new product with these details filled in')}
             >
+              <ProductImage product={item} size={40} />
               <View style={ui.flex}>
                 <Text style={local.title}>{item.name}</Text>
                 <Text style={local.note}>{`${t(item.category)} · HSN ${item.hsn} · GST ${item.gst}%`}</Text>
