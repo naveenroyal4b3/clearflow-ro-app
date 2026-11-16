@@ -529,7 +529,7 @@ function productArt(item) {
 }
 // Shrinks a photo to at most 1000 px on its longest side as a JPEG, well under the 1 MB limit.
 async function resizePhoto(file) {
-  const bitmap = await createImageBitmap(file);
+  const bitmap = await createImageBitmap(file).catch(() => { throw new Error(t('That photo could not be read. Try another one.')); });
   const scale = Math.min(1, 1000 / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(bitmap.width * scale);
