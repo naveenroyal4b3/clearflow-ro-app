@@ -162,6 +162,46 @@ jobs:
       - name: Verify signature
         run: jarsigner -verify "$AAB" | tail -1
 
+      - name: Compare device support with the last release
+        # Play drops devices when the minimum Android version, required hardware, permissions or
+        # native code change. If any of these differ from the previous GitHub release, upload to
+        # internal testing only and fail the run, so the Play Console preview is checked first.
+        id: devices
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/bundletool.jar" https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar
+          echo "a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29  $RUNNER_TEMP/bundletool.jar" | sha256sum -c -
+          summary() {
+            java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle "$1" | node mobile/scripts/device-summary.mjs
+            unzip -Z1 "$1" | sed -n 's#^base/lib/\([^/]*\)/.*#native-code \1#p' | sort -u
+          }
+          summary "$AAB" > "$RUNNER_TEMP/devices-new.txt"
+          cat "$RUNNER_TEMP/devices-new.txt"
+          echo "tracks=$PLAY_TRACK" >> "$GITHUB_OUTPUT"
+          previous=$(gh release list --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName')
+          if [ -z "$previous" ] || ! gh release download "$previous" --pattern '*.aab' --dir "$RUNNER_TEMP/previous"; then
+            echo "::warning::No earlier release bundle to compare device support with."
+            exit 0
+          fi
+          summary "$RUNNER_TEMP"/previous/*.aab > "$RUNNER_TEMP/devices-old.txt"
+          if diff -u "$RUNNER_TEMP/devices-old.txt" "$RUNNER_TEMP/devices-new.txt" > "$RUNNER_TEMP/devices.diff"; then
+            echo "Device support is unchanged from $previous."
+            exit 0
+          fi
+          {
+            echo "### Device support changed since $previous"
+            echo
+            echo 'This build went to internal testing only. Check "Changes to your supported devices" when promoting it to production in Play Console.'
+            echo
+            echo '```diff'
+            cat "$RUNNER_TEMP/devices.diff"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/devices.diff"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "tracks=$(echo "$PLAY_TRACK" | tr ',' '\n' | grep -vx production | paste -sd, -)" >> "$GITHUB_OUTPUT"
+
       - name: Generate SBOM
         # Lists every package shipped in the app, so a vulnerable dependency can be traced to a release.
         working-directory: mobile
@@ -200,5 +240,11 @@ jobs:
           releaseFiles: ${{ env.AAB }}
           mappingFile: ${{ env.MAPPING }}
           whatsNewDirectory: mobile/whatsnew
-          tracks: ${{ env.PLAY_TRACK }}
+          tracks: ${{ steps.devices.outputs.tracks || 'internal' }}
           status: ${{ env.PLAY_STATUS }}
+
+      - name: Stop for a device check
+        if: steps.devices.outputs.changed == 'true'
+        run: |
+          echo "::error::Device support changed, so this build was not sent to production. Open the run summary, then promote the build from internal testing in Play Console if the devices lost are acceptable."
+          exit 1
