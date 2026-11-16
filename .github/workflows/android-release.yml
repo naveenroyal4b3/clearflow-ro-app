@@ -2,11 +2,12 @@ name: Build Android release
 
 # Builds the signed app bundle (.aab) for Google Play from the React Native app in mobile/.
 # It runs by itself after CI passes on main when a merge changed the app (mobile/ or the shared
-# code in src/), and uploads to the internal testing track. It can also be run from the Actions
+# code in src/), and releases it to Google Play production (and internal testing) with the notes in
+# mobile/whatsnew/. It can also be run from the Actions
 # tab. It only builds a commit that already passed CI, needs no approval, and publishes a GitHub
 # release with the bundle, an SBOM and a build provenance attestation. With the PLAY_SERVICE_ACCOUNT_JSON
-# secret set, it also uploads the bundle to Google Play (the internal testing track by default) and
-# sends it for review.
+# secret set, it also uploads the bundle to Google Play and sends it for review; Google publishes it
+# once approved. Run by hand, it can upload to a testing track only.
 on:
   workflow_run:
     workflows: [CI]
@@ -15,10 +16,10 @@ on:
   workflow_dispatch:
     inputs:
       play_track:
-        description: Play testing track to upload to (alpha is Play's closed testing track)
+        description: Play track(s) to upload to (alpha is Play's closed testing track)
         type: choice
-        options: [alpha, internal]
-        default: internal
+        options: ['internal,production', internal, alpha]
+        default: 'internal,production'
       play_status:
         description: completed sends the release for review and rolls it out; draft leaves it for you to publish in Play Console
         type: choice
@@ -36,7 +37,7 @@ concurrency:
 env:
   # After CI, build the commit CI tested; when run by hand, the commit it was started on.
   SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-  PLAY_TRACK: ${{ inputs.play_track || 'internal' }}
+  PLAY_TRACK: ${{ inputs.play_track || 'internal,production' }}
   PLAY_STATUS: ${{ inputs.play_status || 'completed' }}
 
 jobs:
@@ -198,5 +199,6 @@ jobs:
           packageName: com.naveenroyal4b3.clearflow
           releaseFiles: ${{ env.AAB }}
           mappingFile: ${{ env.MAPPING }}
+          whatsNewDirectory: mobile/whatsnew
           tracks: ${{ env.PLAY_TRACK }}
           status: ${{ env.PLAY_STATUS }}
