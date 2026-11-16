@@ -407,3 +407,63 @@ export async function productImageUrls(client, paths) {
   if (error) throw error;
   return Object.fromEntries((data || []).filter(item => item.signedUrl && item.path).map(item => [item.path, item.signedUrl]));
 }
+
+// Catalogue photos: shared by every business, in the public catalog-photos bucket. Keyed by the
+// catalogue product's name, or 'type:<kind>' for a product type. Only platform admins change them.
+const catalogPhotos = 'catalog-photos';
+
+/**
+ * Public links to every catalogue photo, by key.
+ * @param {import('@supabase/supabase-js').SupabaseClient} client
+ * @returns {Promise<Record<string, string>>}
+ */
+export async function loadCatalogPhotos(client) {
+  const { data, error } = await client.from('catalog_photos').select('key, path');
+  if (error) throw error;
+  const bucket = client.storage.from(catalogPhotos);
+  return Object.fromEntries((data || []).map(row => [row.key, bucket.getPublicUrl(row.path).data.publicUrl]));
+}
+
+/**
+ * Whether the signed-in user can change catalogue photos.
+ * @param {import('@supabase/supabase-js').SupabaseClient} client
+ */
+export async function isPlatformAdmin(client) {
+  const { data, error } = await client.rpc('is_platform_admin');
+  if (error) throw error;
+  return data === true;
+}
+
+/**
+ * Sets the catalogue photo for a key (already resized, at most 1 MB), replacing any earlier one.
+ * @param {import('@supabase/supabase-js').SupabaseClient} client
+ * @param {string} key
+ * @param {Blob | ArrayBuffer} file
+ * @param {string} [contentType]
+ */
+export async function uploadCatalogPhoto(client, key, file, contentType = 'image/jpeg') {
+  const extension = contentType === 'image/png' ? 'png' : contentType === 'image/webp' ? 'webp' : 'jpg';
+  const slug = key.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80) || 'photo';
+  const path = `${slug}-${Date.now()}.${extension}`;
+  const { data: old } = await client.from('catalog_photos').select('path').eq('key', key).maybeSingle();
+  const { error: uploadError } = await client.storage.from(catalogPhotos).upload(path, file, { contentType, upsert: false });
+  if (uploadError) throw uploadError;
+  const { error } = await client.from('catalog_photos').upsert({ key, path, updated_at: new Date().toISOString() });
+  if (error) {
+    await client.storage.from(catalogPhotos).remove([path]);
+    throw error;
+  }
+  if (old?.path && old.path !== path) await client.storage.from(catalogPhotos).remove([old.path]);
+}
+
+/**
+ * Removes the catalogue photo for a key.
+ * @param {import('@supabase/supabase-js').SupabaseClient} client
+ * @param {string} key
+ */
+export async function removeCatalogPhoto(client, key) {
+  const { data, error } = await client.from('catalog_photos').delete().eq('key', key).select('path');
+  if (error) throw error;
+  const paths = (data || []).map(row => row.path);
+  if (paths.length) await client.storage.from(catalogPhotos).remove(paths);
+}

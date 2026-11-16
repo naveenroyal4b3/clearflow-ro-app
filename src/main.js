@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization, uploadProductImage, productImageUrls } from './supabase-data.js';
-import { productIconSvg } from './product-icons.js';
+import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization, uploadProductImage, productImageUrls, loadCatalogPhotos, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto } from './supabase-data.js';
+import { catalogPhotoUrl, productIconSvg, productKinds } from './product-icons.js';
 import { stateFromGstin, stateOptions, taxBreakup } from './gst.js';
 import { catalog, catalogItem } from './catalog.js';
 import { documentDetails as sharedDocumentDetails, documentHtml, invoiceRegisterHeader, invoiceRegisterRows } from './documents.js';
@@ -73,6 +73,11 @@ let salesTab = 'All documents';
 let catalogTab = 'All products';
 let searchQuery = '';
 let roleView = 'customer';
+// Shared catalogue photo links by key (see loadCatalogPhotos), and whether this user manages them.
+let catalogPhotoLinks = {};
+let platformAdmin = false;
+let photoLibraryOpen = false;
+let photoLibraryQuery = '';
 const page = document.getElementById('page');
 
 function renderBackendConfigMessage() {
@@ -240,6 +245,17 @@ async function openAuthenticatedApp(session) {
     return;
   }
   showWorkspace();
+  loadSharedPhotos();
+}
+// Shared catalogue photos, and whether this user may change them. Both are optional extras, so a
+// failure just leaves the icons.
+function loadSharedPhotos() {
+  loadCatalogPhotos(supabaseClient)
+    .then(links => { catalogPhotoLinks = links; if (view === 'catalog') renderCatalog(); })
+    .catch(() => {});
+  isPlatformAdmin(supabaseClient)
+    .then(admin => { platformAdmin = admin; if (view === 'catalog') renderCatalog(); })
+    .catch(() => {});
 }
 // Without a network connection, show the last workspace synced to this device, read-only.
 function openCachedWorkspace(session) {
@@ -324,7 +340,7 @@ function initials(name = '') { return name.split(/\s+/).slice(0, 2).map(part => 
 function setView(next) {
   const target = document.querySelector(`.nav-item[data-view="${next}"]`);
   if (!target || target.hidden) return;
-  view = next; searchQuery = '';
+  view = next; searchQuery = ''; photoLibraryOpen = false;
   document.querySelectorAll('.nav-item').forEach(button => button.classList.toggle('active', button.dataset.view === next));
   document.getElementById('crumb-title').textContent = t(viewTitles[next]);
   updateRoleControl();
@@ -523,9 +539,58 @@ function loadProductPhotos(products) {
     })
     .catch(() => { /* photos are optional; the icon stays */ });
 }
+// The business's own photo, else the shared catalogue photo for its model or type ('' for none).
+function productPhotoLink(item) {
+  return (item.image && productPhotoUrls.get(item.image)) || catalogPhotoUrl(item, catalogPhotoLinks);
+}
 function productArt(item) {
-  const url = item.image && productPhotoUrls.get(item.image);
+  const url = productPhotoLink(item);
   return url ? `<img src="${esc(url)}" alt="" loading="lazy">` : productIconSvg(item);
+}
+// The shared photo library, for platform admins only (the app's operator), so it is not translated.
+const kindLabels = { purifier: 'Purifier', membrane: 'RO membrane', filter: 'Filter / cartridge', pump: 'Booster pump', adapter: 'Adapter / SMPS', uv: 'UV lamp', valve: 'Valve / switch', tap: 'Tap', tank: 'Tank', pipe: 'Pipe / fitting', meter: 'TDS meter', kit: 'Service kit', part: 'Other part' };
+function renderPhotoLibrary() {
+  const words = photoLibraryQuery.toLowerCase().split(/\s+/).filter(Boolean);
+  const types = productKinds.map(kind => ({ key: `type:${kind}`, title: kindLabels[kind] || kind, note: 'Used for every product of this type without a model photo', product: { name: kindLabels[kind] || kind, category: kind === 'purifier' ? 'Purifiers' : 'Spare parts' } }));
+  const models = catalog.map(item => ({ key: item.name, title: item.name, note: `${item.brand} · ${item.category}`, product: item }));
+  const all = [...types, ...models].filter(row => words.every(word => `${row.title} ${row.note}`.toLowerCase().includes(word)));
+  const shown = all.slice(0, 80);
+  const done = models.filter(row => catalogPhotoLinks[row.key]).length;
+  const row = item => {
+    const link = catalogPhotoLinks[item.key];
+    return `<div class="job-row"><div class="product-art ${link ? 'photo' : ''}" style="width:56px;height:56px;flex:none">${link ? `<img src="${esc(link)}" alt="" loading="lazy">` : productIconSvg(item.product)}</div><div class="job-copy"><strong>${esc(item.title)}</strong><span>${esc(item.note)}</span></div><span class="head-actions"><label class="button secondary">${link ? 'Replace' : 'Upload'}<input type="file" accept="image/*" hidden data-photo-key="${esc(item.key)}"></label>${link ? `<button class="button secondary" type="button" data-remove-photo="${esc(item.key)}">Remove</button>` : ''}</span></div>`;
+  };
+  page.innerHTML = `${pageHead('Shared for every business', 'Catalogue photos', `Photos here show for every business's products that have no photo of their own. ${done} of ${models.length} models have a photo. Use your own photos, or ones the brand lets you use.`, '<button class="button secondary" data-action="close-photo-library">Back to catalogue</button>')}
+    <div class="toolbar"><div class="search">${icons.search}<input data-search placeholder="Search models, brands or types…" value="${esc(photoLibraryQuery)}"></div><span class="role-tag">${all.length > shown.length ? `First ${shown.length} of ${all.length}` : `${all.length} shown`}</span></div>
+    <section class="panel"><div class="job-list">${shown.map(row).join('') || '<div class="empty">Nothing matches.</div>'}</div></section>`;
+  const input = page.querySelector('[data-search]');
+  input.addEventListener('input', event => { photoLibraryQuery = event.target.value; renderPhotoLibrary(); const next = page.querySelector('[data-search]'); next.focus(); next.setSelectionRange(photoLibraryQuery.length, photoLibraryQuery.length); });
+  page.querySelectorAll('[data-photo-key]').forEach(field => field.addEventListener('change', () => setLibraryPhoto(field)));
+  page.querySelectorAll('[data-remove-photo]').forEach(button => button.addEventListener('click', () => removeLibraryPhoto(button)));
+}
+async function setLibraryPhoto(field) {
+  const file = field.files?.[0];
+  if (!file) return;
+  field.closest('label').classList.add('loading');
+  try {
+    await uploadCatalogPhoto(supabaseClient, field.dataset.photoKey, await resizePhoto(file));
+    catalogPhotoLinks = await loadCatalogPhotos(supabaseClient);
+    toast('Photo saved.');
+  } catch (error) {
+    toast(errorMessage(error, 'The photo could not be saved.'));
+  }
+  if (view === 'catalog' && photoLibraryOpen) renderPhotoLibrary();
+}
+async function removeLibraryPhoto(button) {
+  if (!window.confirm('Remove this photo for every business?')) return;
+  button.disabled = true;
+  try {
+    await removeCatalogPhoto(supabaseClient, button.dataset.removePhoto);
+    catalogPhotoLinks = await loadCatalogPhotos(supabaseClient);
+  } catch (error) {
+    toast(errorMessage(error, 'The photo could not be removed.'));
+  }
+  if (view === 'catalog' && photoLibraryOpen) renderPhotoLibrary();
 }
 // Shrinks a photo to at most 1000 px on its longest side as a JPEG, well under the 1 MB limit.
 async function resizePhoto(file) {
@@ -538,15 +603,16 @@ async function resizePhoto(file) {
   return new Promise((resolve, reject) => canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error(t('That photo could not be read. Try another one.')))), 'image/jpeg', 0.75));
 }
 function renderCatalog() {
+  if (photoLibraryOpen && platformAdmin) { renderPhotoLibrary(); return; }
   const owner = profile.role === 'owner';
   // Tab values are product categories stored in English (catalogTab); only their labels are translated.
   const tabs = [msg('All products'), msg('Purifiers'), msg('Accessories'), msg('Spare parts')];
   const products = data.products.filter(item => catalogTab === 'All products' || item.category === catalogTab);
   const tier = esc(t(roleView));
-  page.innerHTML = `${pageHead(t('Products & pricing'), t('Product catalogue'), t('Purifiers, accessories and spares · prices shown for {tier} access', { tier }), owner ? `<button class="button" data-action="new-product">${icons.plus} ${t('Add product')}</button>` : '')}
+  page.innerHTML = `${pageHead(t('Products & pricing'), t('Product catalogue'), t('Purifiers, accessories and spares · prices shown for {tier} access', { tier }), owner || platformAdmin ? `<div class="head-actions">${platformAdmin ? '<button class="button secondary" data-action="open-photo-library">Catalogue photos</button>' : ''}${owner ? `<button class="button" data-action="new-product">${icons.plus} ${t('Add product')}</button>` : ''}</div>` : '')}
     <div class="notice">${owner ? t('Previewing {tier} pricing. Each signed-in role can only retrieve its own price tier.', { tier: `<strong>${tier}</strong>` }) : t('Showing the {tier} prices assigned to your account.', { tier: `<strong>${tier}</strong>` })}</div>
     <section class="panel" style="margin-bottom:15px"><div class="tabs">${tabs.map(tab => `<button class="tab ${catalogTab === tab ? 'active' : ''}" data-catalog-tab="${tab}">${t(tab)}</button>`).join('')}</div></section>
-    <div class="product-grid">${products.length ? products.map((item, index) => `<article class="product"><div class="product-top"><div class="product-art ${item.image && productPhotoUrls.get(item.image) ? 'photo' : index % 3 === 1 ? 'blue' : index % 3 === 2 ? 'gold' : ''}">${productArt(item)}</div><span class="category">${esc(t(item.category))}</span></div><div class="product-info"><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><div class="product-price"><div><span>${t('{tier} price', { tier })}</span><strong>${money(price(item))}</strong></div>${owner || profile.role === 'technician' ? `<span>${esc(t('{count} in stock', { count: item.stock }))}</span>` : ''}</div>${owner ? `<div class="price-other"><span>${t('Customer')} <b>${money(item.customer)}</b></span><span>${t('Tech')} <b>${money(item.technician)}</b></span><span>${t('Shop')} <b>${money(item.shop)}</b></span></div>` : ''}</div></article>`).join('') : `<div class="empty">${t('No products in this category.')}</div>`}</div>`;
+    <div class="product-grid">${products.length ? products.map((item, index) => `<article class="product"><div class="product-top"><div class="product-art ${productPhotoLink(item) ? 'photo' : index % 3 === 1 ? 'blue' : index % 3 === 2 ? 'gold' : ''}">${productArt(item)}</div><span class="category">${esc(t(item.category))}</span></div><div class="product-info"><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><div class="product-price"><div><span>${t('{tier} price', { tier })}</span><strong>${money(price(item))}</strong></div>${owner || profile.role === 'technician' ? `<span>${esc(t('{count} in stock', { count: item.stock }))}</span>` : ''}</div>${owner ? `<div class="price-other"><span>${t('Customer')} <b>${money(item.customer)}</b></span><span>${t('Tech')} <b>${money(item.technician)}</b></span><span>${t('Shop')} <b>${money(item.shop)}</b></span></div>` : ''}</div></article>`).join('') : `<div class="empty">${t('No products in this category.')}</div>`}</div>`;
   loadProductPhotos(products);
 }
 function renderAccounts() {
@@ -879,6 +945,8 @@ document.addEventListener('click', event => {
   if (action === 'new-job') openJobForm();
   if (action === 'new-sale') openSaleForm();
   if (action === 'new-product') openProductForm();
+  if (action === 'open-photo-library') { photoLibraryOpen = true; photoLibraryQuery = ''; renderCatalog(); }
+  if (action === 'close-photo-library') { photoLibraryOpen = false; renderCatalog(); }
   if (action === 'new-account') openAccountForm();
   if (action === 'submit-feedback') openFeedbackForm();
   if (action === 'more-menu') openMoreMenu();

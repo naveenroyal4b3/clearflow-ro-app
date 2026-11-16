@@ -32,12 +32,14 @@ type DataModule = {
   uploadProductImage: (client: SupabaseClient, organizationId: string, productId: string, file: ArrayBuffer | Blob, contentType?: string) => Promise<string>;
   removeProductImages: (client: SupabaseClient, paths: string[]) => Promise<void>;
   productImageUrls: (client: SupabaseClient, paths: string[]) => Promise<Record<string, string>>;
+  loadCatalogPhotos: (client: SupabaseClient) => Promise<Record<string, string>>;
 };
 
 type ProductLike = { name: string; category: string };
 type ProductIconsModule = {
   productKind: (product: ProductLike) => string;
   productIconSvg: (product: ProductLike, color?: string) => string;
+  catalogPhotoUrl: (product: ProductLike, photos: Record<string, string>) => string;
 };
 
 export type DocumentDetails = {
@@ -63,11 +65,11 @@ export const { documentDetails, documentHtml, invoiceRegisterRows, invoiceRegist
 const data: DataModule = require('../../../src/supabase-data.js');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const icons: ProductIconsModule = require('../../../src/product-icons.js');
-export const { productKind, productIconSvg } = icons;
+export const { productKind, productIconSvg, catalogPhotoUrl } = icons;
 
 export const { gstStates, stateLabel, stateFromGstin, taxBreakup, amountInWords } = gst;
 export const {
   loadWorkspace, saveWorkspaceRecords, createSalesDocument, setSalesDocumentStatus, setFeedbackStatus,
   signedInElsewhere, inviteMember, deleteAccount, updateOrganization, loadAuditLog,
-  uploadProductImage, removeProductImages, productImageUrls
+  uploadProductImage, removeProductImages, productImageUrls, loadCatalogPhotos
 } = data;

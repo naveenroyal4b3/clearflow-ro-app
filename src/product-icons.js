@@ -52,3 +52,16 @@ export function productKind({ name, category }) {
 export function productIconSvg(product, color = 'currentColor') {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${shapes[productKind(product)]}</svg>`;
 }
+
+/**
+ * The shared catalogue photo for a product without its own: the photo of its catalogue model, or
+ * else of its type. Empty when there is neither.
+ * @param {{ name: string, category: string }} product
+ * @param {Record<string, string>} photos links by key, from loadCatalogPhotos
+ */
+export function catalogPhotoUrl(product, photos) {
+  return photos[product.name] || photos[`type:${productKind(product)}`] || '';
+}
+
+/** Product types, for setting a photo per type. */
+export const productKinds = Object.keys(shapes);

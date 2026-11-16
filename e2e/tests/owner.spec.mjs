@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js';
 import { test, expect, signUpOwner, signIn, signOut, goTo, submitModal, addCustomer, addProduct, setBusinessGstin, uniqueEmail, emailLink, acceptEmailLink, password } from './helpers.mjs';
 
 test('a login can be signed in on only one device at a time', async ({ page, browser }) => {
@@ -173,4 +174,42 @@ test('a product photo is uploaded and shown', async ({ page }) => {
   await page.setInputFiles('#photo', { name: 'purifier.png', mimeType: 'image/png', buffer: png });
   await page.click('#active-form [type="submit"]');
   await expect(page.locator('.product', { hasText: 'Kent Grand Plus' }).locator('.product-art img')).toBeVisible();
+});
+
+test('a platform admin sets a shared catalogue photo that businesses see', async ({ page }) => {
+  const { email } = await signUpOwner(page);
+  const admin = createClient(process.env.E2E_SUPABASE_URL, process.env.E2E_SECRET_KEY, { auth: { persistSession: false } });
+  const { data: users } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const user = users.users.find(item => item.email === email);
+  expect((await admin.from('platform_admins').insert({ user_id: user.id })).error).toBeNull();
+  const model = 'CSM RE1812-100 RO membrane 100 GPD';
+  try {
+    await page.reload();
+    await goTo(page, 'catalog');
+    await page.click('[data-action="open-photo-library"]');
+    await page.fill('[data-search]', model);
+    const png = Buffer.from(await page.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 16;
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#36c';
+      context.fillRect(0, 0, 16, 16);
+      return canvas.toDataURL('image/png').split(',')[1];
+    }), 'base64');
+    await page.setInputFiles(`[data-photo-key="${model}"]`, { name: 'membrane.png', mimeType: 'image/png', buffer: png });
+    await expect(page.locator(`[data-remove-photo="${model}"]`)).toBeVisible();
+    await page.click('[data-action="close-photo-library"]');
+
+    // A product picked from the catalogue shows the shared photo without one of its own.
+    await page.click('[data-action="new-product"]');
+    await page.fill('#catalog-pick', model);
+    await page.fill('#customer', '2500');
+    await page.fill('#technician', '2200');
+    await page.fill('#shop', '2000');
+    await page.click('#active-form [type="submit"]');
+    await expect(page.locator('.product', { hasText: 'RE1812-100' }).locator('.product-art img')).toBeVisible();
+  } finally {
+    const { data } = await admin.from('catalog_photos').delete().eq('key', model).select('path');
+    if (data?.length) await admin.storage.from('catalog-photos').remove(data.map(row => row.path));
+  }
 });
