@@ -125,3 +125,24 @@ test('nobody can read another business', async () => {
     expect(data, table).toEqual([]);
   }
 });
+
+test('only platform admins can change the shared catalogue photos', async () => {
+  const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  const key = `e2e security ${Date.now()}`;
+  // A business owner can read the list but not add to it.
+  expect((await business.owner.from('catalog_photos').select('key')).error).toBeNull();
+  expect((await business.owner.from('catalog_photos').insert({ key, path: 'x.jpg' })).error).not.toBeNull();
+  expect((await business.owner.storage.from('catalog-photos').upload(`${Date.now()}.png`, png, { contentType: 'image/png' })).error).not.toBeNull();
+  expect((await business.owner.rpc('is_platform_admin')).data).toBe(false);
+
+  const email = uniqueEmail('platform-admin');
+  const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  if (error) throw error;
+  expect((await admin.from('platform_admins').insert({ user_id: data.user.id })).error).toBeNull();
+  const operator = await signedIn(email);
+  expect((await operator.rpc('is_platform_admin')).data).toBe(true);
+  expect((await operator.from('catalog_photos').insert({ key, path: 'x.jpg' })).error).toBeNull();
+  expect((await operator.from('catalog_photos').delete().eq('key', key)).error).toBeNull();
+  // Nobody can make themselves an admin.
+  expect((await business.owner.from('platform_admins').insert({ user_id: data.user.id })).error).not.toBeNull();
+});

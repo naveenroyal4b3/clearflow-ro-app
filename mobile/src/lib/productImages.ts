@@ -3,7 +3,7 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import { t } from './i18n';
-import { productImageUrls } from './shared';
+import { loadCatalogPhotos, productImageUrls } from './shared';
 import { supabase } from './supabase';
 
 // Signed photo links by storage path, kept for the app's lifetime (they last a day) so lists don't
@@ -32,6 +32,32 @@ export function useProductImageUrls(products: { image?: string }[]) {
   }, [key]);
 
   return cachedUrls(key);
+}
+
+// Shared catalogue photo links (public, for every business), loaded once per app run.
+let catalogPhotos: Record<string, string> = {};
+let catalogPhotosLoad: Promise<void> | null = null;
+const catalogPhotoListeners = new Set<() => void>();
+
+/** Shared catalogue photo links by key; empty until loaded, or when they can't be fetched. */
+export function useCatalogPhotos() {
+  const [photos, setPhotos] = useState(catalogPhotos);
+  useEffect(() => {
+    const update = () => setPhotos(catalogPhotos);
+    catalogPhotoListeners.add(update);
+    if (!catalogPhotosLoad) {
+      catalogPhotosLoad = loadCatalogPhotos(supabase)
+        .then(found => {
+          catalogPhotos = found;
+          catalogPhotoListeners.forEach(listener => listener());
+        })
+        // Try again next time a product image is shown (for example, once back online).
+        .catch(() => { catalogPhotosLoad = null; });
+    }
+    update();
+    return () => { catalogPhotoListeners.delete(update); };
+  }, []);
+  return photos;
 }
 
 function cachedUrls(key: string) {
