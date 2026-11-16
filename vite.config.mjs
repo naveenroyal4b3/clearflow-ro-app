@@ -9,7 +9,8 @@ function contentSecurityPolicy(supabaseUrl) {
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data:",
+    // Product photos are shown from Supabase Storage through signed links.
+    `img-src 'self' data: ${supabaseOrigin}`.trim(),
     `connect-src 'self' ${supabaseOrigin}`.trim(),
     "object-src 'none'",
     "base-uri 'self'",
