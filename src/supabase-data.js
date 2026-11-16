@@ -82,6 +82,7 @@ export async function loadWorkspace(client, profile) {
       unit: item.unit || 'Nos',
       stock: ['owner', 'technician'].includes(profile.role) ? item.stock : null,
       gst: Number(item.gst_rate),
+      image: item.image_path || '',
       ...(priceByProduct.get(item.id) || {})
     })),
     jobs: jobs.map(item => ({
@@ -165,6 +166,7 @@ export async function saveWorkspaceRecords(client, profile, collection, records,
       unit: item.unit || 'Nos',
       stock: Number(item.stock) || 0,
       gst_rate: Number(item.gst) || 0,
+      image_path: item.image || null,
       active: true
     })), { onConflict: 'organization_id,id' });
     if (result.error) throw result.error;
@@ -360,4 +362,48 @@ export async function startSubscription(client, interval) {
   if (error) throw new Error(await functionErrorMessage(error));
   if (data?.error) throw new Error(data.error);
   return data.url;
+}
+
+// Product photos live in the private product-images bucket under <organization id>/.
+const productImages = 'product-images';
+
+/**
+ * Uploads a product photo (already resized, at most 1 MB) and returns its storage path. Each upload
+ * gets a new name, so phones never show an old cached photo.
+ * @param {import('@supabase/supabase-js').SupabaseClient} client
+ * @param {string} organizationId
+ * @param {string} productId
+ * @param {Blob | ArrayBuffer} file
+ * @param {string} [contentType]
+ */
+export async function uploadProductImage(client, organizationId, productId, file, contentType = 'image/jpeg') {
+  const extension = contentType === 'image/png' ? 'png' : contentType === 'image/webp' ? 'webp' : 'jpg';
+  const path = `${organizationId}/${productId}-${Date.now()}.${extension}`;
+  const { error } = await client.storage.from(productImages).upload(path, file, { contentType, upsert: false });
+  if (error) throw error;
+  return path;
+}
+
+/**
+ * Deletes product photos that are no longer used. Failures are ignored: an orphaned file is harmless.
+ * @param {import('@supabase/supabase-js').SupabaseClient} client
+ * @param {string[]} paths
+ */
+export async function removeProductImages(client, paths) {
+  const list = paths.filter(Boolean);
+  if (list.length) await client.storage.from(productImages).remove(list);
+}
+
+/**
+ * Temporary links (valid for a day) to show product photos, by storage path.
+ * @param {import('@supabase/supabase-js').SupabaseClient} client
+ * @param {string[]} paths
+ * @returns {Promise<Record<string, string>>}
+ */
+export async function productImageUrls(client, paths) {
+  const unique = [...new Set(paths.filter(Boolean))];
+  if (!unique.length) return {};
+  const { data, error } = await client.storage.from(productImages).createSignedUrls(unique, 60 * 60 * 24);
+  if (error) throw error;
+  return Object.fromEntries((data || []).filter(item => item.signedUrl && item.path).map(item => [item.path, item.signedUrl]));
 }

@@ -29,6 +29,15 @@ type DataModule = {
   deleteAccount: (client: SupabaseClient) => Promise<unknown>;
   updateOrganization: (client: SupabaseClient, organizationId: string, details: { name: string; gstin: string; address: string; state: string; phone: string }) => Promise<Organization>;
   loadAuditLog: (client: SupabaseClient, organizationId: string, limit?: number) => Promise<{ id: number; table_name: string; record_id: string; action: string; changed_by: string | null; changed_at: string }[]>;
+  uploadProductImage: (client: SupabaseClient, organizationId: string, productId: string, file: ArrayBuffer | Blob, contentType?: string) => Promise<string>;
+  removeProductImages: (client: SupabaseClient, paths: string[]) => Promise<void>;
+  productImageUrls: (client: SupabaseClient, paths: string[]) => Promise<Record<string, string>>;
+};
+
+type ProductLike = { name: string; category: string };
+type ProductIconsModule = {
+  productKind: (product: ProductLike) => string;
+  productIconSvg: (product: ProductLike, color?: string) => string;
 };
 
 export type DocumentDetails = {
@@ -52,9 +61,13 @@ const documents: DocumentsModule = require('../../../src/documents.js');
 export const { documentDetails, documentHtml, invoiceRegisterRows, invoiceRegisterHtml } = documents;
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const data: DataModule = require('../../../src/supabase-data.js');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const icons: ProductIconsModule = require('../../../src/product-icons.js');
+export const { productKind, productIconSvg } = icons;
 
 export const { gstStates, stateLabel, stateFromGstin, taxBreakup, amountInWords } = gst;
 export const {
   loadWorkspace, saveWorkspaceRecords, createSalesDocument, setSalesDocumentStatus, setFeedbackStatus,
-  signedInElsewhere, inviteMember, deleteAccount, updateOrganization, loadAuditLog
+  signedInElsewhere, inviteMember, deleteAccount, updateOrganization, loadAuditLog,
+  uploadProductImage, removeProductImages, productImageUrls
 } = data;

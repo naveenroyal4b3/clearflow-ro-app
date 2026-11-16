@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Chips } from '@/components/Chips';
 import { PlanNotice, useReadOnlyReason } from '@/components/PlanNotice';
+import { ProductImage } from '@/components/ProductImage';
 import { Badge, colors, Empty, Notice, styles as ui } from '@/components/ui';
 import { money } from '@/lib/format';
 import { msg, t } from '@/lib/i18n';
+import { useProductImageUrls } from '@/lib/productImages';
 import { useSession } from '@/lib/session';
 import type { Product } from '@/lib/types';
 
@@ -25,6 +27,7 @@ export default function Catalog() {
   const [refreshing, setRefreshing] = useState(false);
   const tier: Tier = owner ? (preview.toLowerCase() as Tier) : (profile?.role === 'technician' || profile?.role === 'shop' ? profile.role : 'customer');
   const products = data.products.filter(item => category === 'All' || item.category === category).sort((a, b) => a.name.localeCompare(b.name));
+  const imageUrls = useProductImageUrls(data.products);
   const price = (item: Product) => item[tier] ?? item.customer ?? 0;
 
   const add = () => {
@@ -63,6 +66,7 @@ export default function Catalog() {
         renderItem={({ item }) => (
           <Pressable style={local.card} disabled={!owner} onPress={() => router.push({ pathname: '/catalog/edit', params: { id: item.id } })} accessibilityHint={owner ? t('Opens the product to edit it') : undefined}>
             <View style={local.top}>
+              <ProductImage product={item} url={item.image ? imageUrls[item.image] : undefined} />
               <View style={ui.flex}>
                 <Text style={local.title}>{item.name}</Text>
                 <Text style={local.note}>{`${t(item.category)}${item.hsn ? ` · HSN ${item.hsn}` : ''} · GST ${item.gst}%`}</Text>

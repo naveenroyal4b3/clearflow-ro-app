@@ -14,6 +14,7 @@ on:
       - src/i18n.js
       - src/catalog.js
       - src/catalog-data.js
+      - src/product-icons.js
       - src/locales/**
       - .github/workflows/mobile.yml
   pull_request:
@@ -25,6 +26,7 @@ on:
       - src/i18n.js
       - src/catalog.js
       - src/catalog-data.js
+      - src/product-icons.js
       - src/locales/**
       - .github/workflows/mobile.yml
   workflow_dispatch:
