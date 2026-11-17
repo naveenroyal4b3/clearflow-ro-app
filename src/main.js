@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization, uploadProductImage, productImageUrls, loadCatalogPhotos, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto, sendAppFeedback, loadAppFeedback, removeAppFeedback } from './supabase-data.js';
-import { catalogPhotoUrl, productArtSvg, productKindLabels, productKinds } from './product-icons.js';
+import { catalogPhotoUrl, photoCredits, productArtSvg, productKindLabels, productKinds } from './product-icons.js';
 import { stateFromGstin, stateOptions, taxBreakup } from './gst.js';
 import { catalog, catalogItem } from './catalog.js';
 import { documentDetails as sharedDocumentDetails, documentHtml, invoiceRegisterHeader, invoiceRegisterRows } from './documents.js';
@@ -544,8 +544,10 @@ function loadProductPhotos(products) {
     .catch(() => { /* photos are optional; the icon stays */ });
 }
 // The business's own photo, else the shared catalogue photo for its model or type ('' for none).
+// Built-in photos of some product types are served from this website.
+const typePhotoBase = new URL(import.meta.env.BASE_URL, window.location.href).href;
 function productPhotoLink(item) {
-  return (item.image && productPhotoUrls.get(item.image)) || catalogPhotoUrl(item, catalogPhotoLinks);
+  return (item.image && productPhotoUrls.get(item.image)) || catalogPhotoUrl(item, catalogPhotoLinks, typePhotoBase);
 }
 function productArt(item) {
   const url = productPhotoLink(item);
@@ -616,6 +618,8 @@ function renderCatalog() {
     <div class="notice">${owner ? t('Previewing {tier} pricing. Each signed-in role can only retrieve its own price tier.', { tier: `<strong>${tier}</strong>` }) : t('Showing the {tier} prices assigned to your account.', { tier: `<strong>${tier}</strong>` })}</div>
     <section class="panel" style="margin-bottom:15px"><div class="tabs">${tabs.map(tab => `<button class="tab ${catalogTab === tab ? 'active' : ''}" data-catalog-tab="${tab}">${t(tab)}</button>`).join('')}</div></section>
     <div class="product-grid">${products.length ? products.map((item, index) => `<article class="product"><div class="product-top"><div class="product-art ${productPhotoLink(item) ? 'photo' : index % 3 === 1 ? 'blue' : index % 3 === 2 ? 'gold' : ''}">${productArt(item)}</div><span class="category">${esc(t(item.category))}</span></div><div class="product-info"><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><div class="product-price"><div><span>${t('{tier} price', { tier })}</span><strong>${money(price(item))}</strong></div>${owner || profile.role === 'technician' ? `<span>${esc(t('{count} in stock', { count: item.stock }))}</span>` : ''}</div>${owner ? `<div class="price-other"><span>${t('Customer')} <b>${money(item.customer)}</b></span><span>${t('Tech')} <b>${money(item.technician)}</b></span><span>${t('Shop')} <b>${money(item.shop)}</b></span></div>` : ''}</div></article>`).join('') : `<div class="empty">${t('No products in this category.')}</div>`}</div>`;
+  const credits = photoCredits(products);
+  if (credits.length) page.insertAdjacentHTML('beforeend', `<p class="panel-note photo-credits">${t('Photo credits:')} ${credits.map(photo => `<a href="${esc(photo.link)}" target="_blank" rel="noopener">${esc(photo.credit)}</a>`).join(' · ')}</p>`);
   loadProductPhotos(products);
 }
 function renderAccounts() {

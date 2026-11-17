@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, Stack } from 'expo-router';
 import { useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Chips } from '@/components/Chips';
 import { PlanNotice, useReadOnlyReason } from '@/components/PlanNotice';
 import { ProductImage } from '@/components/ProductImage';
@@ -10,6 +10,7 @@ import { money } from '@/lib/format';
 import { msg, t } from '@/lib/i18n';
 import { useProductImageUrls } from '@/lib/productImages';
 import { useSession } from '@/lib/session';
+import { photoCredits } from '@/lib/shared';
 import type { Product } from '@/lib/types';
 import { headerWithFeedback } from '@/components/FeedbackButton';
 
@@ -63,6 +64,14 @@ export default function Catalog() {
           </View>
         }
         ListEmptyComponent={<Empty text={data.products.length ? t('No products in this category.') : owner ? t('No products yet. Tap + to add one.') : t('No products yet.')} />}
+        ListFooterComponent={photoCredits(products).length ? (
+          <Text style={[local.note, { marginTop: 16 }]}>
+            {t('Photo credits:')}{' '}
+            {photoCredits(products).map((photo, index) => (
+              <Text key={photo.link} onPress={() => Linking.openURL(photo.link)} style={{ textDecorationLine: 'underline' }}>{index ? ' · ' : ''}{photo.credit}</Text>
+            ))}
+          </Text>
+        ) : undefined}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         renderItem={({ item }) => (
           <Pressable style={local.card} disabled={!owner} onPress={() => router.push({ pathname: '/catalog/edit', params: { id: item.id } })} accessibilityHint={owner ? t('Opens the product to edit it') : undefined}>

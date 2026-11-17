@@ -85,6 +85,8 @@ h1 { margin: 0; font: 700 28px/1.2 "Manrope", sans-serif; letter-spacing: 0; }
 .button.secondary:hover { background: #f7f9f7; }
 .button svg { width: 15px; height: 15px; }
 .suggest-button svg { width: 18px; height: 18px; }
+.photo-credits { margin-top: 18px; }
+.photo-credits a { color: inherit; }
 .app-feedback-message { white-space: pre-wrap; max-width: 520px; }
 .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; margin-bottom: 19px; }
 .metric { min-height: 112px; padding: 17px 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }

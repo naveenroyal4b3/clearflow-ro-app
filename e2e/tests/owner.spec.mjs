@@ -244,3 +244,19 @@ test('feedback about the app is sent from any page and read by the platform admi
     await admin.from('platform_admins').delete().eq('user_id', user.id);
   }
 });
+
+test('a TDS meter shows the built-in photo with its credit', async ({ page }) => {
+  await signUpOwner(page);
+  await goTo(page, 'catalog');
+  await page.click('[data-action="new-product"]');
+  await page.fill('#name', 'Digital TDS meter');
+  await page.selectOption('#category', 'Accessories');
+  await page.fill('#customer', '400');
+  await page.fill('#technician', '350');
+  await page.fill('#shop', '300');
+  await page.click('#active-form [type="submit"]');
+  const photo = page.locator('.product', { hasText: 'Digital TDS meter' }).locator('.product-art img');
+  await expect(photo).toHaveAttribute('src', /type-photos\/meter\.jpg$/);
+  await expect.poll(() => photo.evaluate(img => img.naturalWidth)).toBeGreaterThan(0);
+  await expect(page.locator('.photo-credits')).toContainText('Spotless property');
+});
