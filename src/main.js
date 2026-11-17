@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization, uploadProductImage, productImageUrls, loadCatalogPhotos, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto, sendAppFeedback, loadAppFeedback, removeAppFeedback } from './supabase-data.js';
-import { catalogPhotoUrl, productArtSvg, productKinds } from './product-icons.js';
+import { catalogPhotoUrl, productArtSvg, productKindLabels, productKinds } from './product-icons.js';
 import { stateFromGstin, stateOptions, taxBreakup } from './gst.js';
 import { catalog, catalogItem } from './catalog.js';
 import { documentDetails as sharedDocumentDetails, documentHtml, invoiceRegisterHeader, invoiceRegisterRows } from './documents.js';
@@ -552,10 +552,9 @@ function productArt(item) {
   return url ? `<img src="${esc(url)}" alt="" loading="lazy">` : productArtSvg(item);
 }
 // The shared photo library, for platform admins only (the app's operator), so it is not translated.
-const kindLabels = { purifier: 'Purifier', membrane: 'RO membrane', filter: 'Filter / cartridge', pump: 'Booster pump', adapter: 'Adapter / SMPS', uv: 'UV lamp', valve: 'Valve / switch', tap: 'Tap', tank: 'Tank', pipe: 'Pipe / fitting', meter: 'TDS meter', kit: 'Service kit', part: 'Other part' };
 function renderPhotoLibrary() {
   const words = photoLibraryQuery.toLowerCase().split(/\s+/).filter(Boolean);
-  const types = productKinds.map(kind => ({ key: `type:${kind}`, title: kindLabels[kind] || kind, note: 'Used for every product of this type without a model photo', product: { name: kindLabels[kind] || kind, category: kind === 'purifier' ? 'Purifiers' : 'Spare parts' } }));
+  const types = productKinds.map(kind => ({ key: `type:${kind}`, title: productKindLabels[kind] || kind, note: 'Used for every product of this type without a model photo', product: { name: productKindLabels[kind] || kind, category: kind === 'purifier' ? 'Purifiers' : 'Spare parts' } }));
   const models = catalog.map(item => ({ key: item.name, title: item.name, note: `${item.brand} · ${item.category}`, product: item }));
   const all = [...types, ...models].filter(row => words.every(word => `${row.title} ${row.note}`.toLowerCase().includes(word)));
   const shown = all.slice(0, 80);

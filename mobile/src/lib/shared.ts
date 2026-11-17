@@ -33,6 +33,9 @@ type DataModule = {
   removeProductImages: (client: SupabaseClient, paths: string[]) => Promise<void>;
   productImageUrls: (client: SupabaseClient, paths: string[]) => Promise<Record<string, string>>;
   loadCatalogPhotos: (client: SupabaseClient) => Promise<Record<string, string>>;
+  isPlatformAdmin: (client: SupabaseClient) => Promise<boolean>;
+  uploadCatalogPhoto: (client: SupabaseClient, key: string, file: ArrayBuffer | Blob, contentType?: string) => Promise<void>;
+  removeCatalogPhoto: (client: SupabaseClient, key: string) => Promise<void>;
   sendAppFeedback: (client: SupabaseClient, entry: { kind: 'Suggestion' | 'Problem'; page: string; message: string; platform: 'web' | 'android' | 'ios'; appVersion: string }) => Promise<void>;
 };
 
@@ -41,6 +44,8 @@ type ProductIconsModule = {
   productKind: (product: ProductLike) => string;
   productArtSvg: (product: ProductLike) => string;
   catalogPhotoUrl: (product: ProductLike, photos: Record<string, string>) => string;
+  productKinds: string[];
+  productKindLabels: Record<string, string>;
 };
 
 export type DocumentDetails = {
@@ -66,11 +71,11 @@ export const { documentDetails, documentHtml, invoiceRegisterRows, invoiceRegist
 const data: DataModule = require('../../../src/supabase-data.js');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const icons: ProductIconsModule = require('../../../src/product-icons.js');
-export const { productKind, productArtSvg, catalogPhotoUrl } = icons;
+export const { productKind, productArtSvg, catalogPhotoUrl, productKinds, productKindLabels } = icons;
 
 export const { gstStates, stateLabel, stateFromGstin, taxBreakup, amountInWords } = gst;
 export const {
   loadWorkspace, saveWorkspaceRecords, createSalesDocument, setSalesDocumentStatus, setFeedbackStatus,
   signedInElsewhere, inviteMember, deleteAccount, updateOrganization, loadAuditLog,
-  uploadProductImage, removeProductImages, productImageUrls, loadCatalogPhotos, sendAppFeedback
+  uploadProductImage, removeProductImages, productImageUrls, loadCatalogPhotos, sendAppFeedback, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto
 } = data;

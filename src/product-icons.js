@@ -68,3 +68,9 @@ export function productArtSvg(product) {
 
 /** Product types, for setting a photo per type. */
 export const productKinds = Object.keys(art);
+
+/**
+ * English names of the product types, for the platform admins' photo library (not translated).
+ * @type {Record<string, string>}
+ */
+export const productKindLabels = { purifier: 'Purifier', membrane: 'RO membrane', filter: 'Filter / cartridge', pump: 'Booster pump', adapter: 'Adapter / SMPS', uv: 'UV lamp', valve: 'Valve / switch', tap: 'Tap', tank: 'Tank', pipe: 'Pipe / fitting', meter: 'TDS meter', kit: 'Service kit', part: 'Other part' };
