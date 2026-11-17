@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization, uploadProductImage, productImageUrls, loadCatalogPhotos, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto } from './supabase-data.js';
-import { catalogPhotoUrl, productIconSvg, productKinds } from './product-icons.js';
+import { catalogPhotoUrl, productArtSvg, productKinds } from './product-icons.js';
 import { stateFromGstin, stateOptions, taxBreakup } from './gst.js';
 import { catalog, catalogItem } from './catalog.js';
 import { documentDetails as sharedDocumentDetails, documentHtml, invoiceRegisterHeader, invoiceRegisterRows } from './documents.js';
@@ -545,7 +545,7 @@ function productPhotoLink(item) {
 }
 function productArt(item) {
   const url = productPhotoLink(item);
-  return url ? `<img src="${esc(url)}" alt="" loading="lazy">` : productIconSvg(item);
+  return url ? `<img src="${esc(url)}" alt="" loading="lazy">` : productArtSvg(item);
 }
 // The shared photo library, for platform admins only (the app's operator), so it is not translated.
 const kindLabels = { purifier: 'Purifier', membrane: 'RO membrane', filter: 'Filter / cartridge', pump: 'Booster pump', adapter: 'Adapter / SMPS', uv: 'UV lamp', valve: 'Valve / switch', tap: 'Tap', tank: 'Tank', pipe: 'Pipe / fitting', meter: 'TDS meter', kit: 'Service kit', part: 'Other part' };
@@ -558,7 +558,7 @@ function renderPhotoLibrary() {
   const done = models.filter(row => catalogPhotoLinks[row.key]).length;
   const row = item => {
     const link = catalogPhotoLinks[item.key];
-    return `<div class="job-row"><div class="product-art ${link ? 'photo' : ''}" style="width:56px;height:56px;flex:none">${link ? `<img src="${esc(link)}" alt="" loading="lazy">` : productIconSvg(item.product)}</div><div class="job-copy"><strong>${esc(item.title)}</strong><span>${esc(item.note)}</span></div><span class="head-actions"><label class="button secondary">${link ? 'Replace' : 'Upload'}<input type="file" accept="image/*" hidden data-photo-key="${esc(item.key)}"></label>${link ? `<button class="button secondary" type="button" data-remove-photo="${esc(item.key)}">Remove</button>` : ''}</span></div>`;
+    return `<div class="job-row"><div class="product-art ${link ? 'photo' : ''}" style="width:56px;height:56px;flex:none">${link ? `<img src="${esc(link)}" alt="" loading="lazy">` : productArtSvg(item.product)}</div><div class="job-copy"><strong>${esc(item.title)}</strong><span>${esc(item.note)}</span></div><span class="head-actions"><label class="button secondary">${link ? 'Replace' : 'Upload'}<input type="file" accept="image/*" hidden data-photo-key="${esc(item.key)}"></label>${link ? `<button class="button secondary" type="button" data-remove-photo="${esc(item.key)}">Remove</button>` : ''}</span></div>`;
   };
   page.innerHTML = `${pageHead('Shared for every business', 'Catalogue photos', `Photos here show for every business's products that have no photo of their own. ${done} of ${models.length} models have a photo. Use your own photos, or ones the brand lets you use.`, '<button class="button secondary" data-action="close-photo-library">Back to catalogue</button>')}
     <div class="toolbar"><div class="search">${icons.search}<input data-search placeholder="Search models, brands or types…" value="${esc(photoLibraryQuery)}"></div><span class="role-tag">${all.length > shown.length ? `First ${shown.length} of ${all.length}` : `${all.length} shown`}</span></div>
