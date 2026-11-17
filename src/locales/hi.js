@@ -632,4 +632,5 @@ export default {
   "Your message *": "आपका संदेश *",
   "This goes to the Clearflow app team.": "यह Clearflow ऐप टीम को जाता है।",
   "Thank you! Your feedback was sent.": "धन्यवाद! आपका सुझाव भेज दिया गया।",
+  "Photo credits:": "फ़ोटो श्रेय:",
 };
