@@ -4,14 +4,14 @@ import { StateSelect } from '@/components/StateSelect';
 import { errorMessage } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
-import { stateFromGstin, updateOrganization } from '@/lib/shared';
+import { applyReferral, stateFromGstin, updateOrganization } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
 
 // A new owner's last step: the business that will be printed as the seller on invoices.
 export default function Setup() {
   const { session, reload, signOut } = useSession();
   const metadata = (session?.user.user_metadata || {}) as Record<string, string | undefined>;
-  const [form, setForm] = useState({ name: metadata.organization_name || '', gstin: metadata.gstin || '', address: '', state: '', phone: metadata.phone || '' });
+  const [form, setForm] = useState({ name: metadata.organization_name || '', gstin: metadata.gstin || '', address: '', state: '', phone: metadata.phone || '', referral: '' });
   const [error, setError] = useState('');
   const set = (key: keyof typeof form) => (value: string) => setForm(current => ({ ...current, [key]: value }));
 
@@ -23,6 +23,9 @@ export default function Setup() {
       await updateOrganization(supabase, organizationId, { ...form, state: form.state || stateFromGstin(form.gstin) });
     } catch (detailsError) {
       setError(t('Workspace created, but the business details were not saved: {error}', { error: errorMessage(detailsError, t('unknown error')) }));
+    }
+    if (form.referral.trim()) {
+      try { await applyReferral(supabase, form.referral); } catch { /* a wrong code must not block setup; it can be entered later in More */ }
     }
     await reload();
   };
@@ -38,6 +41,7 @@ export default function Setup() {
         <Field label={t('Business address')} value={form.address} onChangeText={set('address')} multiline maxLength={300} />
         <StateSelect label={t('State')} value={form.state} onChange={set('state')} />
         <Field label={t('Business phone')} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
+        <Field label={t('Referral code (optional)')} value={form.referral} onChangeText={value => set('referral')(value.toUpperCase())} autoCapitalize="characters" maxLength={6} />
         <Button label={t('Create workspace')} onPress={create} disabled={form.name.trim().length < 2} />
         <Button label={t('Sign out')} variant="link" onPress={signOut} />
       </Card>

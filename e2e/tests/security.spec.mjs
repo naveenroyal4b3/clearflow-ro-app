@@ -163,3 +163,36 @@ test('app feedback reaches only platform admins and its sender cannot be faked',
   expect(data).toEqual([{ business: 'Security RO', role: 'technician', user_id: business.technician.id }]);
   await admin.from('app_feedback').delete().eq('message', message);
 });
+
+test('a referral gives both businesses 30 days on the first payment, once, and cannot be faked', async () => {
+  const { data: referrer } = await admin.from('organizations').select('referral_code, paid_until, trial_ends_at').eq('id', business.organizationId).single();
+  expect(referrer.referral_code).toMatch(/^[A-Z0-9]{6}$/);
+  const email = uniqueEmail('referred-owner');
+  const created = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  if (created.error) throw created.error;
+  const owner = await signedIn(email);
+  const { data: organizationId } = await owner.rpc('create_organization', { organization_name: 'Referred RO', organization_gstin: null });
+  // Owners cannot set the referral columns themselves, or use their own code or a wrong one.
+  expect((await owner.from('organizations').update({ referred_by: business.organizationId }).eq('id', organizationId)).error).not.toBeNull();
+  const { data: own } = await owner.from('organizations').select('referral_code').eq('id', organizationId).single();
+  expect((await owner.rpc('apply_referral', { code: own.referral_code })).error).not.toBeNull();
+  expect((await owner.rpc('apply_referral', { code: 'ZZZZZZ' })).error).not.toBeNull();
+  // A technician cannot enter one for the business.
+  expect((await business.technician.client.rpc('apply_referral', { code: own.referral_code })).error).not.toBeNull();
+  expect((await owner.rpc('apply_referral', { code: referrer.referral_code.toLowerCase() })).error).toBeNull();
+  expect((await owner.rpc('apply_referral', { code: referrer.referral_code })).error).not.toBeNull();
+
+  const paidUntil = new Date(Date.now() + 30 * 86400000);
+  expect((await admin.from('organizations').update({ paid_until: paidUntil.toISOString() }).eq('id', organizationId)).error).toBeNull();
+  const { data: referred } = await admin.from('organizations').select('paid_until, referral_rewarded_at').eq('id', organizationId).single();
+  expect(new Date(referred.paid_until).getTime() - paidUntil.getTime()).toBe(30 * 86400000);
+  expect(referred.referral_rewarded_at).not.toBeNull();
+  const { data: after } = await admin.from('organizations').select('paid_until').eq('id', business.organizationId).single();
+  const base = Math.max(Date.parse(referrer.trial_ends_at), referrer.paid_until ? Date.parse(referrer.paid_until) : 0, Date.now() - 60000);
+  expect(Date.parse(after.paid_until)).toBeGreaterThanOrEqual(base + 30 * 86400000 - 120000);
+  // A later renewal gives no second reward.
+  const renewed = new Date(Date.now() + 400 * 86400000).toISOString();
+  await admin.from('organizations').update({ paid_until: renewed }).eq('id', organizationId);
+  const { data: again } = await admin.from('organizations').select('paid_until').eq('id', organizationId).single();
+  expect(Date.parse(again.paid_until)).toBe(Date.parse(renewed));
+});

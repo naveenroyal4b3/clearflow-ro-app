@@ -15,6 +15,7 @@ const items: Item[] = [
   { href: '/more/business', label: msg('Business details'), note: msg('Printed as the seller on invoices'), icon: 'business-outline', ownerOnly: true },
   { href: '/more/team', label: msg('Team & access'), note: msg('Invite technicians, shops and customers'), icon: 'people-circle-outline', ownerOnly: true },
   { href: '/more/feedback', label: msg('Feedback & issues'), note: msg('Report a problem or share an idea'), icon: 'chatbubble-ellipses-outline' },
+  { href: '/more/refer', label: msg('Refer a dealer'), note: msg('Share your code with other dealers'), icon: 'gift-outline', ownerOnly: true },
   { href: '/more/language', label: msg('Language'), note: msg('Choose the language of the app'), icon: 'language-outline' },
   { href: '/more/activity', label: msg('Activity log'), note: msg('Who changed what, and when'), icon: 'time-outline', ownerOnly: true },
   // For the Clearflow team only, so not translated.

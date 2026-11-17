@@ -25,6 +25,9 @@ export type Organization = {
   phone: string;
   trial_ends_at?: string | null;
   paid_until?: string | null;
+  created_at?: string;
+  referral_code?: string | null;
+  referred_by?: string | null;
 };
 
 export type Customer = {
