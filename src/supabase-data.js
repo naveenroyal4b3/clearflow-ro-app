@@ -501,3 +501,20 @@ export async function removeAppFeedback(client, id) {
   const { error } = await client.from('app_feedback').delete().eq('id', id);
   if (error) throw error;
 }
+
+/**
+ * Records the referral code of the business that told this one about Clearflow (owners only,
+ * once, in the first 14 days).
+ * @param {import('@supabase/supabase-js').SupabaseClient} client
+ * @param {string} code
+ */
+export async function applyReferral(client, code) {
+  const { error } = await client.rpc('apply_referral', { code: code.trim().toUpperCase() });
+  if (error) throw error;
+}
+
+/** Where a referred dealer gets the app: the website with the code, and the Play Store. */
+export const appLinks = {
+  website: 'https://naveenroyal4b3.github.io/clearflow-ro-app/',
+  play: 'https://play.google.com/store/apps/details?id=com.naveenroyal4b3.clearflow'
+};

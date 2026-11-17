@@ -86,6 +86,9 @@ h1 { margin: 0; font: 700 28px/1.2 "Manrope", sans-serif; letter-spacing: 0; }
 .button svg { width: 15px; height: 15px; }
 .suggest-button svg { width: 18px; height: 18px; }
 .photo-credits { margin-top: 18px; }
+.referral-code { font-size: 16px; letter-spacing: 2px; margin-right: 8px; }
+.referral-enter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.referral-enter input { width: 110px; min-height: 40px; text-transform: uppercase; }
 .photo-credits a { color: inherit; }
 .app-feedback-message { white-space: pre-wrap; max-width: 520px; }
 .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; margin-bottom: 19px; }

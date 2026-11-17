@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization, uploadProductImage, productImageUrls, loadCatalogPhotos, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto, sendAppFeedback, loadAppFeedback, removeAppFeedback } from './supabase-data.js';
+import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization, uploadProductImage, productImageUrls, loadCatalogPhotos, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto, sendAppFeedback, loadAppFeedback, removeAppFeedback, applyReferral, appLinks } from './supabase-data.js';
 import { catalogPhotoUrl, photoCredits, productArtSvg, productKindLabels, productKinds } from './product-icons.js';
 import { stateFromGstin, stateOptions, taxBreakup } from './gst.js';
 import { catalog, catalogItem } from './catalog.js';
@@ -56,6 +56,10 @@ const authLinkType = authLinkParams.get('type');
 const authLinkError = authLinkParams.get('error_description');
 // The public delete-account page links here so people can delete their account from the web.
 let deleteAccountRequested = new URLSearchParams(window.location.search).get('action') === 'delete-account';
+// A referral link (?ref=CODE) fills in the code when this visitor sets up their business.
+const referralParam = new URLSearchParams(window.location.search).get('ref') || '';
+if (/^[A-Za-z0-9]{6}$/.test(referralParam)) { try { localStorage.setItem('clearflow-ref', referralParam.toUpperCase()); } catch { /* optional */ } }
+function savedReferral() { try { return localStorage.getItem('clearflow-ref') || ''; } catch { return ''; } }
 const supabaseClient = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 window.addEventListener('error', event => reportClientError(supabaseClient, event.error || event.message, appVersion));
 window.addEventListener('unhandledrejection', event => reportClientError(supabaseClient, event.reason, appVersion));
@@ -200,7 +204,7 @@ function renderOrganizationSetup(message = '') {
   appShell.hidden = true;
   authRoot.className = 'auth-screen';
   const userMetadata = authSession.user.user_metadata || {};
-  authRoot.innerHTML = `<section class="auth-card">${authBrand()}<h1>${t('Finish business setup')}</h1><p>${t('Confirm the legal details for your organization before adding customers or issuing invoices.')}</p>${message ? `<div class="auth-message" role="alert">${esc(message)}</div>` : ''}<form class="auth-form" id="organization-form"><div class="field"><label for="organization-name">${t('Business name')}</label><input id="organization-name" name="name" required maxlength="160" value="${esc(userMetadata.organization_name || '')}"></div><div class="field"><label for="organization-gstin">${t('GSTIN (optional)')}</label><input id="organization-gstin" name="gstin" maxlength="15" value="${esc(userMetadata.gstin || '')}"></div><div class="field"><label for="organization-address">${t('Business address')}</label><input id="organization-address" name="address" maxlength="300"></div><div class="field"><label for="organization-state">${t('State')}</label><select id="organization-state" name="state">${stateOptions(stateFromGstin(userMetadata.gstin))}</select></div><div class="field"><label for="organization-phone">${t('Business phone')}</label><input id="organization-phone" name="phone" type="tel" value="${esc(userMetadata.phone || '')}"></div><button class="button" type="submit">${t('Create workspace')}</button></form></section>`;
+  authRoot.innerHTML = `<section class="auth-card">${authBrand()}<h1>${t('Finish business setup')}</h1><p>${t('Confirm the legal details for your organization before adding customers or issuing invoices.')}</p>${message ? `<div class="auth-message" role="alert">${esc(message)}</div>` : ''}<form class="auth-form" id="organization-form"><div class="field"><label for="organization-name">${t('Business name')}</label><input id="organization-name" name="name" required maxlength="160" value="${esc(userMetadata.organization_name || '')}"></div><div class="field"><label for="organization-gstin">${t('GSTIN (optional)')}</label><input id="organization-gstin" name="gstin" maxlength="15" value="${esc(userMetadata.gstin || '')}"></div><div class="field"><label for="organization-address">${t('Business address')}</label><input id="organization-address" name="address" maxlength="300"></div><div class="field"><label for="organization-state">${t('State')}</label><select id="organization-state" name="state">${stateOptions(stateFromGstin(userMetadata.gstin))}</select></div><div class="field"><label for="organization-phone">${t('Business phone')}</label><input id="organization-phone" name="phone" type="tel" value="${esc(userMetadata.phone || '')}"></div><div class="field"><label for="organization-referral">${t('Referral code (optional)')}</label><input id="organization-referral" name="referral" maxlength="6" autocapitalize="characters" value="${esc(savedReferral())}"></div><button class="button" type="submit">${t('Create workspace')}</button></form></section>`;
   authRoot.querySelector('#organization-form').addEventListener('submit', async event => {
     event.preventDefault();
     const values = Object.fromEntries(new FormData(event.currentTarget).entries());
@@ -210,6 +214,9 @@ function renderOrganizationSetup(message = '') {
       await updateOrganization(supabaseClient, organizationId, { ...values, state: values.state || stateFromGstin(values.gstin) });
     } catch (detailsError) {
       toast(t('Workspace created, but the business details were not saved: {error}', { error: detailsError.message }));
+    }
+    if (values.referral.trim()) {
+      try { await applyReferral(supabaseClient, values.referral); } catch (referralError) { toast(errorMessage(referralError, t('Not saved. Try again.'))); }
     }
     await openAuthenticatedApp(authSession);
   });
@@ -403,7 +410,27 @@ function planSection() {
   const buy = !plan.paid
     ? `<span class="plan-buttons">${Object.entries(planPrices).map(([interval, label]) => `<button class="button secondary" type="button" data-action="buy-plan" data-interval="${interval}">${esc(t('Pay {price}', { price: t(label) }))}</button>`).join('')}</span>`
     : !plan.paid ? esc(renewalHint()) : '';
-  return `<div class="notice"><strong>${t('Plan.')}</strong> ${esc(status)} ${buy}</div>`;
+  return `<div class="notice"><strong>${t('Plan.')}</strong> ${esc(status)} ${buy}</div>${referralSection()}`;
+}
+// Owners share their code; a dealer they refer enters it, and both get a free month on the first payment.
+function referralSection() {
+  const code = organization?.referral_code;
+  if (profile.role !== 'owner' || !code) return '';
+  const message = t('I use Clearflow RO for GST bills, service jobs and spare parts. Use my code {code} when you set up your business: {link}', { code, link: `${appLinks.website}?ref=${code}` });
+  const canEnter = !organization.referred_by && !organization.paid_until && Date.now() - new Date(organization.created_at).getTime() < 14 * 86400000;
+  const enter = canEnter ? `<div class="referral-enter"><label for="referral-input">${t('Have a code from another dealer?')}</label><input id="referral-input" maxlength="6" autocapitalize="characters"><button class="button secondary" type="button" data-action="apply-referral">${t('Apply')}</button></div>` : '';
+  return `<div class="notice"><strong>${t('Refer a dealer')}.</strong> ${t('When a dealer you refer pays for their first plan, you both get 1 month free.')} ${t('Your referral code')}: <strong class="referral-code">${esc(code)}</strong> <a class="button secondary" href="https://wa.me/?text=${encodeURIComponent(message)}" target="_blank" rel="noopener">${t('Share on WhatsApp')}</a>${enter}</div>`;
+}
+async function enterReferral(button) {
+  const code = document.getElementById('referral-input')?.value || '';
+  if (!code.trim()) return;
+  button.disabled = true;
+  try {
+    await applyReferral(supabaseClient, code);
+    organization = { ...organization, referred_by: 'set' };
+    button.closest('.referral-enter').remove();
+    toast(t('Referral code saved'));
+  } catch (error) { button.disabled = false; toast(errorMessage(error, t('Not saved. Try again.'))); }
 }
 async function buyPlan(button) {
   if (offlineSince) return;
@@ -1002,6 +1029,7 @@ document.addEventListener('click', event => {
   if (action === 'export-invoices') exportInvoices();
   if (action === 'buy-plan') buyPlan(event.target.closest('[data-action]'));
   if (action === 'sign-out-others') signOutOtherDevices(event.target.closest('[data-action]'));
+  if (action === 'apply-referral') enterReferral(event.target.closest('[data-action]'));
   const nav = event.target.closest('[data-nav]')?.dataset.nav;
   if (nav) { closeModal(); setView(nav); }
   const customerEdit = event.target.closest('[data-edit-customer]')?.dataset.editCustomer;
