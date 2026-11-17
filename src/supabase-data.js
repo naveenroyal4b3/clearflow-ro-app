@@ -515,6 +515,6 @@ export async function applyReferral(client, code) {
 
 /** Where a referred dealer gets the app: the website with the code, and the Play Store. */
 export const appLinks = {
-  website: 'https://naveenroyal4b3.github.io/clearflow-ro-app/',
+  website: 'https://clearflowro.in/',
   play: 'https://play.google.com/store/apps/details?id=com.naveenroyal4b3.clearflow'
 };
