@@ -20,6 +20,6 @@ export function planStatus(organization: Organization | null, now = Date.now()):
 
 // Google Play allows this app to unlock a plan bought on the website, but not to link to that
 // payment or show prices. Plain text naming the website is allowed.
-export const webAppAddress = 'naveenroyal4b3.github.io/clearflow-ro-app';
+export const webAppAddress = 'clearflowro.in';
 export const renewalHint = () => t('To renew, sign in on our website, {address}, and open My account.', { address: webAppAddress });
 export const planEndedMessage = () => t('This business’s plan has ended. You can still view records.');
