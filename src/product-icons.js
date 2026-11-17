@@ -28,13 +28,35 @@ export function productKind({ name, category }) {
 }
 
 /**
+ * Free-licence photos of some product types, served by the website from public/type-photos. Their
+ * licences need the credit shown wherever they can appear (the catalogue).
+ * @type {Record<string, { file: string, credit: string, link: string }>}
+ */
+export const builtInTypePhotos = {
+  filter: { file: 'type-photos/filter.jpg', credit: 'Filter: Public Domain Photos, CC BY 2.0', link: 'https://www.flickr.com/photos/28958738@N06/6861363972' },
+  meter: { file: 'type-photos/meter.jpg', credit: 'TDS meter: Spotless property, CC BY-SA 3.0', link: 'https://commons.wikimedia.org/wiki/File:Tds-meter.jpg' }
+};
+
+/**
  * The shared catalogue photo for a product without its own: the photo of its catalogue model, or
- * else of its type. Empty when there is neither.
+ * else of its type, or else a built-in photo of its type. Empty when there is none.
  * @param {{ name: string, category: string }} product
  * @param {Record<string, string>} photos links by key, from loadCatalogPhotos
+ * @param {string} [builtInBase] the website's address, ending in '/', for the built-in photos
  */
-export function catalogPhotoUrl(product, photos) {
-  return photos[product.name] || photos[`type:${productKind(product)}`] || '';
+export function catalogPhotoUrl(product, photos, builtInBase = '') {
+  const kind = productKind(product);
+  const builtIn = builtInTypePhotos[kind];
+  return photos[product.name] || photos[`type:${kind}`] || (builtIn && builtInBase ? builtInBase + builtIn.file : '');
+}
+
+/**
+ * Credits for the built-in photos the given products can show.
+ * @param {{ name: string, category: string }[]} products
+ */
+export function photoCredits(products) {
+  const kinds = new Set(products.map(productKind));
+  return Object.entries(builtInTypePhotos).filter(([kind]) => kinds.has(kind)).map(([, photo]) => photo);
 }
 
 

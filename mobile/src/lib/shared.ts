@@ -40,7 +40,8 @@ type ProductLike = { name: string; category: string };
 type ProductIconsModule = {
   productKind: (product: ProductLike) => string;
   productArtSvg: (product: ProductLike) => string;
-  catalogPhotoUrl: (product: ProductLike, photos: Record<string, string>) => string;
+  catalogPhotoUrl: (product: ProductLike, photos: Record<string, string>, builtInBase?: string) => string;
+  photoCredits: (products: ProductLike[]) => { file: string; credit: string; link: string }[];
 };
 
 export type DocumentDetails = {
@@ -66,7 +67,7 @@ export const { documentDetails, documentHtml, invoiceRegisterRows, invoiceRegist
 const data: DataModule = require('../../../src/supabase-data.js');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const icons: ProductIconsModule = require('../../../src/product-icons.js');
-export const { productKind, productArtSvg, catalogPhotoUrl } = icons;
+export const { productKind, productArtSvg, catalogPhotoUrl, photoCredits } = icons;
 
 export const { gstStates, stateLabel, stateFromGstin, taxBreakup, amountInWords } = gst;
 export const {
