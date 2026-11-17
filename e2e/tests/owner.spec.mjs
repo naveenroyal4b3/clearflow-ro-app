@@ -213,3 +213,34 @@ test('a platform admin sets a shared catalogue photo that businesses see', async
     if (data?.length) await admin.storage.from('catalog-photos').remove(data.map(row => row.path));
   }
 });
+
+test('feedback about the app is sent from any page and read by the platform admin', async ({ page }) => {
+  const { email } = await signUpOwner(page);
+  const message = `e2e suggestion ${Date.now()}`;
+  await goTo(page, 'customers');
+  await page.click('#suggest-button');
+  await page.fill('#message', message);
+  await page.click('#active-form [type="submit"]');
+  await expect(page.locator('.toast')).toBeVisible();
+  // An ordinary owner has no inbox; the platform admin sees it with the page it came from.
+  await page.click('#suggest-button');
+  await expect(page.locator('[data-action="open-app-feedback"]')).toHaveCount(0);
+  const admin = createClient(process.env.E2E_SUPABASE_URL, process.env.E2E_SECRET_KEY, { auth: { persistSession: false } });
+  const { data: users } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const user = users.users.find(item => item.email === email);
+  expect((await admin.from('platform_admins').insert({ user_id: user.id })).error).toBeNull();
+  try {
+    await page.reload();
+    // The catalogue shows an admin button once the admin check has finished.
+    await goTo(page, 'catalog');
+    await expect(page.locator('[data-action="open-photo-library"]')).toBeVisible();
+    await page.click('#suggest-button');
+    await page.click('[data-action="open-app-feedback"]');
+    const row = page.locator('tr', { hasText: message });
+    await expect(row).toBeVisible();
+    await expect(row).toContainText('customers');
+  } finally {
+    await admin.from('app_feedback').delete().eq('message', message);
+    await admin.from('platform_admins').delete().eq('user_id', user.id);
+  }
+});

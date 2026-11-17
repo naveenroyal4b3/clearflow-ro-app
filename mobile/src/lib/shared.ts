@@ -33,6 +33,7 @@ type DataModule = {
   removeProductImages: (client: SupabaseClient, paths: string[]) => Promise<void>;
   productImageUrls: (client: SupabaseClient, paths: string[]) => Promise<Record<string, string>>;
   loadCatalogPhotos: (client: SupabaseClient) => Promise<Record<string, string>>;
+  sendAppFeedback: (client: SupabaseClient, entry: { kind: 'Suggestion' | 'Problem'; page: string; message: string; platform: 'web' | 'android' | 'ios'; appVersion: string }) => Promise<void>;
 };
 
 type ProductLike = { name: string; category: string };
@@ -71,5 +72,5 @@ export const { gstStates, stateLabel, stateFromGstin, taxBreakup, amountInWords 
 export const {
   loadWorkspace, saveWorkspaceRecords, createSalesDocument, setSalesDocumentStatus, setFeedbackStatus,
   signedInElsewhere, inviteMember, deleteAccount, updateOrganization, loadAuditLog,
-  uploadProductImage, removeProductImages, productImageUrls, loadCatalogPhotos
+  uploadProductImage, removeProductImages, productImageUrls, loadCatalogPhotos, sendAppFeedback
 } = data;

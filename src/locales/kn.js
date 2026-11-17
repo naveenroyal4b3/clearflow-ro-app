@@ -624,4 +624,12 @@ export default {
   "That photo could not be read. Try another one.": "ಆ ಫೋಟೋವನ್ನು ಓದಲು ಆಗಲಿಲ್ಲ. ಬೇರೆ ಫೋಟೋ ಪ್ರಯತ್ನಿಸಿ.",
   "Photo (optional)": "ಫೋಟೋ (ಐಚ್ಛಿಕ)",
   "Without a photo, the product shows an icon for its type.": "ಫೋಟೋ ಇಲ್ಲದಿದ್ದರೆ, ಪ್ರಾಡಕ್ಟ್ ಪ್ರಕಾರದ ಐಕಾನ್ ತೋರಿಸಲಾಗುತ್ತದೆ.",
+  "Suggest": "ಸಲಹೆ ನೀಡಿ",
+  "Send feedback to Clearflow": "Clearflowಗೆ ಅಭಿಪ್ರಾಯ ಕಳುಹಿಸಿ",
+  "Ideas to improve the app, or something that is not working": "ಆ್ಯಪ್ ಉತ್ತಮಗೊಳಿಸಲು ಆಲೋಚನೆಗಳು, ಅಥವಾ ಸರಿಯಾಗಿ ಕೆಲಸ ಮಾಡದ ವಿಷಯ",
+  "Suggestion": "ಸಲಹೆ",
+  "Problem": "ಸಮಸ್ಯೆ",
+  "Your message *": "ನಿಮ್ಮ ಸಂದೇಶ *",
+  "This goes to the Clearflow app team.": "ಇದು Clearflow ಆ್ಯಪ್ ತಂಡಕ್ಕೆ ಹೋಗುತ್ತದೆ.",
+  "Thank you! Your feedback was sent.": "ಧನ್ಯವಾದಗಳು! ನಿಮ್ಮ ಅಭಿಪ್ರಾಯ ಕಳುಹಿಸಲಾಗಿದೆ.",
 };

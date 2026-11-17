@@ -8,6 +8,7 @@ import { Badge, colors, Empty, styles as ui } from '@/components/ui';
 import { formatDate, today } from '@/lib/format';
 import { msg, t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
+import { headerWithFeedback } from '@/components/FeedbackButton';
 
 const statuses = [msg('Open'), msg('All'), msg('Scheduled'), msg('In progress'), msg('Completed'), msg('Cancelled')] as const;
 
@@ -42,7 +43,7 @@ export default function Jobs() {
   return (
     <View style={ui.screen}>
       {owner ? (
-        <Stack.Screen options={{ headerRight: () => (
+        <Stack.Screen options={{ headerRight: headerWithFeedback(
           <Pressable accessibilityRole="button" accessibilityLabel={t('Schedule service')} onPress={add} hitSlop={12} style={{ paddingHorizontal: 8 }}>
             <Ionicons name="add-circle" size={28} color={colors.teal} />
           </Pressable>

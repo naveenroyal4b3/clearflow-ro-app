@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization, uploadProductImage, productImageUrls, loadCatalogPhotos, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto } from './supabase-data.js';
+import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization, uploadProductImage, productImageUrls, loadCatalogPhotos, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto, sendAppFeedback, loadAppFeedback, removeAppFeedback } from './supabase-data.js';
 import { catalogPhotoUrl, productArtSvg, productKinds } from './product-icons.js';
 import { stateFromGstin, stateOptions, taxBreakup } from './gst.js';
 import { catalog, catalogItem } from './catalog.js';
@@ -77,6 +77,9 @@ let roleView = 'customer';
 let catalogPhotoLinks = {};
 let platformAdmin = false;
 let photoLibraryOpen = false;
+// The app feedback inbox (platform admins only), shown over the current page.
+let appFeedbackOpen = false;
+let appFeedbackRows = null;
 let photoLibraryQuery = '';
 const page = document.getElementById('page');
 
@@ -340,7 +343,7 @@ function initials(name = '') { return name.split(/\s+/).slice(0, 2).map(part => 
 function setView(next) {
   const target = document.querySelector(`.nav-item[data-view="${next}"]`);
   if (!target || target.hidden) return;
-  view = next; searchQuery = ''; photoLibraryOpen = false;
+  view = next; searchQuery = ''; photoLibraryOpen = false; appFeedbackOpen = false;
   document.querySelectorAll('.nav-item').forEach(button => button.classList.toggle('active', button.dataset.view === next));
   document.getElementById('crumb-title').textContent = t(viewTitles[next]);
   updateRoleControl();
@@ -416,6 +419,7 @@ function render() {
   if (profile) updateRoleAccess();
   document.getElementById('customer-count').textContent = data.customers.length;
   document.getElementById('jobs-count').textContent = data.jobs.filter(item => item.status !== 'Completed').length;
+  if (appFeedbackOpen && platformAdmin) { renderAppFeedback(); return; }
   if (view === 'overview') renderOverview();
   if (view === 'customers') renderCustomers();
   if (view === 'jobs') renderJobs();
@@ -750,6 +754,37 @@ function openFeedbackForm() {
     closeModal(); render(); toast(t('Feedback submitted'));
   }, true);
 }
+// Suggestions and problems about the app go to the Clearflow team, from any page.
+function openAppFeedbackForm() {
+  if (!supabaseClient || !profile) return;
+  const kinds = [msg('Suggestion'), msg('Problem')];
+  const inbox = platformAdmin ? '<p><button class="button secondary" type="button" data-action="open-app-feedback">See all app feedback</button></p>' : '';
+  showModal(t('Send feedback to Clearflow'), t('Ideas to improve the app, or something that is not working'), `<div class="form-grid"><div class="field full"><label for="kind">${t('What would you like to share? *')}</label><select id="kind" name="kind">${kinds.map(kind => `<option value="${kind}">${t(kind)}</option>`).join('')}</select></div><div class="field full"><label for="message">${t('Your message *')}</label><textarea id="message" name="message" required maxlength="2000"></textarea></div></div><p class="panel-note">${t('This goes to the Clearflow app team.')}</p>${inbox}`, t('Send feedback'), async form => {
+    await sendAppFeedback(supabaseClient, { kind: form.get('kind'), page: view, message: String(form.get('message')), platform: 'web', appVersion });
+    closeModal(); toast(t('Thank you! Your feedback was sent.'));
+  });
+}
+// Every business's app feedback, for platform admins (the app's operator), so it is not translated.
+function renderAppFeedback() {
+  if (appFeedbackRows === null) {
+    page.innerHTML = `${pageHead('Clearflow', 'App feedback', 'Loading…')}`;
+    loadAppFeedback(supabaseClient)
+      .then(rows => { appFeedbackRows = rows; if (appFeedbackOpen) render(); })
+      .catch(error => { appFeedbackRows = []; toast(errorMessage(error, 'Could not load app feedback')); if (appFeedbackOpen) render(); });
+    return;
+  }
+  const when = value => new Date(value).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+  page.innerHTML = `${pageHead('Clearflow', 'App feedback', `${appFeedbackRows.length} from every business, newest first`, '<button class="button secondary" data-action="close-app-feedback">Back</button>')}
+    <section class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>Sent</th><th>Type</th><th>Message</th><th>From</th><th>Where</th><th></th></tr></thead><tbody>${appFeedbackRows.length ? appFeedbackRows.map(item => `<tr><td>${esc(when(item.created_at))}</td><td><span class="status ${item.kind === 'Problem' ? 'urgent' : 'normal'}">${esc(item.kind)}</span></td><td><div class="app-feedback-message">${esc(item.message)}</div></td><td><strong>${esc(item.name || '—')}</strong><div class="muted-cell">${esc(item.business)} · ${esc(item.role)}</div><div class="muted-cell">${esc(item.phone)}${item.email ? ` · ${esc(item.email)}` : ''}</div></td><td>${esc(item.page)}<div class="muted-cell">${esc(item.platform)} ${esc(item.app_version)}</div></td><td><button class="button secondary" type="button" data-remove-app-feedback="${esc(item.id)}">Remove</button></td></tr>`).join('') : '<tr><td colspan="6" class="empty">No app feedback yet.</td></tr>'}</tbody></table></div></section>`;
+}
+async function deleteAppFeedback(id) {
+  if (!window.confirm('Remove this feedback?')) return;
+  try {
+    await removeAppFeedback(supabaseClient, id);
+    appFeedbackRows = appFeedbackRows.filter(item => item.id !== id);
+    render();
+  } catch (error) { toast(errorMessage(error, 'Could not remove it')); }
+}
 function openMoreMenu() {
   const tools = [
     ['catalog', t('Product catalogue'), icons.product],
@@ -912,6 +947,10 @@ function translateShell() {
   roleSelect.setAttribute('aria-label', t('Preview price list'));
   const tierLabels = { customer: t('Customer prices'), technician: t('Technician prices'), shop: t('Shop prices') };
   roleSelect.querySelectorAll('option').forEach(option => setOwnText(option, tierLabels[option.value] || option.textContent));
+  const suggest = document.getElementById('suggest-button');
+  suggest.setAttribute('title', t('Send feedback to Clearflow'));
+  suggest.setAttribute('aria-label', t('Send feedback to Clearflow'));
+  suggest.querySelector('span').textContent = t('Suggest');
   const help = document.getElementById('help-button');
   help.setAttribute('aria-label', t('Help'));
   help.setAttribute('title', t('Help'));
@@ -930,6 +969,7 @@ document.getElementById('signout-button').addEventListener('click', async () => 
   const { error } = await supabaseClient.auth.signOut();
   if (error) toast(error.message);
 });
+document.getElementById('suggest-button').addEventListener('click', openAppFeedbackForm);
 document.getElementById('help-button').addEventListener('click', () => toast(t('Use Accounts & access to manage role and price access.')));
 // The language picker (sign-in screen and My account). Reloading redraws everything in the new
 // language; the session and workspace load again from Supabase.
@@ -949,6 +989,10 @@ document.addEventListener('click', event => {
   if (action === 'close-photo-library') { photoLibraryOpen = false; renderCatalog(); }
   if (action === 'new-account') openAccountForm();
   if (action === 'submit-feedback') openFeedbackForm();
+  if (action === 'open-app-feedback') { closeModal(); appFeedbackOpen = true; appFeedbackRows = null; render(); }
+  if (action === 'close-app-feedback') { appFeedbackOpen = false; render(); }
+  const removeFeedback = event.target.closest('[data-remove-app-feedback]')?.dataset.removeAppFeedback;
+  if (removeFeedback) deleteAppFeedback(removeFeedback);
   if (action === 'more-menu') openMoreMenu();
   if (action === 'my-account') openAccountSettings();
   if (action === 'business-details') openBusinessForm();

@@ -624,4 +624,12 @@ export default {
   "That photo could not be read. Try another one.": "ആ ഫോട്ടോ വായിക്കാനായില്ല. മറ്റൊന്ന് ശ്രമിക്കുക.",
   "Photo (optional)": "ഫോട്ടോ (ഓപ്ഷണൽ)",
   "Without a photo, the product shows an icon for its type.": "ഫോട്ടോ ഇല്ലെങ്കിൽ, പ്രോഡക്ടിന്റെ തരത്തിനുള്ള ഐക്കൺ കാണിക്കും.",
+  "Suggest": "നിർദ്ദേശിക്കുക",
+  "Send feedback to Clearflow": "Clearflow-ലേക്ക് അഭിപ്രായം അയയ്ക്കുക",
+  "Ideas to improve the app, or something that is not working": "ആപ്പ് മെച്ചപ്പെടുത്താനുള്ള ആശയങ്ങൾ, അല്ലെങ്കിൽ ശരിയായി പ്രവർത്തിക്കാത്ത ഒന്ന്",
+  "Suggestion": "നിർദ്ദേശം",
+  "Problem": "പ്രശ്നം",
+  "Your message *": "നിങ്ങളുടെ സന്ദേശം *",
+  "This goes to the Clearflow app team.": "ഇത് Clearflow ആപ്പ് ടീമിലേക്കാണ് പോകുന്നത്.",
+  "Thank you! Your feedback was sent.": "നന്ദി! നിങ്ങളുടെ അഭിപ്രായം അയച്ചു.",
 };

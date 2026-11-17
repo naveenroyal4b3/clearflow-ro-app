@@ -624,4 +624,12 @@ export default {
   "That photo could not be read. Try another one.": "यह फोटो पढ़ी नहीं जा सकी। कोई दूसरी फोटो आज़माएं।",
   "Photo (optional)": "फोटो (वैकल्पिक)",
   "Without a photo, the product shows an icon for its type.": "फोटो न होने पर प्रोडक्ट के प्रकार का आइकन दिखेगा।",
+  "Suggest": "सुझाव दें",
+  "Send feedback to Clearflow": "Clearflow को सुझाव भेजें",
+  "Ideas to improve the app, or something that is not working": "ऐप को बेहतर बनाने के सुझाव, या कोई चीज़ जो ठीक से काम नहीं कर रही",
+  "Suggestion": "सुझाव",
+  "Problem": "समस्या",
+  "Your message *": "आपका संदेश *",
+  "This goes to the Clearflow app team.": "यह Clearflow ऐप टीम को जाता है।",
+  "Thank you! Your feedback was sent.": "धन्यवाद! आपका सुझाव भेज दिया गया।",
 };

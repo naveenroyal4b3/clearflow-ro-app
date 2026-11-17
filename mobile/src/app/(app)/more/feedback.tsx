@@ -8,6 +8,7 @@ import { msg, t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { setFeedbackStatus } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
+import { headerWithFeedback } from '@/components/FeedbackButton';
 
 const statuses = [msg('New'), msg('In review'), msg('In progress'), msg('Planned'), msg('Resolved'), msg('Closed')] as const;
 
@@ -28,7 +29,7 @@ export default function Feedback() {
 
   return (
     <View style={ui.screen}>
-      <Stack.Screen options={{ headerRight: () => (
+      <Stack.Screen options={{ headerRight: headerWithFeedback(
         <Pressable accessibilityRole="button" accessibilityLabel={t('Submit feedback')} onPress={() => router.push('/more/feedback-new')} hitSlop={12} style={{ paddingHorizontal: 8 }}>
           <Ionicons name="add-circle" size={28} color={colors.teal} />
         </Pressable>

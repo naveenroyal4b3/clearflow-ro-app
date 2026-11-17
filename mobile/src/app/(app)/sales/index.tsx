@@ -11,6 +11,7 @@ import { sharePdf } from '@/lib/pdf';
 import { msg, t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 import { invoiceRegisterHtml, invoiceRegisterRows } from '@/lib/shared';
+import { headerWithFeedback } from '@/components/FeedbackButton';
 
 const tabs = [msg('All'), msg('Quotations'), msg('Invoices')] as const;
 
@@ -42,7 +43,7 @@ export default function Sales() {
   return (
     <View style={ui.screen}>
       {owner ? (
-        <Stack.Screen options={{ headerRight: () => (
+        <Stack.Screen options={{ headerRight: headerWithFeedback(
           <Pressable accessibilityRole="button" accessibilityLabel={t('New quotation or invoice')} onPress={add} hitSlop={12} style={{ paddingHorizontal: 8 }}>
             <Ionicons name="add-circle" size={28} color={colors.teal} />
           </Pressable>

@@ -5,6 +5,7 @@ import { Badge, colors, Notice, styles as ui } from '@/components/ui';
 import { initials } from '@/lib/format';
 import { msg, t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
+import { headerWithFeedback } from '@/components/FeedbackButton';
 
 // English labels, shown with t().
 const priceList: Record<string, string> = { Technician: msg('Technician prices'), Shop: msg('Shop prices'), Customer: msg('Customer prices'), Owner: msg('All prices') };
@@ -18,7 +19,7 @@ export default function Team() {
   };
   return (
     <View style={ui.screen}>
-      <Stack.Screen options={{ headerRight: () => (
+      <Stack.Screen options={{ headerRight: headerWithFeedback(
         <Pressable accessibilityRole="button" accessibilityLabel={t('Invite a team member')} onPress={add} hitSlop={12} style={{ paddingHorizontal: 8 }}>
           <Ionicons name="person-add" size={24} color={colors.teal} />
         </Pressable>

@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors } from '@/components/ui';
 import { useInAppUpdates } from '@/lib/inAppUpdates';
-import { LanguageProvider } from '@/lib/i18n';
+import { LanguageProvider, t } from '@/lib/i18n';
 import { SessionProvider, useSession } from '@/lib/session';
 
 function Navigator() {
@@ -19,6 +19,7 @@ function Navigator() {
       </Stack.Protected>
       <Stack.Protected guard={status === 'ready'}>
         <Stack.Screen name="(app)" />
+        <Stack.Screen name="app-feedback" options={{ headerShown: true, presentation: 'modal', title: t('Send feedback to Clearflow'), headerStyle: { backgroundColor: colors.paper }, headerTitleStyle: { color: colors.ink, fontWeight: '700' } }} />
       </Stack.Protected>
     </Stack>
   );
