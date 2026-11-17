@@ -624,4 +624,12 @@ export default {
   "That photo could not be read. Try another one.": "ఆ ఫోటోను చదవలేకపోయాం. వేరే ఫోటో ప్రయత్నించండి.",
   "Photo (optional)": "ఫోటో (ఐచ్ఛికం)",
   "Without a photo, the product shows an icon for its type.": "ఫోటో లేకపోతే, ప్రోడక్ట్ రకానికి సంబంధించిన ఐకాన్ కనిపిస్తుంది.",
+  "Suggest": "సూచన ఇవ్వండి",
+  "Send feedback to Clearflow": "Clearflowకు అభిప్రాయం పంపండి",
+  "Ideas to improve the app, or something that is not working": "యాప్‌ను మెరుగుపరచడానికి ఆలోచనలు, లేదా సరిగ్గా పనిచేయని విషయం",
+  "Suggestion": "సూచన",
+  "Problem": "సమస్య",
+  "Your message *": "మీ సందేశం *",
+  "This goes to the Clearflow app team.": "ఇది Clearflow యాప్ టీమ్‌కు వెళ్తుంది.",
+  "Thank you! Your feedback was sent.": "ధన్యవాదాలు! మీ అభిప్రాయం పంపబడింది.",
 };

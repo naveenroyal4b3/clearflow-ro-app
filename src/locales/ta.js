@@ -624,4 +624,12 @@ export default {
   "That photo could not be read. Try another one.": "அந்தப் புகைப்படத்தைப் படிக்க முடியவில்லை. வேறொன்றை முயற்சிக்கவும்.",
   "Photo (optional)": "புகைப்படம் (விருப்பம்)",
   "Without a photo, the product shows an icon for its type.": "புகைப்படம் இல்லையெனில், பொருளின் வகைக்கான ஐகான் காட்டப்படும்.",
+  "Suggest": "பரிந்துரைக்க",
+  "Send feedback to Clearflow": "Clearflow-க்கு கருத்து அனுப்பு",
+  "Ideas to improve the app, or something that is not working": "செயலியை மேம்படுத்த யோசனைகள், அல்லது சரியாக வேலை செய்யாத ஒன்று",
+  "Suggestion": "பரிந்துரை",
+  "Problem": "பிரச்சனை",
+  "Your message *": "உங்கள் செய்தி *",
+  "This goes to the Clearflow app team.": "இது Clearflow செயலி குழுவுக்குச் செல்லும்.",
+  "Thank you! Your feedback was sent.": "நன்றி! உங்கள் கருத்து அனுப்பப்பட்டது.",
 };

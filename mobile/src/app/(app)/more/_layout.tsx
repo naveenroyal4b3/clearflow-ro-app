@@ -1,10 +1,11 @@
 import { Stack } from 'expo-router';
+import { headerWithFeedback } from '@/components/FeedbackButton';
 import { colors } from '@/components/ui';
 import { t } from '@/lib/i18n';
 
 export default function MoreLayout() {
   return (
-    <Stack screenOptions={{ headerStyle: { backgroundColor: colors.paper }, headerTitleStyle: { color: colors.ink, fontWeight: '700' }, contentStyle: { backgroundColor: colors.canvas } }}>
+    <Stack screenOptions={{ headerStyle: { backgroundColor: colors.paper }, headerTitleStyle: { color: colors.ink, fontWeight: '700' }, contentStyle: { backgroundColor: colors.canvas }, headerRight: headerWithFeedback() }}>
       <Stack.Screen name="index" options={{ title: t('More') }} />
       <Stack.Screen name="account" options={{ title: t('My account') }} />
       <Stack.Screen name="business" options={{ title: t('Business details') }} />

@@ -11,6 +11,7 @@ import { msg, t } from '@/lib/i18n';
 import { useProductImageUrls } from '@/lib/productImages';
 import { useSession } from '@/lib/session';
 import type { Product } from '@/lib/types';
+import { headerWithFeedback } from '@/components/FeedbackButton';
 
 const categories = [msg('All'), msg('Purifiers'), msg('Accessories'), msg('Spare parts')] as const;
 const tiers = [msg('Customer'), msg('Technician'), msg('Shop')] as const;
@@ -38,7 +39,7 @@ export default function Catalog() {
   return (
     <View style={ui.screen}>
       {owner ? (
-        <Stack.Screen options={{ headerRight: () => (
+        <Stack.Screen options={{ headerRight: headerWithFeedback(
           <Pressable accessibilityRole="button" accessibilityLabel={t('Add product')} onPress={add} hitSlop={12} style={{ paddingHorizontal: 8 }}>
             <Ionicons name="add-circle" size={28} color={colors.teal} />
           </Pressable>

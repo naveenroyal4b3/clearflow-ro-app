@@ -467,3 +467,37 @@ export async function removeCatalogPhoto(client, key) {
   const paths = (data || []).map(row => row.path);
   if (paths.length) await client.storage.from(catalogPhotos).remove(paths);
 }
+
+/**
+ * Sends a suggestion or problem about the app to the Clearflow team (not to the business). The
+ * database fills in who sent it. Not read back: only platform admins can read app feedback.
+ * @param {import('@supabase/supabase-js').SupabaseClient} client
+ * @param {{ kind: 'Suggestion' | 'Problem', page: string, message: string, platform: 'web' | 'android' | 'ios', appVersion: string }} entry
+ */
+export async function sendAppFeedback(client, { kind, page, message, platform, appVersion }) {
+  const { error } = await client.from('app_feedback').insert({
+    kind, page: String(page).slice(0, 60), message: message.trim().slice(0, 2000), platform, app_version: String(appVersion).slice(0, 40)
+  });
+  if (error) throw error;
+}
+
+/**
+ * The latest app feedback from every business, for platform admins.
+ * @param {import('@supabase/supabase-js').SupabaseClient} client
+ */
+export async function loadAppFeedback(client) {
+  const { data, error } = await client.from('app_feedback')
+    .select('id, created_at, business, role, name, email, phone, kind, page, message, platform, app_version')
+    .order('created_at', { ascending: false }).limit(300);
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * @param {import('@supabase/supabase-js').SupabaseClient} client
+ * @param {string} id
+ */
+export async function removeAppFeedback(client, id) {
+  const { error } = await client.from('app_feedback').delete().eq('id', id);
+  if (error) throw error;
+}

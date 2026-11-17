@@ -146,3 +146,20 @@ test('only platform admins can change the shared catalogue photos', async () => 
   // Nobody can make themselves an admin.
   expect((await business.owner.from('platform_admins').insert({ user_id: data.user.id })).error).not.toBeNull();
 });
+
+test('app feedback reaches only platform admins and its sender cannot be faked', async () => {
+  const sender = business.technician.client;
+  const message = `e2e app feedback ${Date.now()}`;
+  const entry = { kind: 'Problem', page: 'jobs', message, platform: 'web', app_version: '2.0.0' };
+  // Who sent it is filled in by the database; the sender cannot set it.
+  expect((await sender.from('app_feedback').insert({ ...entry, business: 'Someone else' })).error).not.toBeNull();
+  expect((await sender.from('app_feedback').insert(entry)).error).toBeNull();
+  // Nobody in the business can read it, including the owner.
+  for (const client of [sender, business.owner]) {
+    expect((await client.from('app_feedback').select('id').eq('message', message)).data).toEqual([]);
+    await client.from('app_feedback').delete().eq('message', message);
+  }
+  const { data } = await admin.from('app_feedback').select('business, role, user_id').eq('message', message);
+  expect(data).toEqual([{ business: 'Security RO', role: 'technician', user_id: business.technician.id }]);
+  await admin.from('app_feedback').delete().eq('message', message);
+});

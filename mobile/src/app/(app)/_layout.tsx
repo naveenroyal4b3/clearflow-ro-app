@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router/js-tabs';
+import { headerWithFeedback } from '@/components/FeedbackButton';
 import { colors } from '@/components/ui';
 import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
@@ -22,7 +23,8 @@ export default function AppLayout() {
         headerTitleStyle: { color: colors.ink, fontWeight: '700' },
         tabBarActiveTintColor: colors.teal,
         tabBarInactiveTintColor: colors.muted,
-        sceneStyle: { backgroundColor: colors.canvas }
+        sceneStyle: { backgroundColor: colors.canvas },
+        headerRight: headerWithFeedback()
       }}
     >
       <Tabs.Screen name="home" options={{ title: t('Overview'), tabBarIcon: icon('grid-outline') }} />

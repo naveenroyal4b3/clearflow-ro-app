@@ -1,10 +1,11 @@
 import { Stack } from 'expo-router';
+import { headerWithFeedback } from '@/components/FeedbackButton';
 import { colors } from '@/components/ui';
 import { t } from '@/lib/i18n';
 
 export default function CustomersLayout() {
   return (
-    <Stack screenOptions={{ headerStyle: { backgroundColor: colors.paper }, headerTitleStyle: { color: colors.ink, fontWeight: '700' }, contentStyle: { backgroundColor: colors.canvas } }}>
+    <Stack screenOptions={{ headerStyle: { backgroundColor: colors.paper }, headerTitleStyle: { color: colors.ink, fontWeight: '700' }, contentStyle: { backgroundColor: colors.canvas }, headerRight: headerWithFeedback() }}>
       <Stack.Screen name="index" options={{ title: t('Customers') }} />
       <Stack.Screen name="edit" options={{ title: t('Customer'), presentation: 'modal' }} />
     </Stack>

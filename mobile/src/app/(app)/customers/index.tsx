@@ -7,6 +7,7 @@ import { PlanNotice, useReadOnlyReason } from '@/components/PlanNotice';
 import { formatDate, initials } from '@/lib/format';
 import { msg, t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
+import { headerWithFeedback } from '@/components/FeedbackButton';
 
 const types = [msg('All'), msg('Residential'), msg('Commercial'), msg('Apartment')];
 
@@ -29,7 +30,7 @@ export default function Customers() {
 
   return (
     <View style={ui.screen}>
-      <Stack.Screen options={{ headerRight: () => (
+      <Stack.Screen options={{ headerRight: headerWithFeedback(
         <Pressable accessibilityRole="button" accessibilityLabel={t('Add customer')} onPress={add} hitSlop={12} style={{ paddingHorizontal: 8 }}>
           <Ionicons name="add-circle" size={28} color={colors.teal} />
         </Pressable>
