@@ -4,10 +4,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PlanNotice } from '@/components/PlanNotice';
 import { Brand, Button, colors, Screen } from '@/components/ui';
 import { msg, t } from '@/lib/i18n';
+import { usePlatformAdmin } from '@/lib/productImages';
 import { useSession } from '@/lib/session';
 import { roleLabels } from '@/lib/types';
 
-type Item = { href: Href; label: string; note: string; icon: keyof typeof Ionicons.glyphMap; ownerOnly?: boolean };
+type Item = { href: Href; label: string; note: string; icon: keyof typeof Ionicons.glyphMap; ownerOnly?: boolean; adminOnly?: boolean };
 // Labels and notes are English, shown with t().
 const items: Item[] = [
   { href: '/more/account', label: msg('My account'), note: msg('Plan, other devices, delete account'), icon: 'person-circle-outline' },
@@ -15,12 +16,15 @@ const items: Item[] = [
   { href: '/more/team', label: msg('Team & access'), note: msg('Invite technicians, shops and customers'), icon: 'people-circle-outline', ownerOnly: true },
   { href: '/more/feedback', label: msg('Feedback & issues'), note: msg('Report a problem or share an idea'), icon: 'chatbubble-ellipses-outline' },
   { href: '/more/language', label: msg('Language'), note: msg('Choose the language of the app'), icon: 'language-outline' },
-  { href: '/more/activity', label: msg('Activity log'), note: msg('Who changed what, and when'), icon: 'time-outline', ownerOnly: true }
+  { href: '/more/activity', label: msg('Activity log'), note: msg('Who changed what, and when'), icon: 'time-outline', ownerOnly: true },
+  // For the Clearflow team only, so not translated.
+  { href: '/more/catalog-photos', label: 'Catalogue photos', note: 'Real photos shown to every business', icon: 'camera-outline', adminOnly: true }
 ];
 
 export default function More() {
   const { profile, organization, signOut } = useSession();
   const owner = profile?.role === 'owner';
+  const admin = usePlatformAdmin();
   return (
     <Screen>
       <PlanNotice />
@@ -30,7 +34,7 @@ export default function More() {
         <Text style={local.note}>{organization?.name}</Text>
       </View>
       <View style={local.list}>
-        {items.filter(item => owner || !item.ownerOnly).map(item => (
+        {items.filter(item => (owner || !item.ownerOnly) && (admin || !item.adminOnly)).map(item => (
           <Pressable key={item.label} style={local.item} accessibilityRole="button" onPress={() => router.push(item.href)}>
             <Ionicons name={item.icon} size={24} color={colors.teal} />
             <View style={{ flex: 1 }}>

@@ -15,6 +15,7 @@ export default function MoreLayout() {
       <Stack.Screen name="feedback-new" options={{ title: t('Submit feedback'), presentation: 'modal' }} />
       <Stack.Screen name="language" options={{ title: t('Language') }} />
       <Stack.Screen name="activity" options={{ title: t('Activity log') }} />
+      <Stack.Screen name="catalog-photos" options={{ title: 'Catalogue photos' }} />
     </Stack>
   );
 }

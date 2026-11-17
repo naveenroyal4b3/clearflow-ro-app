@@ -3,7 +3,7 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import { t } from './i18n';
-import { loadCatalogPhotos, productImageUrls } from './shared';
+import { isPlatformAdmin, loadCatalogPhotos, productImageUrls } from './shared';
 import { supabase } from './supabase';
 
 // Signed photo links by storage path, kept for the app's lifetime (they last a day) so lists don't
@@ -58,6 +58,29 @@ export function useCatalogPhotos() {
     return () => { catalogPhotoListeners.delete(update); };
   }, []);
   return photos;
+}
+
+/** Loads the shared catalogue photos again, after a platform admin changes one. */
+export async function refreshCatalogPhotos() {
+  catalogPhotos = await loadCatalogPhotos(supabase);
+  catalogPhotosLoad = Promise.resolve();
+  catalogPhotoListeners.forEach(listener => listener());
+}
+
+// Whether this user may change the shared catalogue photos: null while checking.
+let platformAdmin: boolean | null = null;
+/** True for platform admins (the app's operator); false when it can't be checked. */
+export function usePlatformAdmin() {
+  const [admin, setAdmin] = useState(platformAdmin);
+  useEffect(() => {
+    if (platformAdmin !== null) return;
+    let active = true;
+    isPlatformAdmin(supabase)
+      .then(result => { platformAdmin = result; if (active) setAdmin(result); })
+      .catch(() => { if (active) setAdmin(false); });
+    return () => { active = false; };
+  }, []);
+  return admin;
 }
 
 function cachedUrls(key: string) {
