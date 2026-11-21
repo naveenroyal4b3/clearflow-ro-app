@@ -9,7 +9,7 @@ create or replace function public.check_organization_phone()
 returns trigger
 language plpgsql
 set search_path = ''
-as $
+as $$
 declare
   raw text := trim(coalesce(new.phone, ''));
   digits text := regexp_replace(raw, '\D', '', 'g');
@@ -39,7 +39,7 @@ begin
   new.phone := digits;
   return new;
 end;
-$;
+$$;
 revoke all on function public.check_organization_phone() from public, anon, authenticated;
 
 drop trigger if exists check_organization_phone on public.organizations;
