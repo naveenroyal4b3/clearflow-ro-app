@@ -18,11 +18,11 @@ begin
   if left(raw, 2) = '00' then
     digits := substr(digits, 3);
   end if;
-  if digits ~ '^(\d)\1+ then
+  if digits ~ '^(\d)\1+$' then
     raise exception 'Enter a valid mobile number. Outside India, start with + and the country code.';
   end if;
   if international and left(digits, 2) <> '91' then
-    if digits !~ '^[1-9][0-9]{7,14} then
+    if digits !~ '^[1-9][0-9]{7,14}$' then
       raise exception 'Enter a valid mobile number. Outside India, start with + and the country code.';
     end if;
     new.phone := '+' || digits;
@@ -33,7 +33,7 @@ begin
   elsif length(digits) = 11 and left(digits, 1) = '0' then
     digits := right(digits, 10);
   end if;
-  if digits !~ '^[6-9][0-9]{9} or digits = '9876543210' then
+  if digits !~ '^[6-9][0-9]{9}$' or digits = '9876543210' then
     raise exception 'Enter a valid mobile number. Outside India, start with + and the country code.';
   end if;
   new.phone := digits;
