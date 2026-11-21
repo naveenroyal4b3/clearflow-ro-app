@@ -5,7 +5,7 @@ import { Button, Field, Notice, Screen } from '@/components/ui';
 import { errorMessage } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
-import { indianMobile, stateFromGstin, updateOrganization } from '@/lib/shared';
+import { validPhone, stateFromGstin, updateOrganization } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
 
 // The seller details printed on quotations and GST invoices. Allowed even when the plan has ended.
@@ -18,7 +18,7 @@ export default function BusinessDetails() {
 
   const save = async () => {
     setError('');
-    if (!indianMobile(form.phone)) { setError(t('Enter a valid 10-digit mobile number')); return; }
+    if (!validPhone(form.phone)) { setError(t('Enter a valid mobile number. Outside India, start with + and the country code.')); return; }
     try {
       setOrganization(await updateOrganization(supabase, organization.id, { ...form, state: form.state || stateFromGstin(form.gstin) }));
       router.back();

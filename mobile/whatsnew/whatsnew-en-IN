@@ -1,1 +1,1 @@
-- Business setup now asks for a valid 10-digit mobile number
+- Business setup now needs a valid mobile number (outside India, use + and the country code)

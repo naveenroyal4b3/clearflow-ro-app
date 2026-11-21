@@ -4,7 +4,7 @@ import { StateSelect } from '@/components/StateSelect';
 import { errorMessage } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
-import { applyReferral, indianMobile, stateFromGstin, updateOrganization } from '@/lib/shared';
+import { applyReferral, validPhone, stateFromGstin, updateOrganization } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
 
 // A new owner's last step: the business that will be printed as the seller on invoices.
@@ -17,7 +17,7 @@ export default function Setup() {
 
   const create = async () => {
     setError('');
-    if (!indianMobile(form.phone)) { setError(t('Enter a valid 10-digit mobile number')); return; }
+    if (!validPhone(form.phone)) { setError(t('Enter a valid mobile number. Outside India, start with + and the country code.')); return; }
     const { data: organizationId, error: createError } = await supabase.rpc('create_organization', { organization_name: form.name.trim(), organization_gstin: form.gstin.trim() || null });
     if (createError) { setError(createError.message); return; }
     try {

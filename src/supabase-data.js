@@ -1,5 +1,5 @@
 // @ts-check
-import { indianMobile } from './gst.js';
+import { validPhone } from './gst.js';
 const roleLabels = {
   owner: 'Owner',
   technician: 'Technician',
@@ -295,7 +295,7 @@ export async function updateOrganization(client, organizationId, details) {
     gstin: details.gstin.trim().toUpperCase() || null,
     address: details.address.trim(),
     state_code: details.state || '',
-    phone: indianMobile(details.phone) || details.phone.trim()
+    phone: validPhone(details.phone) || details.phone.trim()
   }).eq('id', organizationId).select('*').single();
   if (error) throw error;
   return data;

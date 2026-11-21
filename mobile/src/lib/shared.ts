@@ -15,7 +15,7 @@ type GstModule = {
   stateFromGstin: (gstin: string) => string;
   taxBreakup: <T extends TaxLine>(lines: T[], options: { gstEnabled: boolean; sellerState?: string; buyerState?: string }) => Bill<T>;
   amountInWords: (amount: number) => string;
-  indianMobile: (value: string) => string;
+  validPhone: (value: string) => string;
 };
 
 type Collection = 'customers' | 'products' | 'jobs' | 'feedback';
@@ -77,7 +77,7 @@ const data: DataModule = require('../../../src/supabase-data.js');
 const icons: ProductIconsModule = require('../../../src/product-icons.js');
 export const { productKind, productArtSvg, catalogPhotoUrl, photoCredits, productKinds, productKindLabels } = icons;
 
-export const { gstStates, stateLabel, stateFromGstin, taxBreakup, amountInWords, indianMobile } = gst;
+export const { gstStates, stateLabel, stateFromGstin, taxBreakup, amountInWords, validPhone } = gst;
 export const {
   loadWorkspace, saveWorkspaceRecords, createSalesDocument, setSalesDocumentStatus, setFeedbackStatus,
   signedInElsewhere, inviteMember, deleteAccount, updateOrganization, loadAuditLog,
