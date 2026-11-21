@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { amountInWords, stateFromGstin, stateLabel, taxBreakup } from '../src/gst.js';
+import { amountInWords, indianMobile, stateFromGstin, stateLabel, taxBreakup } from '../src/gst.js';
 
 const karnataka = '29';
 const maharashtra = '27';
@@ -91,4 +91,16 @@ test('amountInWords uses lakh and crore and shows paise', () => {
 test('a missing or invalid GST rate counts as zero', () => {
   const bill = taxBreakup([{ qty: 1, price: 100, gst: '' }, { qty: 1, price: 100, gst: 'abc' }], { gstEnabled: true, sellerState: karnataka, buyerState: karnataka });
   assert.equal(bill.total, 200);
+});
+
+test('indianMobile accepts real mobile numbers and refuses fillers', () => {
+  assert.equal(indianMobile('98480 12345'), '9848012345');
+  assert.equal(indianMobile('+91 83281-40157'), '8328140157');
+  assert.equal(indianMobile('09848012345'), '9848012345');
+  assert.equal(indianMobile('8142'), '', 'too short');
+  assert.equal(indianMobile('01937502546'), '', 'not an Indian mobile');
+  assert.equal(indianMobile('5848012345'), '', 'mobiles start with 6 to 9');
+  assert.equal(indianMobile('9999999999'), '');
+  assert.equal(indianMobile('9876543210'), '');
+  assert.equal(indianMobile(''), '');
 });

@@ -86,3 +86,13 @@ export function amountInWords(amount) {
 function round(value) {
   return Math.round(value * 100) / 100;
 }
+
+// An Indian mobile number as 10 digits, or '' when it is not one. Spaces, dashes and a +91, 91 or 0
+// in front are allowed. Obvious fillers such as 9999999999 or 9876543210 are refused.
+export function indianMobile(value) {
+  let digits = String(value || '').replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) digits = digits.slice(2);
+  else if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1);
+  if (!/^[6-9]\d{9}$/.test(digits) || /^(\d)\1{9}$/.test(digits) || digits === '9876543210') return '';
+  return digits;
+}

@@ -645,5 +645,6 @@ export default {
   "I use Clearflow RO for GST bills, service jobs and spare parts. Use my code {code} when you set up your business: {link}": "मैं GST बिल, सर्विस जॉब और स्पेयर पार्ट्स के लिए Clearflow RO इस्तेमाल करता हूँ। अपना बिज़नेस सेट करते समय मेरा कोड {code} डालें: {link}",
   "Share your code with other dealers": "अपना कोड दूसरे डीलरों के साथ शेयर करें",
   "Share code": "कोड शेयर करें",
+  "Enter a valid 10-digit mobile number": "सही 10 अंकों का मोबाइल नंबर डालें",
   "Not saved. Try again.": "सेव नहीं हुआ। फिर से कोशिश करें।",
 };

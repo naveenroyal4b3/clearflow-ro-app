@@ -4,7 +4,7 @@ import { StateSelect } from '@/components/StateSelect';
 import { errorMessage } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
-import { applyReferral, stateFromGstin, updateOrganization } from '@/lib/shared';
+import { applyReferral, indianMobile, stateFromGstin, updateOrganization } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
 
 // A new owner's last step: the business that will be printed as the seller on invoices.
@@ -17,6 +17,7 @@ export default function Setup() {
 
   const create = async () => {
     setError('');
+    if (!indianMobile(form.phone)) { setError(t('Enter a valid 10-digit mobile number')); return; }
     const { data: organizationId, error: createError } = await supabase.rpc('create_organization', { organization_name: form.name.trim(), organization_gstin: form.gstin.trim() || null });
     if (createError) { setError(createError.message); return; }
     try {
@@ -40,9 +41,9 @@ export default function Setup() {
         <Field label={t('GSTIN (optional)')} value={form.gstin} onChangeText={set('gstin')} autoCapitalize="characters" maxLength={15} />
         <Field label={t('Business address')} value={form.address} onChangeText={set('address')} multiline maxLength={300} />
         <StateSelect label={t('State')} value={form.state} onChange={set('state')} />
-        <Field label={t('Business phone')} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
+        <Field label={t('Business phone')} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" maxLength={16} placeholder="98480 12345" />
         <Field label={t('Referral code (optional)')} value={form.referral} onChangeText={value => set('referral')(value.toUpperCase())} autoCapitalize="characters" maxLength={6} />
-        <Button label={t('Create workspace')} onPress={create} disabled={form.name.trim().length < 2} />
+        <Button label={t('Create workspace')} onPress={create} disabled={form.name.trim().length < 2 || !form.phone.trim()} />
         <Button label={t('Sign out')} variant="link" onPress={signOut} />
       </Card>
     </Screen>

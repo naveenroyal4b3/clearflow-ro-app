@@ -5,7 +5,7 @@ import { Button, Field, Notice, Screen } from '@/components/ui';
 import { errorMessage } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
-import { stateFromGstin, updateOrganization } from '@/lib/shared';
+import { indianMobile, stateFromGstin, updateOrganization } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
 
 // The seller details printed on quotations and GST invoices. Allowed even when the plan has ended.
@@ -18,6 +18,7 @@ export default function BusinessDetails() {
 
   const save = async () => {
     setError('');
+    if (!indianMobile(form.phone)) { setError(t('Enter a valid 10-digit mobile number')); return; }
     try {
       setOrganization(await updateOrganization(supabase, organization.id, { ...form, state: form.state || stateFromGstin(form.gstin) }));
       router.back();
@@ -34,7 +35,7 @@ export default function BusinessDetails() {
       <Field label={t('GSTIN')} value={form.gstin} onChangeText={set('gstin')} autoCapitalize="characters" maxLength={15} hint={t('Needed to issue GST invoices.')} />
       <StateSelect label={t('State')} value={form.state} onChange={set('state')} />
       <Field label={t('Business address')} value={form.address} onChangeText={set('address')} multiline maxLength={300} />
-      <Field label={t('Business phone')} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
+      <Field label={t('Business phone')} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" maxLength={16} />
       <Button label={t('Save details')} onPress={save} disabled={Boolean(offlineSince) || form.name.trim().length < 2} />
     </Screen>
   );
