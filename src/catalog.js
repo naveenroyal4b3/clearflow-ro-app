@@ -1,5 +1,6 @@
 // @ts-check
-// The ready-made product catalogue: water purifier models and RO spare parts sold in India, by brand.
+// The ready-made product catalogue: water purifier models and RO spare parts sold in India, by brand,
+// and common home appliances with their spare parts.
 // Shared by the web app and the native app. A business picks an item to start a product with its
 // name, category, HSN code, GST rate and unit filled in, then enters its own prices and stock.
 // The items live in catalog-data.js; add new models there.

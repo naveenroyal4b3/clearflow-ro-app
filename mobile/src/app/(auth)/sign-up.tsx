@@ -32,7 +32,7 @@ export default function SignUp() {
     <Screen>
       <Card>
         <Brand />
-        <Heading title={t('Create your workspace')} subtitle={t('Set up the owner account for your water business.')} />
+        <Heading title={t('Create your workspace')} subtitle={t('Set up the owner account for your business.')} />
         {authMessage ? <Notice tone="warning">{authMessage}</Notice> : null}
         <GoogleButton />
         <Text style={[styles.hint, { textAlign: 'center' }]}>{t('or use email')}</Text>

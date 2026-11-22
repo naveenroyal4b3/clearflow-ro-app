@@ -11,7 +11,7 @@ import { saveWorkspaceRecords } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
 import type { Job } from '@/lib/types';
 
-const jobTypes = [msg('Installation'), msg('Filter replacement'), msg('Routine maintenance'), msg('Quarterly maintenance'), msg('Low water flow'), msg('Repair'), msg('Other')];
+const jobTypes = [msg('Installation'), msg('Uninstallation'), msg('Repair'), msg('Service / cleaning'), msg('Gas refill'), msg('Filter replacement'), msg('Routine maintenance'), msg('Quarterly maintenance'), msg('Low water flow'), msg('Other')];
 const allStatuses = [msg('Scheduled'), msg('In progress'), msg('Completed'), msg('Cancelled')];
 // Values are stored in English and shown translated.
 const toOptions = (values: string[]) => values.map(value => ({ value, label: t(value) }));

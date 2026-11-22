@@ -64,8 +64,14 @@ export function setLanguage(code) {
  * @param {string} text English text, used as the key.
  * @param {Record<string, string | number>} [values] Fills {placeholders}.
  */
+// Stored words shown differently: the 'Purifiers' product category (a value the database checks)
+// now holds every home appliance, so it is shown as "Appliances" in every language.
+/** @type {Record<string, string>} */
+const shownAs = { Purifiers: 'Appliances' };
+
 export function t(text, values) {
-  const translated = (current === 'en' ? undefined : dictionaries[current]?.[text]) || text;
+  const key = shownAs[text] || text;
+  const translated = (current === 'en' ? undefined : dictionaries[current]?.[key]) || key;
   return values ? translated.replace(/\{(\w+)\}/g, (match, name) => (name in values ? String(values[name]) : match)) : translated;
 }
 

@@ -26,7 +26,7 @@ export default function SignIn() {
       <Card>
         <Brand />
         <LanguagePicker />
-        <Heading title={t('Welcome back')} subtitle={t('Sign in to your water business workspace.')} />
+        <Heading title={t('Welcome back')} subtitle={t('Sign in to your business workspace.')} />
         {authMessage ? <Notice tone="warning">{authMessage}</Notice> : null}
         <GoogleButton />
         <Text style={[styles.hint, { textAlign: 'center' }]}>{t('or use email')}</Text>
