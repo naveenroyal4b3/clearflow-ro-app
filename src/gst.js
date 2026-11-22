@@ -103,3 +103,20 @@ export function validPhone(value) {
   if (!/^[6-9]\d{9}$/.test(digits) || digits === '9876543210') return '';
   return digits;
 }
+
+// The phone form has a country code box (+91 by default) and a number box. joinPhone makes the
+// text validPhone checks; a number typed with its own + wins over the code box. splitPhone fills
+// the two boxes from a saved phone: 10 digits are Indian, +... is kept whole in the number box.
+export function joinPhone(code, number) {
+  const typed = String(number || '').trim();
+  if (typed.startsWith('+')) return typed;
+  const digits = String(code || '').replace(/\D/g, '');
+  return digits ? `+${digits} ${typed}` : typed;
+}
+
+export function splitPhone(value) {
+  const saved = String(value || '').trim();
+  if (saved.startsWith('+91')) return { code: '+91', number: saved.slice(3).trim() };
+  if (saved.startsWith('+')) return { code: '', number: saved };
+  return { code: '+91', number: saved };
+}

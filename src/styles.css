@@ -300,3 +300,6 @@ td strong { color: #364640; font-size: 10px; font-weight: 700; }
 .google-button svg { width: 17px; height: 17px; }
 .auth-divider { display: flex; align-items: center; gap: 10px; margin: 14px 0; color: #8a9893; font-size: 11px; }
 .auth-divider::before, .auth-divider::after { content: ''; flex: 1; border-top: 1px solid #e3e9e5; }
+
+/* Country code and mobile number side by side. */
+.phone-row { display: grid; grid-template-columns: 76px 1fr; gap: 8px; }

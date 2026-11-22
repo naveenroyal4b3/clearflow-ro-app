@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization, uploadProductImage, productImageUrls, loadCatalogPhotos, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto, sendAppFeedback, loadAppFeedback, removeAppFeedback, applyReferral, appLinks } from './supabase-data.js';
 import { catalogPhotoUrl, photoCredits, productArtSvg, productKindLabels, productKinds } from './product-icons.js';
-import { stateFromGstin, stateOptions, taxBreakup, validPhone } from './gst.js';
+import { stateFromGstin, stateOptions, taxBreakup, validPhone, joinPhone, splitPhone } from './gst.js';
 import { catalog, catalogItem } from './catalog.js';
 import { documentDetails as sharedDocumentDetails, documentHtml, invoiceRegisterHeader, invoiceRegisterRows } from './documents.js';
 import { languages, getLanguage, setLanguage, t, msg } from './i18n.js';
@@ -204,17 +204,19 @@ function renderOrganizationSetup(message = '') {
   appShell.hidden = true;
   authRoot.className = 'auth-screen';
   const userMetadata = authSession.user.user_metadata || {};
-  authRoot.innerHTML = `<section class="auth-card">${authBrand()}<h1>${t('Finish business setup')}</h1><p>${t('Confirm the legal details for your organization before adding customers or issuing invoices.')}</p>${message ? `<div class="auth-message" role="alert">${esc(message)}</div>` : ''}<form class="auth-form" id="organization-form"><div class="field"><label for="organization-name">${t('Business name')}</label><input id="organization-name" name="name" required maxlength="160" value="${esc(userMetadata.organization_name || '')}"></div><div class="field"><label for="organization-gstin">${t('GSTIN (optional)')}</label><input id="organization-gstin" name="gstin" maxlength="15" value="${esc(userMetadata.gstin || '')}"></div><div class="field"><label for="organization-address">${t('Business address')}</label><input id="organization-address" name="address" maxlength="300"></div><div class="field"><label for="organization-state">${t('State')}</label><select id="organization-state" name="state">${stateOptions(stateFromGstin(userMetadata.gstin))}</select></div><div class="field"><label for="organization-phone">${t('Business phone')}</label><input id="organization-phone" name="phone" type="tel" required inputmode="tel" maxlength="16" placeholder="98480 12345" value="${esc(userMetadata.phone || '')}"></div><div class="field"><label for="organization-referral">${t('Referral code (optional)')}</label><input id="organization-referral" name="referral" maxlength="6" autocapitalize="characters" value="${esc(savedReferral())}"></div><button class="button" type="submit">${t('Create workspace')}</button></form></section>`;
+  authRoot.innerHTML = `<section class="auth-card">${authBrand()}<h1>${t('Finish business setup')}</h1><p>${t('Confirm the legal details for your organization before adding customers or issuing invoices.')}</p>${message ? `<div class="auth-message" role="alert">${esc(message)}</div>` : ''}<form class="auth-form" id="organization-form"><div class="field"><label for="organization-name">${t('Business name')}</label><input id="organization-name" name="name" required maxlength="160" value="${esc(userMetadata.organization_name || '')}"></div><div class="field"><label for="organization-gstin">${t('GSTIN (optional)')}</label><input id="organization-gstin" name="gstin" maxlength="15" value="${esc(userMetadata.gstin || '')}"></div><div class="field"><label for="organization-address">${t('Business address')}</label><input id="organization-address" name="address" maxlength="300"></div><div class="field"><label for="organization-state">${t('State')}</label><select id="organization-state" name="state">${stateOptions(stateFromGstin(userMetadata.gstin))}</select></div><div class="field"><label for="organization-phone">${t('Business phone')}</label><div class="phone-row"><input name="country_code" aria-label="${t('Country code')}" inputmode="tel" maxlength="5" value="${esc(splitPhone(userMetadata.phone).code)}"><input id="organization-phone" name="phone" type="tel" required inputmode="tel" maxlength="18" placeholder="98480 12345" value="${esc(splitPhone(userMetadata.phone).number)}"></div></div><div class="field"><label for="organization-referral">${t('Referral code (optional)')}</label><input id="organization-referral" name="referral" maxlength="6" autocapitalize="characters" value="${esc(savedReferral())}"></div><button class="button" type="submit">${t('Create workspace')}</button></form></section>`;
   authRoot.querySelector('#organization-form').addEventListener('submit', async event => {
     event.preventDefault();
     const phoneInput = event.currentTarget.querySelector('#organization-phone');
-    if (!validPhone(phoneInput.value)) {
-      phoneInput.setCustomValidity(t('Enter a valid mobile number. Outside India, start with + and the country code.'));
+    const codeInput = event.currentTarget.querySelector('[name="country_code"]');
+    if (!validPhone(joinPhone(codeInput.value, phoneInput.value))) {
+      phoneInput.setCustomValidity(t('Enter a valid mobile number and country code.'));
       phoneInput.reportValidity();
       phoneInput.addEventListener('input', () => phoneInput.setCustomValidity(''), { once: true });
       return;
     }
     const values = Object.fromEntries(new FormData(event.currentTarget).entries());
+    values.phone = joinPhone(values.country_code, values.phone);
     const { data: organizationId, error } = await supabaseClient.rpc('create_organization', { organization_name: values.name.trim(), organization_gstin: values.gstin.trim() || null });
     if (error) { renderOrganizationSetup(error.message); return; }
     try {
@@ -835,9 +837,10 @@ function openMoreMenu() {
 function openBusinessForm() {
   if (profile.role !== 'owner') { toast(t('Only the owner can change business details')); return; }
   const item = organization || {};
-  showModal(t('Business details'), t('Printed as the seller on quotations and GST invoices'), `<div class="form-grid"><div class="field full"><label for="name">${t('Business name *')}</label><input id="name" name="name" required maxlength="160" value="${esc(item.name || '')}"></div><div class="field"><label for="gstin">${t('GSTIN')}</label><input id="gstin" name="gstin" maxlength="15" value="${esc(item.gstin || '')}"></div><div class="field"><label for="state">${t('State')}</label><select id="state" name="state">${stateOptions(item.state_code || '')}</select></div><div class="field full"><label for="address">${t('Business address')}</label><textarea id="address" name="address" maxlength="300">${esc(item.address || '')}</textarea></div><div class="field"><label for="phone">${t('Business phone')}</label><input id="phone" name="phone" type="tel" required inputmode="tel" maxlength="16" value="${esc(item.phone || '')}"></div></div>`, t('Save details'), async form => {
+  showModal(t('Business details'), t('Printed as the seller on quotations and GST invoices'), `<div class="form-grid"><div class="field full"><label for="name">${t('Business name *')}</label><input id="name" name="name" required maxlength="160" value="${esc(item.name || '')}"></div><div class="field"><label for="gstin">${t('GSTIN')}</label><input id="gstin" name="gstin" maxlength="15" value="${esc(item.gstin || '')}"></div><div class="field"><label for="state">${t('State')}</label><select id="state" name="state">${stateOptions(item.state_code || '')}</select></div><div class="field full"><label for="address">${t('Business address')}</label><textarea id="address" name="address" maxlength="300">${esc(item.address || '')}</textarea></div><div class="field"><label for="phone">${t('Business phone')}</label><div class="phone-row"><input name="country_code" aria-label="${t('Country code')}" inputmode="tel" maxlength="5" value="${esc(splitPhone(item.phone).code)}"><input id="phone" name="phone" type="tel" required inputmode="tel" maxlength="18" value="${esc(splitPhone(item.phone).number)}"></div></div></div>`, t('Save details'), async form => {
     const values = Object.fromEntries(form.entries());
-    if (!validPhone(values.phone)) throw new Error(t('Enter a valid mobile number. Outside India, start with + and the country code.'));
+    values.phone = joinPhone(values.country_code, values.phone);
+    if (!validPhone(values.phone)) throw new Error(t('Enter a valid mobile number and country code.'));
     organization = await updateOrganization(supabaseClient, profile.organization_id, { ...values, state: values.state || stateFromGstin(values.gstin) });
     closeModal(); render(); toast(t('Business details saved'));
   });

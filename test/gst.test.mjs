@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { amountInWords, validPhone, stateFromGstin, stateLabel, taxBreakup } from '../src/gst.js';
+import { amountInWords, joinPhone, splitPhone, validPhone, stateFromGstin, stateLabel, taxBreakup } from '../src/gst.js';
 
 const karnataka = '29';
 const maharashtra = '27';
@@ -108,4 +108,14 @@ test('validPhone accepts real mobile numbers from India and other countries', ()
   assert.equal(validPhone('+999999999999'), '');
   assert.equal(validPhone('9876543210'), '');
   assert.equal(validPhone(''), '');
+});
+
+test('the country code box and number box join into a phone validPhone accepts', () => {
+  assert.equal(validPhone(joinPhone('+91', '98480 12345')), '9848012345');
+  assert.equal(validPhone(joinPhone('880', '1937 502546')), '+8801937502546');
+  assert.equal(validPhone(joinPhone('+91', '+1 415 555 2671')), '+14155552671', 'a typed + wins');
+  assert.equal(validPhone(joinPhone('', '98480 12345')), '9848012345');
+  assert.deepEqual(splitPhone('9848012345'), { code: '+91', number: '9848012345' });
+  assert.deepEqual(splitPhone('+8801937502546'), { code: '', number: '+8801937502546' });
+  assert.deepEqual(splitPhone(''), { code: '+91', number: '' });
 });
