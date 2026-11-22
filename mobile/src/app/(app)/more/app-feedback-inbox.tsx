@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 
 const when = (value: string) => new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
 
-// Suggestions and problems that every business sent to Clearflow, newest first. For platform
+// Suggestions and problems that every business sent to TiruFix, newest first. For platform
 // admins only (the app's operator), so it is not translated. Pull down to refresh.
 export default function AppFeedbackInbox() {
   const admin = usePlatformAdmin();
@@ -41,7 +41,7 @@ export default function AppFeedbackInbox() {
   ]);
 
   if (admin === null) return null;
-  if (!admin) return <View style={ui.padded}><Notice tone="warning">Only the Clearflow team can see app feedback.</Notice></View>;
+  if (!admin) return <View style={ui.padded}><Notice tone="warning">Only the TiruFix team can see app feedback.</Notice></View>;
   return (
     <FlatList
       data={rows}

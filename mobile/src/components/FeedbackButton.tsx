@@ -5,12 +5,12 @@ import { Pressable, View } from 'react-native';
 import { colors } from './ui';
 import { t } from '@/lib/i18n';
 
-// Opens the form for sending a suggestion or problem to the Clearflow team, noting the screen it
+// Opens the form for sending a suggestion or problem to the TiruFix team, noting the screen it
 // was opened from. Shown in the header of every screen.
 export function FeedbackButton() {
   const page = usePathname();
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={t('Send feedback to Clearflow')} onPress={() => router.push({ pathname: '/app-feedback', params: { page } })} hitSlop={12} style={{ paddingHorizontal: 8 }}>
+    <Pressable accessibilityRole="button" accessibilityLabel={t('Send feedback to TiruFix')} onPress={() => router.push({ pathname: '/app-feedback', params: { page } })} hitSlop={12} style={{ paddingHorizontal: 8 }}>
       <Ionicons name="chatbubble-ellipses-outline" size={23} color={colors.teal} />
     </Pressable>
   );

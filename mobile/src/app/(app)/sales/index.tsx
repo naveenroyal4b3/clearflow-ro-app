@@ -36,7 +36,7 @@ export default function Sales() {
   const exportInvoices = async () => {
     const rows = invoiceRegisterRows(data.documents, doc => detailsFor(doc, data, organization));
     if (!rows.length) { Alert.alert(t('No invoices yet'), t('There are no invoices to export yet.')); return; }
-    const title = `${organization?.name || 'Clearflow'} invoices ${today()}`;
+    const title = `${organization?.name || 'TiruFix'} invoices ${today()}`;
     try { await sharePdf(invoiceRegisterHtml(title, rows), title); } catch (error) { Alert.alert(t('Export failed'), errorMessage(error, t('Try again.'))); }
   };
 

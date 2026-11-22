@@ -16,7 +16,7 @@ const icons = {
   person: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>',
   service: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 6 18 2l4 4-4 4M20 8l-8.5 8.5M13 5l6 6M5 8l4-4 4 4-4 4M3 20l5-5 4 4-5 5H3z"/></svg>',
   invoice: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 3h14v18l-3.5-2-3.5 2-3.5-2L5 21zM8 8h8M8 12h8M8 16h4"/></svg>',
-  // The Clearflow logo: a water drop with ripples (matches the app icon).
+  // The TiruFix logo: a water drop with ripples (matches the app icon).
   brand: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2S6 10.2 6 14a6 6 0 0 0 12 0c0-3.8-6-10.8-6-10.8Z" fill="currentColor"/><path d="M8.6 14c.9-.7 1.8-.7 2.6 0s1.8.7 2.6 0M9.8 16.7c.6-.5 1.2-.5 1.8 0s1.2.5 1.8 0" fill="none" stroke="#197c70" stroke-width="1.2" stroke-linecap="round"/></svg>',
   product: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7.5 12 3l8 4.5-8 4.5zM4 12l8 4.5 8-4.5M4 16.5 12 21l8-4.5"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></svg>',
@@ -163,7 +163,7 @@ function webRedirectOption(name) {
   return { [name]: window.location.origin + window.location.pathname };
 }
 function authBrand() {
-  return `<div class="auth-brand"><div class="brand-mark">${icons.brand}</div><div><div class="brand-name">clearflow</div><div class="brand-caption">${t('SERVICE · SALES · STOCK')}</div></div></div>`;
+  return `<div class="auth-brand"><div class="brand-mark">${icons.brand}</div><div><div class="brand-name">tirufix</div><div class="brand-caption">${t('SERVICE · SALES · STOCK')}</div></div></div>`;
 }
 function renderPasswordResetRequest(message = '') {
   appShell.hidden = true;
@@ -342,7 +342,7 @@ async function initializeApp() {
   if (error) { renderAuth('sign-in', error.message); return; }
   if (sessionData.session && (authLinkType === 'invite' || authLinkType === 'recovery')) { renderSetPassword(sessionData.session, authLinkType); return; }
   if (sessionData.session) await openAuthenticatedApp(sessionData.session);
-  else renderAuth('sign-in', deleteAccountRequested ? t('Sign in to delete your Clearflow account.') : '');
+  else renderAuth('sign-in', deleteAccountRequested ? t('Sign in to delete your TiruFix account.') : '');
 }
 function esc(value = '') { return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]); }
 // Whole rupees unless the amount has paise. Printed documents always show paise (see rupees).
@@ -425,7 +425,7 @@ function planSection() {
 function referralSection() {
   const code = organization?.referral_code;
   if (profile.role !== 'owner' || !code) return '';
-  const message = t('I use Clearflow RO for GST bills, service jobs and spare parts. Use my code {code} when you set up your business: {link}', { code, link: `${appLinks.website}?ref=${code}` });
+  const message = t('I use TiruFix for GST bills, service jobs and spare parts. Use my code {code} when you set up your business: {link}', { code, link: `${appLinks.website}?ref=${code}` });
   const canEnter = !organization.referred_by && !organization.paid_until && Date.now() - new Date(organization.created_at).getTime() < 14 * 86400000;
   const enter = canEnter ? `<div class="referral-enter"><label for="referral-input">${t('Have a code from another dealer?')}</label><input id="referral-input" maxlength="6" autocapitalize="characters"><button class="button secondary" type="button" data-action="apply-referral">${t('Apply')}</button></div>` : '';
   return `<div class="notice"><strong>${t('Refer a dealer')}.</strong> ${t('When a dealer you refer pays for their first plan, you both get 1 month free.')} ${t('Your referral code')}: <strong class="referral-code">${esc(code)}</strong> <a class="button secondary" href="https://wa.me/?text=${encodeURIComponent(message)}" target="_blank" rel="noopener">${t('Share on WhatsApp')}</a>${enter}</div>`;
@@ -793,12 +793,12 @@ function openFeedbackForm() {
     closeModal(); render(); toast(t('Feedback submitted'));
   }, true);
 }
-// Suggestions and problems about the app go to the Clearflow team, from any page.
+// Suggestions and problems about the app go to the TiruFix team, from any page.
 function openAppFeedbackForm() {
   if (!supabaseClient || !profile) return;
   const kinds = [msg('Suggestion'), msg('Problem')];
   const inbox = platformAdmin ? '<p><button class="button secondary" type="button" data-action="open-app-feedback">See all app feedback</button></p>' : '';
-  showModal(t('Send feedback to Clearflow'), t('Ideas to improve the app, or something that is not working'), `<div class="form-grid"><div class="field full"><label for="kind">${t('What would you like to share? *')}</label><select id="kind" name="kind">${kinds.map(kind => `<option value="${kind}">${t(kind)}</option>`).join('')}</select></div><div class="field full"><label for="message">${t('Your message *')}</label><textarea id="message" name="message" required maxlength="2000"></textarea></div></div><p class="panel-note">${t('This goes to the Clearflow app team.')}</p>${inbox}`, t('Send feedback'), async form => {
+  showModal(t('Send feedback to TiruFix'), t('Ideas to improve the app, or something that is not working'), `<div class="form-grid"><div class="field full"><label for="kind">${t('What would you like to share? *')}</label><select id="kind" name="kind">${kinds.map(kind => `<option value="${kind}">${t(kind)}</option>`).join('')}</select></div><div class="field full"><label for="message">${t('Your message *')}</label><textarea id="message" name="message" required maxlength="2000"></textarea></div></div><p class="panel-note">${t('This goes to the TiruFix app team.')}</p>${inbox}`, t('Send feedback'), async form => {
     await sendAppFeedback(supabaseClient, { kind: form.get('kind'), page: view, message: String(form.get('message')), platform: 'web', appVersion });
     closeModal(); toast(t('Thank you! Your feedback was sent.'));
   });
@@ -806,14 +806,14 @@ function openAppFeedbackForm() {
 // Every business's app feedback, for platform admins (the app's operator), so it is not translated.
 function renderAppFeedback() {
   if (appFeedbackRows === null) {
-    page.innerHTML = `${pageHead('Clearflow', 'App feedback', 'Loading…')}`;
+    page.innerHTML = `${pageHead('TiruFix', 'App feedback', 'Loading…')}`;
     loadAppFeedback(supabaseClient)
       .then(rows => { appFeedbackRows = rows; if (appFeedbackOpen) render(); })
       .catch(error => { appFeedbackRows = []; toast(errorMessage(error, 'Could not load app feedback')); if (appFeedbackOpen) render(); });
     return;
   }
   const when = value => new Date(value).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
-  page.innerHTML = `${pageHead('Clearflow', 'App feedback', `${appFeedbackRows.length} from every business, newest first`, '<button class="button secondary" data-action="close-app-feedback">Back</button>')}
+  page.innerHTML = `${pageHead('TiruFix', 'App feedback', `${appFeedbackRows.length} from every business, newest first`, '<button class="button secondary" data-action="close-app-feedback">Back</button>')}
     <section class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>Sent</th><th>Type</th><th>Message</th><th>From</th><th>Where</th><th></th></tr></thead><tbody>${appFeedbackRows.length ? appFeedbackRows.map(item => `<tr><td>${esc(when(item.created_at))}</td><td><span class="status ${item.kind === 'Problem' ? 'urgent' : 'normal'}">${esc(item.kind)}</span></td><td><div class="app-feedback-message">${esc(item.message)}</div></td><td><strong>${esc(item.name || '—')}</strong><div class="muted-cell">${esc(item.business)} · ${esc(item.role)}</div><div class="muted-cell">${esc(item.phone)}${item.email ? ` · ${esc(item.email)}` : ''}</div></td><td>${esc(item.page)}<div class="muted-cell">${esc(item.platform)} ${esc(item.app_version)}</div></td><td><button class="button secondary" type="button" data-remove-app-feedback="${esc(item.id)}">Remove</button></td></tr>`).join('') : '<tr><td colspan="6" class="empty">No app feedback yet.</td></tr>'}</tbody></table></div></section>`;
 }
 async function deleteAppFeedback(id) {
@@ -953,7 +953,7 @@ function printHtml(html) {
 function exportInvoices() {
   const rows = invoiceRegisterRows(data.documents, documentDetails);
   if (!rows.length) { toast(t('There are no invoices to export yet')); return; }
-  const fileName = `${organization?.name || 'clearflow'} invoices ${new Date().toISOString().slice(0, 10)}`;
+  const fileName = `${organization?.name || 'tirufix'} invoices ${new Date().toISOString().slice(0, 10)}`;
   const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
   const csv = [invoiceRegisterHeader, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
   const link = document.createElement('a');
@@ -973,7 +973,7 @@ function setOwnText(element, text) {
   if (node) node.textContent = text;
 }
 function translateShell() {
-  document.title = t('Clearflow | Service & Billing');
+  document.title = t('TiruFix | Service & Billing');
   document.querySelectorAll('.nav-item[data-view]').forEach(button => setOwnText(button, t(viewTitles[button.dataset.view])));
   setOwnText(document.querySelector('.nav-item[data-action="more-menu"]'), t('More'));
   document.querySelector('.nav')?.setAttribute('aria-label', t('Main navigation'));
@@ -989,8 +989,8 @@ function translateShell() {
   const tierLabels = { customer: t('Customer prices'), technician: t('Technician prices'), shop: t('Shop prices') };
   roleSelect.querySelectorAll('option').forEach(option => setOwnText(option, tierLabels[option.value] || option.textContent));
   const suggest = document.getElementById('suggest-button');
-  suggest.setAttribute('title', t('Send feedback to Clearflow'));
-  suggest.setAttribute('aria-label', t('Send feedback to Clearflow'));
+  suggest.setAttribute('title', t('Send feedback to TiruFix'));
+  suggest.setAttribute('aria-label', t('Send feedback to TiruFix'));
   suggest.querySelector('span').textContent = t('Suggest');
   const help = document.getElementById('help-button');
   help.setAttribute('aria-label', t('Help'));
