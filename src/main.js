@@ -36,7 +36,7 @@ msg('Draft'); msg('Sent'); msg('Pending'); msg('Paid');
 msg('Invoice'); msg('Quotation');
 msg('Purifiers'); msg('Accessories'); msg('Spare parts');
 // Appliance types (applianceGroups in product-icons.js), shown with t().
-msg('All types'); msg('RO & water purifiers'); msg('Air conditioners'); msg('Refrigerators & freezers'); msg('Washing machines & dishwashers'); msg('TVs & audio'); msg('Kitchen appliances'); msg('Water heaters'); msg('Coolers, fans & room heaters'); msg('Cleaning & personal care'); msg('Inverters, batteries & stabilizers'); msg('Water pumps'); msg('Other');
+msg('All types'); msg('Water purifiers'); msg('Air conditioners'); msg('Refrigerators & freezers'); msg('Washing machines & dishwashers'); msg('TVs & audio'); msg('Kitchen appliances'); msg('Water heaters'); msg('Coolers, fans & room heaters'); msg('Cleaning & personal care'); msg('Inverters, batteries & stabilizers'); msg('Water pumps'); msg('Other');
 msg('Active'); msg('Inactive');
 msg('Customer feedback'); msg('Issue'); msg('Bug'); msg('Feature request');
 msg('Normal'); msg('High'); msg('Urgent');

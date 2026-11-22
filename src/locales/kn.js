@@ -654,7 +654,7 @@ export default {
   "Gas refill": "ಗ್ಯಾಸ್ ರೀಫಿಲ್",
   "Type": "ಪ್ರಕಾರ",
   "All types": "ಎಲ್ಲಾ ಪ್ರಕಾರಗಳು",
-  "RO & water purifiers": "RO & ನೀರಿನ ಶುದ್ಧೀಕರಣ ಯಂತ್ರಗಳು",
+  "Water purifiers": "ನೀರಿನ ಶುದ್ಧೀಕರಣ ಯಂತ್ರಗಳು",
   "Air conditioners": "ಏರ್ ಕಂಡೀಷನರ್‌ಗಳು (AC)",
   "Refrigerators & freezers": "ಫ್ರಿಜ್‌ಗಳು & ಫ್ರೀಜರ್‌ಗಳು",
   "Washing machines & dishwashers": "ವಾಷಿಂಗ್ ಮೆಷಿನ್‌ಗಳು & ಡಿಶ್‌ವಾಷರ್‌ಗಳು",

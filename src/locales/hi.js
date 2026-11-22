@@ -654,7 +654,7 @@ export default {
   "Gas refill": "गैस रिफ़िल",
   "Type": "प्रकार",
   "All types": "सभी प्रकार",
-  "RO & water purifiers": "RO और वॉटर प्यूरीफ़ायर",
+  "Water purifiers": "वॉटर प्यूरीफ़ायर",
   "Air conditioners": "एयर कंडीशनर (AC)",
   "Refrigerators & freezers": "फ्रिज और फ़्रीज़र",
   "Washing machines & dishwashers": "वॉशिंग मशीन और डिशवॉशर",

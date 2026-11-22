@@ -161,22 +161,22 @@ export const productKinds = Object.keys(art);
 export const productKindLabels = { purifier: 'Purifier', membrane: 'RO membrane', filter: 'Filter / cartridge', pump: 'Pump (booster / water)', adapter: 'Adapter / SMPS', uv: 'UV lamp', valve: 'Valve / switch', tap: 'Tap', tank: 'Tank', pipe: 'Pipe / fitting', meter: 'TDS meter', kit: 'Service kit', airpurifier: 'Air purifier', ac: 'Air conditioner', fridge: 'Refrigerator / freezer', dishwasher: 'Dishwasher', washer: 'Washing machine / dryer', microwave: 'Microwave / oven', geyser: 'Water heater (geyser)', tv: 'Television', chimney: 'Kitchen chimney', cooler: 'Air cooler', heater: 'Room heater', fan: 'Fan', mixer: 'Mixer / grinder', stove: 'Stove / induction / hob', vacuum: 'Vacuum cleaner', iron: 'Iron / steamer', personal: 'Hair dryer and personal care', kitchen: 'Kettle, toaster and small kitchen', inverter: 'Inverter / UPS / battery', stabilizer: 'Voltage stabilizer', compressor: 'Compressor', gas: 'Refrigerant gas', capacitor: 'Capacitor', remote: 'Remote', motor: 'Motor', element: 'Heating element', board: 'PCB / thermostat / timer', part: 'Other part' };
 
 // Appliance types for browsing: every product belongs to one, so the catalogue and the product list
-// can be shown type by type (ACs, refrigerators, RO and so on) instead of one long list. Appliances
+// can be shown type by type (ACs, refrigerators, water purifiers and so on) instead of one long list. Appliances
 // get theirs from their drawing kind; parts and accessories from the appliance named in them, and
-// otherwise RO (the parts the catalogue started with) or Other. Labels are English, shown with t().
+// otherwise water purifiers (the RO parts the catalogue started with) or Other. Labels are English, shown with t().
 /** @type {[string, string][]} */
 export const applianceGroups = [
-  ['ro', 'RO & water purifiers'],
   ['ac', 'Air conditioners'],
-  ['fridge', 'Refrigerators & freezers'],
-  ['washer', 'Washing machines & dishwashers'],
-  ['tv', 'TVs & audio'],
-  ['kitchen', 'Kitchen appliances'],
-  ['heater', 'Water heaters'],
-  ['cooling', 'Coolers, fans & room heaters'],
   ['care', 'Cleaning & personal care'],
+  ['cooling', 'Coolers, fans & room heaters'],
   ['power', 'Inverters, batteries & stabilizers'],
+  ['kitchen', 'Kitchen appliances'],
+  ['fridge', 'Refrigerators & freezers'],
+  ['tv', 'TVs & audio'],
+  ['washer', 'Washing machines & dishwashers'],
+  ['heater', 'Water heaters'],
   ['pump', 'Water pumps'],
+  ['ro', 'Water purifiers'],
   ['other', 'Other']
 ];
 

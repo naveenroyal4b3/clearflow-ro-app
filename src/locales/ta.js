@@ -654,7 +654,7 @@ export default {
   "Gas refill": "கேஸ் ரீஃபில்",
   "Type": "வகை",
   "All types": "அனைத்து வகைகள்",
-  "RO & water purifiers": "RO & நீர் சுத்திகரிப்பான்கள்",
+  "Water purifiers": "நீர் சுத்திகரிப்பான்கள்",
   "Air conditioners": "ஏர் கண்டிஷனர்கள் (AC)",
   "Refrigerators & freezers": "குளிர்சாதனப் பெட்டிகள் & ஃப்ரீசர்கள்",
   "Washing machines & dishwashers": "சலவை இயந்திரங்கள் & டிஷ்வாஷர்கள்",

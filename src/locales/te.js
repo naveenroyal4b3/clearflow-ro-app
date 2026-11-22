@@ -654,7 +654,7 @@ export default {
   "Gas refill": "గ్యాస్ రీఫిల్",
   "Type": "రకం",
   "All types": "అన్ని రకాలు",
-  "RO & water purifiers": "RO & వాటర్ ప్యూరిఫైయర్లు",
+  "Water purifiers": "వాటర్ ప్యూరిఫైయర్లు",
   "Air conditioners": "ఎయిర్ కండిషనర్లు (AC)",
   "Refrigerators & freezers": "ఫ్రిజ్‌లు & ఫ్రీజర్లు",
   "Washing machines & dishwashers": "వాషింగ్ మెషిన్లు & డిష్‌వాషర్లు",
