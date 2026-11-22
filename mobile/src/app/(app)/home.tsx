@@ -39,7 +39,7 @@ export default function Overview() {
     <SafeAreaView style={ui.screen} edges={['left', 'right']}>
       <ScrollView contentContainerStyle={ui.padded} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} colors={[colors.teal]} />}>
         <PlanNotice />
-        <Heading eyebrow={new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long' }).format(now)} title={greeting} subtitle={t('Here’s what’s happening across your water business today.')} />
+        <Heading eyebrow={new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long' }).format(now)} title={greeting} subtitle={t('Here’s what’s happening across your business today.')} />
 
         <View style={local.metrics}>
           <Metric label={t('{month} sales', { month: new Intl.DateTimeFormat('en', { month: 'long' }).format(now) })} value={money(monthTotal)} />
@@ -50,7 +50,7 @@ export default function Overview() {
 
         {owner && !data.customers.length && !data.products.length ? (
           <Card style={{ backgroundColor: colors.tealPale }}>
-            <CardTitle title={t('Set up your RO workspace')} note={t('Add your first customer to start managing service and sales.')} />
+            <CardTitle title={t('Set up your workspace')} note={t('Add your first customer to start managing service and sales.')} />
             <Button label={t('Add customer')} onPress={() => router.push('/customers/edit')} />
             <Button label={t('Add product')} variant="secondary" onPress={() => router.push('/catalog/edit')} />
           </Card>

@@ -51,7 +51,7 @@ export default function EditCustomer() {
       <Field label={t('Full address')} value={form.address} onChangeText={set('address')} multiline />
       <Field label={t('Customer GSTIN (business customers)')} value={form.gstin} onChangeText={set('gstin')} autoCapitalize="characters" maxLength={15} />
       <StateSelect label={t('State (place of supply)')} value={form.state} onChange={set('state')} />
-      <Field label={t('Purifier / model installed')} value={form.purifier} onChangeText={set('purifier')} />
+      <Field label={t('Appliance / model installed')} value={form.purifier} onChangeText={set('purifier')} />
       <DateField label={t('Installation date')} value={form.installed} onChange={set('installed')} optional maximumDate={new Date()} />
       <Field label={t('Notes')} value={form.notes} onChangeText={set('notes')} multiline />
       <Button label={existing ? t('Save changes') : t('Add customer')} onPress={save} disabled={Boolean(readOnly) || !form.name.trim() || !form.phone.trim() || !validDate} />

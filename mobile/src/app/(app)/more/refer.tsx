@@ -34,7 +34,7 @@ export default function Refer() {
   return (
     <Screen>
       <Card>
-        <Text style={local.note}>{t('Share Clearflow RO with another RO dealer. They enter your code when they set up their business.')}</Text>
+        <Text style={local.note}>{t('Share Clearflow RO with another dealer. They enter your code when they set up their business.')}</Text>
         <Text style={local.label}>{t('Your referral code')}</Text>
         <Text style={local.code} selectable>{code || '—'}</Text>
         <Button label={t('Share code')} onPress={share} disabled={!code} />
