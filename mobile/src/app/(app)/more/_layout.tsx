@@ -17,6 +17,7 @@ export default function MoreLayout() {
       <Stack.Screen name="activity" options={{ title: t('Activity log') }} />
       <Stack.Screen name="refer" options={{ title: t('Refer a dealer') }} />
       <Stack.Screen name="catalog-photos" options={{ title: 'Catalogue photos' }} />
+      <Stack.Screen name="app-feedback-inbox" options={{ title: 'App feedback' }} />
     </Stack>
   );
 }

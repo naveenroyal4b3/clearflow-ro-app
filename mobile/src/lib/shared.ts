@@ -40,7 +40,11 @@ type DataModule = {
   applyReferral: (client: SupabaseClient, code: string) => Promise<void>;
   appLinks: { website: string; play: string };
   sendAppFeedback: (client: SupabaseClient, entry: { kind: 'Suggestion' | 'Problem'; page: string; message: string; platform: 'web' | 'android' | 'ios'; appVersion: string }) => Promise<void>;
+  loadAppFeedback: (client: SupabaseClient) => Promise<AppFeedback[]>;
+  removeAppFeedback: (client: SupabaseClient, id: string) => Promise<void>;
 };
+
+export type AppFeedback = { id: string; created_at: string; business: string; role: string; name: string; email: string; phone: string; kind: 'Suggestion' | 'Problem'; page: string; message: string; platform: string; app_version: string };
 
 type ProductLike = { name: string; category: string };
 type ProductIconsModule = {
@@ -81,5 +85,5 @@ export const { gstStates, stateLabel, stateFromGstin, taxBreakup, amountInWords,
 export const {
   loadWorkspace, saveWorkspaceRecords, createSalesDocument, setSalesDocumentStatus, setFeedbackStatus,
   signedInElsewhere, inviteMember, deleteAccount, updateOrganization, loadAuditLog,
-  uploadProductImage, removeProductImages, productImageUrls, loadCatalogPhotos, sendAppFeedback, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto, applyReferral, appLinks
+  uploadProductImage, removeProductImages, productImageUrls, loadCatalogPhotos, sendAppFeedback, loadAppFeedback, removeAppFeedback, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto, applyReferral, appLinks
 } = data;
