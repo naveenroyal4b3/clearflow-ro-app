@@ -19,7 +19,8 @@ const items: Item[] = [
   { href: '/more/language', label: msg('Language'), note: msg('Choose the language of the app'), icon: 'language-outline' },
   { href: '/more/activity', label: msg('Activity log'), note: msg('Who changed what, and when'), icon: 'time-outline', ownerOnly: true },
   // For the Clearflow team only, so not translated.
-  { href: '/more/catalog-photos', label: 'Catalogue photos', note: 'Real photos shown to every business', icon: 'camera-outline', adminOnly: true }
+  { href: '/more/catalog-photos', label: 'Catalogue photos', note: 'Real photos shown to every business', icon: 'camera-outline', adminOnly: true },
+  { href: '/more/app-feedback-inbox', label: 'App feedback', note: 'Suggestions and problems from every business', icon: 'mail-unread-outline', adminOnly: true }
 ];
 
 export default function More() {
