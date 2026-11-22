@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { amountInWords, stateFromGstin, stateLabel, taxBreakup } from '../src/gst.js';
+import { amountInWords, validPhone, stateFromGstin, stateLabel, taxBreakup } from '../src/gst.js';
 
 const karnataka = '29';
 const maharashtra = '27';
@@ -91,4 +91,21 @@ test('amountInWords uses lakh and crore and shows paise', () => {
 test('a missing or invalid GST rate counts as zero', () => {
   const bill = taxBreakup([{ qty: 1, price: 100, gst: '' }, { qty: 1, price: 100, gst: 'abc' }], { gstEnabled: true, sellerState: karnataka, buyerState: karnataka });
   assert.equal(bill.total, 200);
+});
+
+test('validPhone accepts real mobile numbers from India and other countries', () => {
+  assert.equal(validPhone('98480 12345'), '9848012345');
+  assert.equal(validPhone('+91 83281-40157'), '8328140157');
+  assert.equal(validPhone('09848012345'), '9848012345');
+  assert.equal(validPhone('+880 1937-502546'), '+8801937502546', 'Bangladesh');
+  assert.equal(validPhone('+1 (415) 555-2671'), '+14155552671', 'United States');
+  assert.equal(validPhone('0044 7911 123456'), '+447911123456', 'United Kingdom with 00');
+  assert.equal(validPhone('8142'), '', 'too short');
+  assert.equal(validPhone('+12345'), '', 'too short with a country code');
+  assert.equal(validPhone('01937502546'), '', 'a foreign number needs its + country code');
+  assert.equal(validPhone('5848012345'), '', 'Indian mobiles start with 6 to 9');
+  assert.equal(validPhone('9999999999'), '');
+  assert.equal(validPhone('+999999999999'), '');
+  assert.equal(validPhone('9876543210'), '');
+  assert.equal(validPhone(''), '');
 });

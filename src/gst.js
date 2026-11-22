@@ -86,3 +86,20 @@ export function amountInWords(amount) {
 function round(value) {
   return Math.round(value * 100) / 100;
 }
+
+// A business mobile number, cleaned up, or '' when it is not a real one. Without a + it must be an
+// Indian mobile (10 digits starting 6 to 9; a 91 or 0 in front is dropped) and is saved as 10 digits.
+// Other countries are written with + and the country code (8 to 15 digits) and saved as +digits.
+// Obvious fillers such as 9999999999 or 9876543210 are refused.
+export function validPhone(value) {
+  const text = String(value || '').trim();
+  let digits = text.replace(/\D/g, '');
+  const international = text.startsWith('+') || text.startsWith('00');
+  if (text.startsWith('00')) digits = digits.slice(2);
+  if (/^(\d)\1+$/.test(digits)) return '';
+  if (international && !digits.startsWith('91')) return /^[1-9]\d{7,14}$/.test(digits) ? '+' + digits : '';
+  if (digits.length === 12 && digits.startsWith('91')) digits = digits.slice(2);
+  else if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1);
+  if (!/^[6-9]\d{9}$/.test(digits) || digits === '9876543210') return '';
+  return digits;
+}
