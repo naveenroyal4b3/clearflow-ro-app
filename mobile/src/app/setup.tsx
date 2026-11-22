@@ -1,27 +1,29 @@
 import { useState } from 'react';
+import { View } from 'react-native';
 import { Brand, Button, Card, Field, Heading, Notice, Screen } from '@/components/ui';
 import { StateSelect } from '@/components/StateSelect';
 import { errorMessage } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
-import { applyReferral, validPhone, stateFromGstin, updateOrganization } from '@/lib/shared';
+import { applyReferral, joinPhone, splitPhone, validPhone, stateFromGstin, updateOrganization } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
 
 // A new owner's last step: the business that will be printed as the seller on invoices.
 export default function Setup() {
   const { session, reload, signOut } = useSession();
   const metadata = (session?.user.user_metadata || {}) as Record<string, string | undefined>;
-  const [form, setForm] = useState({ name: metadata.organization_name || '', gstin: metadata.gstin || '', address: '', state: '', phone: metadata.phone || '', referral: '' });
+  const [form, setForm] = useState({ name: metadata.organization_name || '', gstin: metadata.gstin || '', address: '', state: '', code: splitPhone(metadata.phone).code, phone: splitPhone(metadata.phone).number, referral: '' });
   const [error, setError] = useState('');
   const set = (key: keyof typeof form) => (value: string) => setForm(current => ({ ...current, [key]: value }));
 
   const create = async () => {
     setError('');
-    if (!validPhone(form.phone)) { setError(t('Enter a valid mobile number. Outside India, start with + and the country code.')); return; }
+    const phone = joinPhone(form.code, form.phone);
+    if (!validPhone(phone)) { setError(t('Enter a valid mobile number and country code.')); return; }
     const { data: organizationId, error: createError } = await supabase.rpc('create_organization', { organization_name: form.name.trim(), organization_gstin: form.gstin.trim() || null });
     if (createError) { setError(createError.message); return; }
     try {
-      await updateOrganization(supabase, organizationId, { ...form, state: form.state || stateFromGstin(form.gstin) });
+      await updateOrganization(supabase, organizationId, { ...form, phone, state: form.state || stateFromGstin(form.gstin) });
     } catch (detailsError) {
       setError(t('Workspace created, but the business details were not saved: {error}', { error: errorMessage(detailsError, t('unknown error')) }));
     }
@@ -41,7 +43,10 @@ export default function Setup() {
         <Field label={t('GSTIN (optional)')} value={form.gstin} onChangeText={set('gstin')} autoCapitalize="characters" maxLength={15} />
         <Field label={t('Business address')} value={form.address} onChangeText={set('address')} multiline maxLength={300} />
         <StateSelect label={t('State')} value={form.state} onChange={set('state')} />
-        <Field label={t('Business phone')} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" maxLength={16} placeholder="98480 12345" />
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <View style={{ width: 92 }}><Field label={t('Country code')} value={form.code} onChangeText={set('code')} keyboardType="phone-pad" maxLength={5} /></View>
+          <View style={{ flex: 1 }}><Field label={t('Business phone')} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" maxLength={18} placeholder="98480 12345" /></View>
+        </View>
         <Field label={t('Referral code (optional)')} value={form.referral} onChangeText={value => set('referral')(value.toUpperCase())} autoCapitalize="characters" maxLength={6} />
         <Button label={t('Create workspace')} onPress={create} disabled={form.name.trim().length < 2 || !form.phone.trim()} />
         <Button label={t('Sign out')} variant="link" onPress={signOut} />
