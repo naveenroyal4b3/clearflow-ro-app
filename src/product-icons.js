@@ -32,7 +32,7 @@ const applianceRules = [
   ['airpurifier', /air purifier|humidifier/],
   ['purifier', /\bro\b|purifier|\buv\b|\buf\b|water cooler|dispenser|\blph\b|softener|alkaline/],
   ['stabilizer', /stabili[sz]er/],
-  ['ac', /\bac\b|air condition/],
+  ['ac', /\bac\b|air condition|\bton\b|\bsplit\b/],
   ['fridge', /refrigerator|fridge|freezer|visi cooler/],
   ['personal', /hair dryer|straightener|trimmer|shaver/],
   ['dishwasher', /dishwasher/],
@@ -159,3 +159,67 @@ export const productKinds = Object.keys(art);
  * @type {Record<string, string>}
  */
 export const productKindLabels = { purifier: 'Purifier', membrane: 'RO membrane', filter: 'Filter / cartridge', pump: 'Pump (booster / water)', adapter: 'Adapter / SMPS', uv: 'UV lamp', valve: 'Valve / switch', tap: 'Tap', tank: 'Tank', pipe: 'Pipe / fitting', meter: 'TDS meter', kit: 'Service kit', airpurifier: 'Air purifier', ac: 'Air conditioner', fridge: 'Refrigerator / freezer', dishwasher: 'Dishwasher', washer: 'Washing machine / dryer', microwave: 'Microwave / oven', geyser: 'Water heater (geyser)', tv: 'Television', chimney: 'Kitchen chimney', cooler: 'Air cooler', heater: 'Room heater', fan: 'Fan', mixer: 'Mixer / grinder', stove: 'Stove / induction / hob', vacuum: 'Vacuum cleaner', iron: 'Iron / steamer', personal: 'Hair dryer and personal care', kitchen: 'Kettle, toaster and small kitchen', inverter: 'Inverter / UPS / battery', stabilizer: 'Voltage stabilizer', compressor: 'Compressor', gas: 'Refrigerant gas', capacitor: 'Capacitor', remote: 'Remote', motor: 'Motor', element: 'Heating element', board: 'PCB / thermostat / timer', part: 'Other part' };
+
+// Appliance types for browsing: every product belongs to one, so the catalogue and the product list
+// can be shown type by type (ACs, refrigerators, RO and so on) instead of one long list. Appliances
+// get theirs from their drawing kind; parts and accessories from the appliance named in them, and
+// otherwise RO (the parts the catalogue started with) or Other. Labels are English, shown with t().
+/** @type {[string, string][]} */
+export const applianceGroups = [
+  ['ro', 'RO & water purifiers'],
+  ['ac', 'Air conditioners'],
+  ['fridge', 'Refrigerators & freezers'],
+  ['washer', 'Washing machines & dishwashers'],
+  ['tv', 'TVs & audio'],
+  ['kitchen', 'Kitchen appliances'],
+  ['heater', 'Water heaters'],
+  ['cooling', 'Coolers, fans & room heaters'],
+  ['care', 'Cleaning & personal care'],
+  ['power', 'Inverters, batteries & stabilizers'],
+  ['pump', 'Water pumps'],
+  ['other', 'Other']
+];
+
+/** @type {Record<string, string>} */
+const groupOfKind = {
+  purifier: 'ro', airpurifier: 'care', ac: 'ac', fridge: 'fridge', dishwasher: 'washer', washer: 'washer', microwave: 'kitchen',
+  chimney: 'kitchen', stove: 'kitchen', mixer: 'kitchen', kitchen: 'kitchen', geyser: 'heater', tv: 'tv', cooler: 'cooling',
+  fan: 'cooling', heater: 'cooling', vacuum: 'care', iron: 'care', personal: 'care', inverter: 'power', stabilizer: 'power', pump: 'pump'
+};
+
+// Parts and accessories, by the appliance in their name, checked in this order.
+/** @type {[string, RegExp][]} */
+const partGroupRules = [
+  ['power', /inverter|battery|stabili[sz]er|\bups\b/],
+  ['ac', /\bac\b|air condition|\br32\b|\br22\b|r410/],
+  ['fridge', /refrigerator|fridge|freezer|r600a|r134a/],
+  ['washer', /washing machine|dishwasher|dryer/],
+  ['heater', /geyser|water heater/],
+  ['tv', /\btv\b|television|soundbar/],
+  ['kitchen', /microwave|chimney|induction|\bhob\b|mixer|grinder|kettle|oven|stove/],
+  ['cooling', /cooler|\bfan\b|room heater/],
+  ['care', /vacuum|\biron\b|steamer|air purifier|humidifier|hair/],
+  ['pump', /water pump/],
+  ['ro', /\bro\b|purifier|membrane|\buv\b|\buf\b|tds|sediment|cartridge|candle/]
+];
+const roPartKinds = new Set(['membrane', 'filter', 'uv', 'tap', 'tank', 'meter', 'pump', 'valve', 'adapter', 'pipe', 'kit']);
+
+/**
+ * The appliance type a product belongs to (a key of applianceGroups).
+ * @param {{ name: string, category: string }} product
+ */
+export function applianceGroup(product) {
+  const kind = productKind(product);
+  if (product.category === 'Purifiers') return groupOfKind[kind] || 'other';
+  const text = product.name.toLowerCase();
+  return partGroupRules.find(([, pattern]) => pattern.test(text))?.[0] || (roPartKinds.has(kind) ? 'ro' : 'other');
+}
+
+/**
+ * The appliance types that have at least one of the given products, in the usual order.
+ * @param {{ name: string, category: string }[]} products
+ */
+export function groupsIn(products) {
+  const present = new Set(products.map(applianceGroup));
+  return applianceGroups.filter(([key]) => present.has(key));
+}

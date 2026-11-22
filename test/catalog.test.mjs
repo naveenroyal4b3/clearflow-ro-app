@@ -44,3 +44,22 @@ test('every appliance and part type has catalogue items, and RO items keep their
   assert.equal(productKind({ name: 'Refrigerant gas R32', category: 'Spare parts' }), 'gas');
   assert.equal(productKind({ name: 'Fridge door gasket', category: 'Spare parts' }), 'part');
 });
+
+test('every product falls into an appliance type, parts under their appliance', async () => {
+  const { applianceGroup, applianceGroups, groupsIn } = await import('../src/product-icons.js');
+  const keys = new Set(applianceGroups.map(([key]) => key));
+  for (const item of catalog) assert.ok(keys.has(applianceGroup(item)), item.name);
+  const group = (name, category = 'Spare parts') => applianceGroup({ name, category });
+  assert.equal(group('Split AC 1.5 ton 3 star inverter', 'Purifiers'), 'ac');
+  assert.equal(group('Daikin 1.5 ton split', 'Purifiers'), 'ac', "a dealer's own AC");
+  assert.equal(group('Kent Grand Plus', 'Purifiers'), 'ro');
+  assert.equal(group('AC indoor PCB'), 'ac');
+  assert.equal(group('Refrigerant gas R600a'), 'fridge');
+  assert.equal(group('Inverter cooling fan motor'), 'power');
+  assert.equal(group('Washing machine inlet hose'), 'washer');
+  assert.equal(group('Sediment filter 10 inch spun'), 'ro');
+  assert.equal(group('Appliance extension board 4 socket', 'Accessories'), 'other');
+  // Every type except Other has catalogue items, so the picker never shows an empty type.
+  const present = new Set(groupsIn(catalog).map(([key]) => key));
+  for (const [key] of applianceGroups) if (key !== 'other') assert.ok(present.has(key), key);
+});

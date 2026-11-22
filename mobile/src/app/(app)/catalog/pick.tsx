@@ -6,6 +6,7 @@ import { Chips } from '@/components/Chips';
 import { ProductImage } from '@/components/ProductImage';
 import { Button, colors, Empty, styles as ui } from '@/components/ui';
 import { catalogBrands, searchCatalog } from '@/lib/catalog';
+import { applianceGroup, applianceGroups } from '@/lib/shared';
 import { msg, t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
 
@@ -19,8 +20,10 @@ export default function PickProduct() {
   const [query, setQuery] = useState('');
   const [brand, setBrand] = useState<string>(allBrands);
   const [category, setCategory] = useState<(typeof categories)[number]>('All');
+  const [type, setType] = useState('all');
   const added = useMemo(() => new Set(data.products.map(item => item.name.toLowerCase())), [data.products]);
-  const items = searchCatalog(query, { brand: brand === allBrands ? undefined : brand, category: category === 'All' ? undefined : category });
+  const items = searchCatalog(query, { brand: brand === allBrands ? undefined : brand, category: category === 'All' ? undefined : category })
+    .filter(item => type === 'all' || applianceGroup(item) === type);
 
   const own = () => router.replace('/catalog/edit');
 
@@ -37,6 +40,7 @@ export default function PickProduct() {
               <Ionicons name="search" size={18} color={colors.muted} />
               <TextInput value={query} onChangeText={setQuery} placeholder={t('Search model or part, e.g. Kent Grand, membrane 80')} placeholderTextColor={colors.muted} style={local.input} autoCorrect={false} accessibilityLabel={t('Search the catalogue')} />
             </View>
+            <Chips label={t('Type')} options={['all', ...applianceGroups.map(([key]) => key)]} value={type} onChange={setType} format={key => t(key === 'all' ? 'All types' : applianceGroups.find(([k]) => k === key)?.[1] || 'Other')} />
             <Chips label={t('Category')} options={categories} value={category} onChange={setCategory} />
             <Chips label={t('Brand')} options={[allBrands, ...catalogBrands]} value={brand} onChange={setBrand} format={value => (value === allBrands ? t(value) : value)} />
             <Button label={t('Not in the list? Add your own product')} variant="secondary" onPress={own} />

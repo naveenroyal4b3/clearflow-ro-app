@@ -10,7 +10,7 @@ import { money } from '@/lib/format';
 import { msg, t } from '@/lib/i18n';
 import { useProductImageUrls } from '@/lib/productImages';
 import { useSession } from '@/lib/session';
-import { photoCredits } from '@/lib/shared';
+import { applianceGroup, groupsIn, photoCredits } from '@/lib/shared';
 import type { Product } from '@/lib/types';
 import { headerWithFeedback } from '@/components/FeedbackButton';
 
@@ -25,10 +25,15 @@ export default function Catalog() {
   const owner = profile?.role === 'owner';
   const canViewStock = owner || profile?.role === 'technician';
   const [category, setCategory] = useState<(typeof categories)[number]>('All');
+  const [type, setType] = useState('all');
   const [preview, setPreview] = useState<(typeof tiers)[number]>('Customer');
   const [refreshing, setRefreshing] = useState(false);
   const tier: Tier = owner ? (preview.toLowerCase() as Tier) : (profile?.role === 'technician' || profile?.role === 'shop' ? profile.role : 'customer');
-  const products = data.products.filter(item => category === 'All' || item.category === category).sort((a, b) => a.name.localeCompare(b.name));
+  const inCategory = data.products.filter(item => category === 'All' || item.category === category);
+  // Appliance types with products in this category; a type with none here shows all types.
+  const types = groupsIn(inCategory);
+  const shownType = types.some(([key]) => key === type) ? type : 'all';
+  const products = inCategory.filter(item => shownType === 'all' || applianceGroup(item) === shownType).sort((a, b) => a.name.localeCompare(b.name));
   const imageUrls = useProductImageUrls(data.products);
   const price = (item: Product) => item[tier] ?? item.customer ?? 0;
 
@@ -61,6 +66,7 @@ export default function Catalog() {
               </>
             ) : <Notice>{tierNotice(tier)}</Notice>}
             <Chips label={t('Category')} options={categories} value={category} onChange={setCategory} />
+            {types.length > 1 ? <Chips label={t('Type')} options={['all', ...types.map(([key]) => key)]} value={shownType} onChange={setType} format={key => t(key === 'all' ? 'All types' : types.find(([k]) => k === key)?.[1] || 'Other')} /> : null}
           </View>
         }
         ListEmptyComponent={<Empty text={data.products.length ? t('No products in this category.') : owner ? t('No products yet. Tap + to add one.') : t('No products yet.')} />}

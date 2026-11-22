@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization, uploadProductImage, productImageUrls, loadCatalogPhotos, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto, sendAppFeedback, loadAppFeedback, removeAppFeedback, applyReferral, appLinks } from './supabase-data.js';
-import { catalogPhotoUrl, photoCredits, productArtSvg, productKindLabels, productKinds } from './product-icons.js';
+import { catalogPhotoUrl, photoCredits, productArtSvg, productKindLabels, productKinds, applianceGroup, applianceGroups, groupsIn } from './product-icons.js';
+const groupLabel = item => applianceGroups.find(([key]) => key === applianceGroup(item))?.[1] || 'Other';
 import { stateFromGstin, stateOptions, taxBreakup, validPhone, joinPhone, splitPhone } from './gst.js';
 import { catalog, catalogItem } from './catalog.js';
 import { documentDetails as sharedDocumentDetails, documentHtml, invoiceRegisterHeader, invoiceRegisterRows } from './documents.js';
@@ -34,6 +35,8 @@ msg('Scheduled'); msg('In progress'); msg('Completed'); msg('Cancelled');
 msg('Draft'); msg('Sent'); msg('Pending'); msg('Paid');
 msg('Invoice'); msg('Quotation');
 msg('Purifiers'); msg('Accessories'); msg('Spare parts');
+// Appliance types (applianceGroups in product-icons.js), shown with t().
+msg('All types'); msg('RO & water purifiers'); msg('Air conditioners'); msg('Refrigerators & freezers'); msg('Washing machines & dishwashers'); msg('TVs & audio'); msg('Kitchen appliances'); msg('Water heaters'); msg('Coolers, fans & room heaters'); msg('Cleaning & personal care'); msg('Inverters, batteries & stabilizers'); msg('Water pumps'); msg('Other');
 msg('Active'); msg('Inactive');
 msg('Customer feedback'); msg('Issue'); msg('Bug'); msg('Feature request');
 msg('Normal'); msg('High'); msg('Urgent');
@@ -75,6 +78,7 @@ let organization = null;
 let view = 'overview';
 let salesTab = 'All documents';
 let catalogTab = 'All products';
+let catalogType = 'all';
 let searchQuery = '';
 let roleView = 'customer';
 // Shared catalogue photo links by key (see loadCatalogPhotos), and whether this user manages them.
@@ -648,11 +652,15 @@ function renderCatalog() {
   const owner = profile.role === 'owner';
   // Tab values are product categories stored in English (catalogTab); only their labels are translated.
   const tabs = [msg('All products'), msg('Purifiers'), msg('Accessories'), msg('Spare parts')];
-  const products = data.products.filter(item => catalogTab === 'All products' || item.category === catalogTab);
+  const inTab = data.products.filter(item => catalogTab === 'All products' || item.category === catalogTab);
+  // Appliance types with products in this tab; a type that has none here falls back to all types.
+  const types = groupsIn(inTab);
+  if (!types.some(([key]) => key === catalogType)) catalogType = 'all';
+  const products = inTab.filter(item => catalogType === 'all' || applianceGroup(item) === catalogType);
   const tier = esc(t(roleView));
   page.innerHTML = `${pageHead(t('Products & pricing'), t('Product catalogue'), t('Appliances, accessories and spares · prices shown for {tier} access', { tier }), owner || platformAdmin ? `<div class="head-actions">${platformAdmin ? '<button class="button secondary" data-action="open-photo-library">Catalogue photos</button>' : ''}${owner ? `<button class="button" data-action="new-product">${icons.plus} ${t('Add product')}</button>` : ''}</div>` : '')}
     <div class="notice">${owner ? t('Previewing {tier} pricing. Each signed-in role can only retrieve its own price tier.', { tier: `<strong>${tier}</strong>` }) : t('Showing the {tier} prices assigned to your account.', { tier: `<strong>${tier}</strong>` })}</div>
-    <section class="panel" style="margin-bottom:15px"><div class="tabs">${tabs.map(tab => `<button class="tab ${catalogTab === tab ? 'active' : ''}" data-catalog-tab="${tab}">${t(tab)}</button>`).join('')}</div></section>
+    <section class="panel" style="margin-bottom:15px"><div class="tabs">${tabs.map(tab => `<button class="tab ${catalogTab === tab ? 'active' : ''}" data-catalog-tab="${tab}">${t(tab)}</button>`).join('')}</div>${types.length > 1 ? `<div class="tabs type-tabs" aria-label="${esc(t('Type'))}">${[['all', 'All types'], ...types].map(([key, label]) => `<button class="tab ${catalogType === key ? 'active' : ''}" data-catalog-type="${key}">${esc(t(label))}</button>`).join('')}</div>` : ''}</section>
     <div class="product-grid">${products.length ? products.map((item, index) => `<article class="product"><div class="product-top"><div class="product-art ${productPhotoLink(item) ? 'photo' : index % 3 === 1 ? 'blue' : index % 3 === 2 ? 'gold' : ''}">${productArt(item)}</div><span class="category">${esc(t(item.category))}</span></div><div class="product-info"><h3>${esc(item.name)}</h3><p>${esc(item.description)}</p><div class="product-price"><div><span>${t('{tier} price', { tier })}</span><strong>${money(price(item))}</strong></div>${owner || profile.role === 'technician' ? `<span>${esc(t('{count} in stock', { count: item.stock }))}</span>` : ''}</div>${owner ? `<div class="price-other"><span>${t('Customer')} <b>${money(item.customer)}</b></span><span>${t('Tech')} <b>${money(item.technician)}</b></span><span>${t('Shop')} <b>${money(item.shop)}</b></span></div>` : ''}</div></article>`).join('') : `<div class="empty">${t('No products in this category.')}</div>`}</div>`;
   const credits = photoCredits(products);
   if (credits.length) page.insertAdjacentHTML('beforeend', `<p class="panel-note photo-credits">${t('Photo credits:')} ${credits.map(photo => `<a href="${esc(photo.link)}" target="_blank" rel="noopener">${esc(photo.credit)}</a>`).join(' · ')}</p>`);
@@ -871,7 +879,7 @@ function openProductForm() {
   if (profile.role !== 'owner') { toast(t('Only the owner can change catalogue items')); return; }
   if (planBlocked()) return;
   const categories = [msg('Purifiers'), msg('Accessories'), msg('Spare parts')];
-  showModal(t('Add catalogue item'), t('Set customer, technician and shop pricing'), `<div class="form-grid"><div class="field full"><label for="catalog-pick">${t('Choose from catalogue')}</label><input id="catalog-pick" list="catalog-items" autocomplete="off" placeholder="${esc(t('Search model or part, e.g. Kent Grand, membrane 80'))}"><datalist id="catalog-items">${catalog.map(item => `<option value="${esc(item.name)}"></option>`).join('')}</datalist><small>${t('Fills in the name, HSN and GST. Not listed? Type your own product below.')}</small></div><div class="field"><label for="name">${t('Product name *')}</label><input id="name" name="name" required></div><div class="field"><label for="category">${t('Category')}</label><select id="category" name="category">${categories.map(category => `<option value="${category}">${t(category)}</option>`).join('')}</select></div><div class="field full"><label for="description">${t('Description')}</label><input id="description" name="description"></div><div class="field"><label for="hsn">${t('HSN code (needed for GST invoices)')}</label><input id="hsn" name="hsn" maxlength="8" inputmode="numeric" placeholder="${esc(t('e.g. 8421'))}"></div><div class="field"><label for="unit">${t('Unit')}</label><select id="unit" name="unit">${productUnits.map(unit => `<option>${unit}</option>`).join('')}</select></div><div class="field"><label for="customer">${t('Customer price (₹)')}</label><input id="customer" name="customer" type="number" min="0" required></div><div class="field"><label for="technician">${t('Technician price (₹)')}</label><input id="technician" name="technician" type="number" min="0" required></div><div class="field"><label for="shop">${t('Shop price (₹)')}</label><input id="shop" name="shop" type="number" min="0" required></div><div class="field"><label for="stock">${t('Stock quantity')}</label><input id="stock" name="stock" type="number" min="0" value="0"></div><div class="field"><label for="gst">${t('GST rate (%)')}</label><input id="gst" name="gst" type="number" min="0" max="100" value="18"></div><div class="field full"><label for="photo">${t('Photo (optional)')}</label><input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp"><small>${t('Without a photo, the product shows an icon for its type.')}</small></div></div>`, t('Add product'), async form => {
+  showModal(t('Add catalogue item'), t('Set customer, technician and shop pricing'), `<div class="form-grid"><div class="field full"><label for="catalog-pick">${t('Choose from catalogue')}</label><input id="catalog-pick" list="catalog-items" autocomplete="off" placeholder="${esc(t('Search model or part, e.g. Kent Grand, membrane 80'))}"><datalist id="catalog-items">${catalog.map(item => `<option value="${esc(item.name)}" label="${esc(t(groupLabel(item)))}"></option>`).join('')}</datalist><small>${t('Fills in the name, HSN and GST. Not listed? Type your own product below.')}</small></div><div class="field"><label for="name">${t('Product name *')}</label><input id="name" name="name" required></div><div class="field"><label for="category">${t('Category')}</label><select id="category" name="category">${categories.map(category => `<option value="${category}">${t(category)}</option>`).join('')}</select></div><div class="field full"><label for="description">${t('Description')}</label><input id="description" name="description"></div><div class="field"><label for="hsn">${t('HSN code (needed for GST invoices)')}</label><input id="hsn" name="hsn" maxlength="8" inputmode="numeric" placeholder="${esc(t('e.g. 8421'))}"></div><div class="field"><label for="unit">${t('Unit')}</label><select id="unit" name="unit">${productUnits.map(unit => `<option>${unit}</option>`).join('')}</select></div><div class="field"><label for="customer">${t('Customer price (₹)')}</label><input id="customer" name="customer" type="number" min="0" required></div><div class="field"><label for="technician">${t('Technician price (₹)')}</label><input id="technician" name="technician" type="number" min="0" required></div><div class="field"><label for="shop">${t('Shop price (₹)')}</label><input id="shop" name="shop" type="number" min="0" required></div><div class="field"><label for="stock">${t('Stock quantity')}</label><input id="stock" name="stock" type="number" min="0" value="0"></div><div class="field"><label for="gst">${t('GST rate (%)')}</label><input id="gst" name="gst" type="number" min="0" max="100" value="18"></div><div class="field full"><label for="photo">${t('Photo (optional)')}</label><input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp"><small>${t('Without a photo, the product shows an icon for its type.')}</small></div></div>`, t('Add product'), async form => {
     const { photo, ...value } = Object.fromEntries(form.entries());
     const id = `P-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
     const image = photo && photo.size ? await uploadProductImage(supabaseClient, organization.id, id, await resizePhoto(photo)) : '';
@@ -1055,6 +1063,8 @@ document.addEventListener('click', event => {
   if (sales) { salesTab = sales; renderSales(); }
   const catalog = event.target.closest('[data-catalog-tab]')?.dataset.catalogTab;
   if (catalog) { catalogTab = catalog; renderCatalog(); }
+  const catalogTypeKey = event.target.closest('[data-catalog-type]')?.dataset.catalogType;
+  if (catalogTypeKey) { catalogType = catalogTypeKey; renderCatalog(); }
 });
 document.addEventListener('change', async event => {
   const select = event.target.closest('[data-doc-status]');
