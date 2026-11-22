@@ -6,7 +6,14 @@
 -- Without that secret no email is sent. Not part of schema.sql: needs Supabase's pg_net and Vault.
 -- Safe to run more than once.
 
-create extension if not exists pg_net;
+-- pg_net is available on Supabase; the plain Postgres used to check this script in CI has none.
+do $$
+begin
+  if exists (select 1 from pg_available_extensions where name = 'pg_net') then
+    create extension if not exists pg_net;
+  end if;
+end;
+$$;
 
 create or replace function public.email_app_feedback()
 returns trigger
