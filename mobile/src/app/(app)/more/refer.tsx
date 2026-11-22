@@ -8,7 +8,7 @@ import { appLinks, applyReferral } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
 
 // The owner shares the business's referral code with other dealers, or enters the code of the
-// dealer who told them about Clearflow. Rewards are described on the website only (Google Play's
+// dealer who told them about TiruFix. Rewards are described on the website only (Google Play's
 // payments rules), so this screen just shares the code.
 export default function Refer() {
   const { organization, setOrganization } = useSession();
@@ -18,7 +18,7 @@ export default function Refer() {
   const code = organization?.referral_code || '';
   const canEnter = Boolean(organization && !organization.referred_by && !organization.paid_until && organization.created_at && now - new Date(organization.created_at).getTime() < 14 * 86400000);
 
-  const share = async () => { await Share.share({ message: t('I use Clearflow RO for GST bills, service jobs and spare parts. Use my code {code} when you set up your business: {link}', { code, link: appLinks.play }) }); };
+  const share = async () => { await Share.share({ message: t('I use TiruFix for GST bills, service jobs and spare parts. Use my code {code} when you set up your business: {link}', { code, link: appLinks.play }) }); };
   const apply = async () => {
     setMessage(null);
     try {
@@ -34,7 +34,7 @@ export default function Refer() {
   return (
     <Screen>
       <Card>
-        <Text style={local.note}>{t('Share Clearflow RO with another dealer. They enter your code when they set up their business.')}</Text>
+        <Text style={local.note}>{t('Share TiruFix with another dealer. They enter your code when they set up their business.')}</Text>
         <Text style={local.label}>{t('Your referral code')}</Text>
         <Text style={local.code} selectable>{code || '—'}</Text>
         <Button label={t('Share code')} onPress={share} disabled={!code} />

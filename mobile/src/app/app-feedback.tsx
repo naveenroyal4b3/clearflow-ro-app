@@ -13,7 +13,7 @@ import { supabase } from '@/lib/supabase';
 const kinds = [msg('Suggestion'), msg('Problem')] as const;
 const appVersion = `${Constants.expoConfig?.version ?? ''} (${Constants.expoConfig?.android?.versionCode ?? ''})`;
 
-// A suggestion or problem about the app, sent to the Clearflow team (not to the business).
+// A suggestion or problem about the app, sent to the TiruFix team (not to the business).
 export default function AppFeedback() {
   const { page = '' } = useLocalSearchParams<{ page?: string }>();
   const { offlineSince } = useSession();
@@ -43,7 +43,7 @@ export default function AppFeedback() {
       {error ? <Notice tone="error">{error}</Notice> : null}
       <Chips options={kinds} value={kind} onChange={setKind} label={t('What would you like to share? *')} />
       <Field label={t('Your message *')} value={message} onChangeText={setMessage} multiline maxLength={2000} />
-      <Notice>{t('This goes to the Clearflow app team.')}</Notice>
+      <Notice>{t('This goes to the TiruFix app team.')}</Notice>
       <Button label={t('Send feedback')} onPress={send} disabled={sending || Boolean(offlineSince) || !message.trim()} />
     </Screen>
   );

@@ -47,7 +47,7 @@ export default function CatalogPhotos() {
   ]);
 
   if (admin === null) return null;
-  if (!admin) return <View style={ui.padded}><Notice tone="warning">Only the Clearflow team can change catalogue photos.</Notice></View>;
+  if (!admin) return <View style={ui.padded}><Notice tone="warning">Only the TiruFix team can change catalogue photos.</Notice></View>;
   return (
     <FlatList
       data={rows}

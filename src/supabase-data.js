@@ -470,7 +470,7 @@ export async function removeCatalogPhoto(client, key) {
 }
 
 /**
- * Sends a suggestion or problem about the app to the Clearflow team (not to the business). The
+ * Sends a suggestion or problem about the app to the TiruFix team (not to the business). The
  * database fills in who sent it. Not read back: only platform admins can read app feedback.
  * @param {import('@supabase/supabase-js').SupabaseClient} client
  * @param {{ kind: 'Suggestion' | 'Problem', page: string, message: string, platform: 'web' | 'android' | 'ios', appVersion: string }} entry
@@ -504,7 +504,7 @@ export async function removeAppFeedback(client, id) {
 }
 
 /**
- * Records the referral code of the business that told this one about Clearflow (owners only,
+ * Records the referral code of the business that told this one about TiruFix (owners only,
  * once, in the first 14 days).
  * @param {import('@supabase/supabase-js').SupabaseClient} client
  * @param {string} code

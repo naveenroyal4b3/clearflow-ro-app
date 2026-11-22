@@ -37,7 +37,7 @@ export function Brand() {
     <View style={styles.brand}>
       <Image source={require('../../assets/icon.png')} style={styles.brandMark} accessibilityIgnoresInvertColors />
       <View>
-        <Text style={styles.brandName}>clearflow</Text>
+        <Text style={styles.brandName}>tirufix</Text>
         <Text style={styles.brandCaption}>SERVICE · SALES · STOCK</Text>
       </View>
     </View>

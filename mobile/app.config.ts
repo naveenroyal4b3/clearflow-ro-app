@@ -5,7 +5,7 @@ import type { ExpoConfig } from 'expo/config';
 const versionCode = Number(process.env.ANDROID_VERSION_CODE) || 100;
 
 const config: ExpoConfig = {
-  name: 'Clearflow RO',
+  name: 'TiruFix',
   slug: 'clearflow-ro',
   version: '2.0.0',
   scheme: 'clearflow',
