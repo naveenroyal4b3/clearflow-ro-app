@@ -4,6 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Badge, Button, Card, CardTitle, colors, Empty, Heading, styles as ui } from '@/components/ui';
+import { GettingStarted } from '@/components/GettingStarted';
 import { PlanNotice } from '@/components/PlanNotice';
 import { money, shortDate, today, totals } from '@/lib/format';
 import { t } from '@/lib/i18n';
@@ -60,13 +61,7 @@ export default function Overview() {
           {canViewStock ? <Metric label={t('Low stock')} value={String(lowStock)} alert={lowStock > 0} onPress={() => router.push('/catalog')} /> : <Metric label={t('Customers')} value={String(data.customers.length)} />}
         </View>
 
-        {owner && !data.customers.length && !data.products.length ? (
-          <Card style={{ backgroundColor: colors.tealPale }}>
-            <CardTitle title={t('Set up your workspace')} note={t('Add your first customer to start managing service and sales.')} />
-            <Button label={t('Add customer')} onPress={() => router.push('/customers/edit')} />
-            <Button label={t('Add product')} variant="secondary" onPress={() => router.push('/catalog/edit')} />
-          </Card>
-        ) : null}
+        <GettingStarted />
 
         {owner ? (
           <Card>

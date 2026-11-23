@@ -528,3 +528,66 @@ export const appLinks = {
   website: 'https://clearflowro.in/',
   play: 'https://play.google.com/store/apps/details?id=com.naveenroyal4b3.clearflow'
 };
+
+// Sample data: a few example customers, products and jobs so a new business can see how the app
+// works. Their ids end in -SAMPLE<n>, so they can be told apart and removed in one go. The phone
+// numbers are zeros so a tap on Call or WhatsApp never reaches a real person.
+export const isSample = id => /-SAMPLE\d+$/.test(String(id || ''));
+
+function sampleDate(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+export function sampleRecords() {
+  const customers = [
+    { id: 'C-SAMPLE1', name: 'Ravi Kumar (sample)', phone: '00000 00001', email: '', address: 'Sample address', type: 'Residential', installed: sampleDate(-200), purifier: 'RO water purifier 8L', notes: 'Example customer. Remove sample data when you are ready.', gstin: '', state: '' },
+    { id: 'C-SAMPLE2', name: 'Hotel Annapurna (sample)', phone: '00000 00002', email: '', address: 'Sample address', type: 'Commercial', installed: sampleDate(-60), purifier: 'Split AC 1.5 ton', notes: 'Example business customer.', gstin: '', state: '' }
+  ];
+  const products = [
+    { id: 'P-SAMPLE1', name: 'RO water purifier 8L (sample)', category: 'Purifiers', description: 'Example appliance', hsn: '8421', unit: 'Nos', customer: 14500, technician: 12500, shop: 12000, stock: 6, gst: 18, image: '' },
+    { id: 'P-SAMPLE2', name: 'Split AC 1.5 ton (sample)', category: 'Purifiers', description: 'Example appliance', hsn: '8415', unit: 'Nos', customer: 38000, technician: 35000, shop: 34000, stock: 2, gst: 18, image: '' },
+    { id: 'P-SAMPLE3', name: 'RO membrane 80 GPD (sample)', category: 'Spare parts', description: 'Example spare part', hsn: '8421', unit: 'Nos', customer: 1800, technician: 1200, shop: 1100, stock: 15, gst: 18, image: '' }
+  ];
+  const jobs = [
+    { id: 'J-SAMPLE1', customerId: 'C-SAMPLE1', type: 'Filter replacement', date: sampleDate(-1), technician: '', status: 'Scheduled', notes: 'Example job, now overdue.' },
+    { id: 'J-SAMPLE2', customerId: 'C-SAMPLE2', type: 'Gas refill', date: sampleDate(2), technician: '', status: 'Scheduled', notes: 'Example job.' }
+  ];
+  return { customers, products, jobs };
+}
+
+/**
+ * @param {import('@supabase/supabase-js').SupabaseClient} client
+ * @param {{ organization_id: string }} profile
+ */
+export async function addSampleData(client, profile) {
+  const records = sampleRecords();
+  await saveWorkspaceRecords(client, profile, 'customers', records.customers);
+  await saveWorkspaceRecords(client, profile, 'products', records.products);
+  await saveWorkspaceRecords(client, profile, 'jobs', records.jobs);
+  return records;
+}
+
+// Removes the sample records. One already used on a quotation or invoice stays (the document needs
+// it); returns how many were kept.
+/**
+ * @param {import('@supabase/supabase-js').SupabaseClient} client
+ * @param {string} organizationId
+ */
+export async function removeSampleData(client, organizationId) {
+  const { customers, products, jobs } = sampleRecords();
+  let kept = 0;
+  const remove = async (table, ids) => {
+    const { error } = await client.from(table).delete().eq('organization_id', organizationId).in('id', ids);
+    if (!error) return;
+    for (const id of ids) {
+      const { error: oneError } = await client.from(table).delete().eq('organization_id', organizationId).eq('id', id);
+      if (oneError) kept++;
+    }
+  };
+  await remove('service_jobs', jobs.map(item => item.id));
+  await remove('customers', customers.map(item => item.id));
+  await remove('products', products.map(item => item.id));
+  return kept;
+}
