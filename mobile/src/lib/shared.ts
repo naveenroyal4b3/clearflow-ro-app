@@ -44,6 +44,9 @@ type DataModule = {
   sendAppFeedback: (client: SupabaseClient, entry: { kind: 'Suggestion' | 'Problem'; page: string; message: string; platform: 'web' | 'android' | 'ios'; appVersion: string }) => Promise<void>;
   loadAppFeedback: (client: SupabaseClient) => Promise<AppFeedback[]>;
   loadBusinesses: (client: SupabaseClient) => Promise<Business[]>;
+  isSample: (id: string) => boolean;
+  addSampleData: (client: SupabaseClient, profile: Profile) => Promise<unknown>;
+  removeSampleData: (client: SupabaseClient, organizationId: string) => Promise<number>;
   removeAppFeedback: (client: SupabaseClient, id: string) => Promise<void>;
 };
 
@@ -96,5 +99,5 @@ export const { gstStates, stateLabel, stateFromGstin, taxBreakup, amountInWords,
 export const {
   loadWorkspace, saveWorkspaceRecords, createSalesDocument, setSalesDocumentStatus, setFeedbackStatus,
   signedInElsewhere, inviteMember, deleteAccount, updateOrganization, loadAuditLog,
-  uploadProductImage, removeProductImages, productImageUrls, loadCatalogPhotos, sendAppFeedback, loadAppFeedback, loadBusinesses, removeAppFeedback, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto, applyReferral, appLinks
+  uploadProductImage, removeProductImages, productImageUrls, loadCatalogPhotos, sendAppFeedback, loadAppFeedback, loadBusinesses, isSample, addSampleData, removeSampleData, removeAppFeedback, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto, applyReferral, appLinks
 } = data;

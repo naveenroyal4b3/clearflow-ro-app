@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization, uploadProductImage, productImageUrls, loadCatalogPhotos, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto, sendAppFeedback, loadAppFeedback, removeAppFeedback, applyReferral, appLinks } from './supabase-data.js';
+import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization, uploadProductImage, productImageUrls, loadCatalogPhotos, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto, sendAppFeedback, loadAppFeedback, removeAppFeedback, applyReferral, appLinks, isSample, addSampleData, removeSampleData } from './supabase-data.js';
 import { catalogPhotoUrl, photoCredits, productArtSvg, productKindLabels, productKinds, applianceGroup, applianceGroups, groupsIn } from './product-icons.js';
 const groupLabel = item => applianceGroups.find(([key]) => key === applianceGroup(item))?.[1] || 'Other';
 import { stateFromGstin, stateOptions, taxBreakup, validPhone, joinPhone, splitPhone } from './gst.js';
@@ -495,6 +495,38 @@ function pageHead(kicker, title, subtitle, action = '') {
 function metric(label, value, note, icon) {
   return `<div class="metric"><div class="metric-top"><span>${label}</span><span class="metric-icon">${icon}</span></div><div class="metric-value">${value}</div><div class="metric-note">${note}</div></div>`;
 }
+// The owner's first steps: a product, a customer and a first quotation or invoice (sample records
+// don't count), with sample data to look around first. Hidden once done and no sample data is left.
+function gettingStartedPanel() {
+  const real = items => items.filter(item => !isSample(item.id));
+  const hasSamples = [...data.customers, ...data.products, ...data.jobs].some(item => isSample(item.id));
+  const steps = [
+    { label: t('Add your first product'), done: real(data.products).length > 0, action: 'new-product' },
+    { label: t('Add your first customer'), done: real(data.customers).length > 0, action: 'new-customer' },
+    { label: t('Create your first quotation or invoice'), done: data.documents.length > 0, action: 'new-sale' }
+  ];
+  const done = steps.filter(step => step.done).length;
+  if (done === steps.length && !hasSamples) return '';
+  const empty = !data.customers.length && !data.products.length;
+  const sample = empty
+    ? `<button class="button secondary" data-action="add-sample-data">${t('Add sample data')}</button><small>${esc(t('See how TiruFix works with a few example customers, products and jobs. You can remove them any time.'))}</small>`
+    : hasSamples ? `<small>${esc(t('Sample data is in your app. Look around, then remove it when you add your own.'))}</small><button class="button secondary" data-action="remove-sample-data">${t('Remove sample data')}</button>` : '';
+  return `<section class="setup-panel getting-started"><div class="setup-copy"><div class="eyebrow">${esc(t('{done} of {total} done', { done, total: steps.length }))}</div><h2>${t('Get started')}</h2><div class="progress"><span style="width:${Math.round(done / steps.length * 100)}%"></span></div><ol class="steps">${steps.map(step => `<li class="${step.done ? 'done' : ''}">${step.done ? `<span>${esc(step.label)}</span>` : `<button type="button" class="link-button" data-action="${step.action}">${esc(step.label)} →</button>`}</li>`).join('')}</ol></div><div class="setup-actions sample-actions">${sample}</div></section>`;
+}
+async function addSamples() {
+  if (planBlocked()) return;
+  try { await addSampleData(supabaseClient, profile); data = await loadWorkspace(supabaseClient, profile); render(); toast(t('Sample data added')); }
+  catch (error) { toast(errorMessage(error, t('Could not add sample data. Try again.'))); }
+}
+async function removeSamples() {
+  if (planBlocked()) return;
+  if (!confirm(`${t('Remove sample data?')}\n${t('The example customers, products and jobs will be deleted. Your own records stay.')}`)) return;
+  try {
+    const kept = await removeSampleData(supabaseClient, profile.organization_id);
+    data = await loadWorkspace(supabaseClient, profile); render();
+    toast(kept ? t('Sample records used on a quotation or invoice stay, because the document needs them.') : t('Sample data removed'));
+  } catch (error) { toast(errorMessage(error, t('Could not remove sample data. Try again.'))); }
+}
 function renderOverview() {
   const currentDate = new Date();
   const month = new Intl.DateTimeFormat('sv-SE', { year: 'numeric', month: '2-digit' }).format(currentDate);
@@ -510,9 +542,8 @@ function renderOverview() {
     return { label, total };
   });
   const chartMaximum = Math.max(1, ...monthlySales.map(item => item.total));
-  const needsSetup = data.customers.length === 0 && data.products.length === 0;
   const owner = profile.role === 'owner';
-  const setupPanel = owner && needsSetup ? `<section class="setup-panel"><div class="setup-copy"><div class="eyebrow">${t('First steps')}</div><h2>${t('Set up your workspace')}</h2><p>${t('Add your first customer and catalogue item to start managing service and sales.')}</p></div><div class="setup-actions"><button class="button" data-action="new-customer">${icons.plus} ${t('Add customer')}</button><button class="button secondary" data-action="new-product">${icons.product} ${t('Add product')}</button></div></section>` : '';
+  const setupPanel = owner ? gettingStartedPanel() : '';
   const quickActions = owner
     ? `<button class="quick-action" data-action="new-customer">${icons.person}<span>${t('Add customer')}</span></button><button class="quick-action" data-action="new-job">${icons.service}<span>${t('Schedule service')}</span></button><button class="quick-action" data-action="new-sale">${icons.invoice}<span>${t('New quotation')}</span></button><button class="quick-action" data-nav="catalog">${icons.product}<span>${t('View catalogue')}</span></button>`
     : profile.role === 'technician'
@@ -1049,6 +1080,8 @@ document.addEventListener('click', event => {
   if (action === 'new-job') openJobForm();
   if (action === 'new-sale') openSaleForm();
   if (action === 'new-product') openProductForm();
+  if (action === 'add-sample-data') addSamples();
+  if (action === 'remove-sample-data') removeSamples();
   if (action === 'open-photo-library') { photoLibraryOpen = true; photoLibraryQuery = ''; renderCatalog(); }
   if (action === 'close-photo-library') { photoLibraryOpen = false; renderCatalog(); }
   if (action === 'new-account') openAccountForm();
