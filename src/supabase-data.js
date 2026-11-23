@@ -486,6 +486,15 @@ export async function sendAppFeedback(client, { kind, page, message, platform, a
  * The latest app feedback from every business, for platform admins.
  * @param {import('@supabase/supabase-js').SupabaseClient} client
  */
+export async function loadBusinesses(client) {
+  const { data, error } = await client.rpc('platform_businesses');
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * @param {import('@supabase/supabase-js').SupabaseClient} client
+ */
 export async function loadAppFeedback(client) {
   const { data, error } = await client.from('app_feedback')
     .select('id, created_at, business, role, name, email, phone, kind, page, message, platform, app_version')
