@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState, type ReactNode } from 'react';
 import {
   ActivityIndicator, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
@@ -127,26 +128,46 @@ export function Select({ label, value, options, onChange, placeholder }: { label
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={label} style={styles.input} onPress={() => setOpen(true)}>
-        <Text style={selected ? styles.selectText : styles.placeholder}>{selected?.label || placeholder || t('Select')}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={label} style={[styles.input, styles.selectBox]} onPress={() => setOpen(true)}>
+        <Text style={[selected ? styles.selectText : styles.placeholder, styles.flex]} numberOfLines={1}>{selected?.label || placeholder || t('Select')}</Text>
+        <Ionicons name="chevron-down" size={18} color={colors.muted} />
       </Pressable>
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.sheetBackdrop} onPress={() => setOpen(false)}>
-          <View style={styles.sheet}>
-            <Text style={styles.sheetTitle}>{label}</Text>
-            <FlatList
-              data={options}
-              keyExtractor={option => option.value || '_none'}
-              renderItem={({ item }) => (
-                <Pressable style={styles.option} onPress={() => { onChange(item.value); setOpen(false); }}>
-                  <Text style={[styles.optionText, item.value === value && styles.optionSelected]}>{item.label}</Text>
-                </Pressable>
-              )}
-            />
-          </View>
-        </Pressable>
-      </Modal>
+      <OptionSheet title={label} open={open} onClose={() => setOpen(false)} options={options} value={value} onChange={onChange} />
     </View>
+  );
+}
+
+// The list a Select or a ChipMenu opens. A long list gets a search box.
+export function OptionSheet({ title, open, onClose, options, value, onChange }: { title: string; open: boolean; onClose: () => void; options: Option[]; value: string; onChange: (value: string) => void }) {
+  const [query, setQuery] = useState('');
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const shown = words.length ? options.filter(option => words.every(word => option.label.toLowerCase().includes(word))) : options;
+  const close = () => { setQuery(''); onClose(); };
+  return (
+    <Modal visible={open} transparent animationType="slide" onRequestClose={close}>
+      <Pressable style={styles.sheetBackdrop} onPress={close}>
+        <Pressable style={styles.sheet} onPress={() => {}}>
+          <Text style={styles.sheetTitle}>{title}</Text>
+          {options.length > 8 ? (
+            <View style={styles.sheetSearch}>
+              <Ionicons name="search" size={18} color={colors.muted} />
+              <TextInput value={query} onChangeText={setQuery} placeholder={t('Search')} placeholderTextColor={colors.muted} style={styles.sheetSearchInput} autoCorrect={false} accessibilityLabel={t('Search')} />
+            </View>
+          ) : null}
+          <FlatList
+            data={shown}
+            keyboardShouldPersistTaps="handled"
+            keyExtractor={option => option.value || '_none'}
+            ListEmptyComponent={<Empty text={t('Nothing matches.')} />}
+            renderItem={({ item }) => (
+              <Pressable style={styles.option} onPress={() => { onChange(item.value); close(); }}>
+                <Text style={[styles.optionText, item.value === value && styles.optionSelected]}>{item.label}</Text>
+              </Pressable>
+            )}
+          />
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -209,11 +230,14 @@ export const styles = StyleSheet.create({
   input: { minHeight: 48, borderWidth: 1, borderColor: '#d9e1dc', borderRadius: 10, paddingHorizontal: 12, backgroundColor: '#fff', fontSize: 15, color: colors.ink, justifyContent: 'center' },
   multiline: { minHeight: 90, paddingTop: 12, textAlignVertical: 'top' },
   hint: { fontSize: 12, color: colors.muted },
+  selectBox: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   selectText: { fontSize: 15, color: colors.ink },
   placeholder: { fontSize: 15, color: colors.muted },
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
   sheet: { maxHeight: '70%', backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingTop: 16, paddingBottom: 24 },
   sheetTitle: { fontSize: 16, fontWeight: '700', paddingHorizontal: 20, paddingBottom: 8, color: colors.ink },
+  sheetSearch: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginBottom: 8, borderWidth: 1, borderColor: '#d9e1dc', borderRadius: 10, paddingHorizontal: 12 },
+  sheetSearchInput: { flex: 1, paddingVertical: 10, fontSize: 15, color: colors.ink },
   option: { paddingHorizontal: 20, paddingVertical: 14, borderTopWidth: 1, borderColor: colors.line },
   optionText: { fontSize: 15, color: colors.ink },
   optionSelected: { color: colors.teal, fontWeight: '700' },

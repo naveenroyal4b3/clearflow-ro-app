@@ -1,11 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, Stack } from 'expo-router';
 import { useState } from 'react';
-import { Alert, FlatList, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { Chips } from '@/components/Chips';
+import { Alert, FlatList, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ChipMenu } from '@/components/Chips';
 import { PlanNotice, useReadOnlyReason } from '@/components/PlanNotice';
 import { ProductImage } from '@/components/ProductImage';
-import { Badge, colors, Empty, Notice, styles as ui } from '@/components/ui';
+import { Badge, colors, Empty, styles as ui } from '@/components/ui';
 import { money } from '@/lib/format';
 import { msg, t } from '@/lib/i18n';
 import { useProductImageUrls } from '@/lib/productImages';
@@ -15,21 +15,22 @@ import type { Product } from '@/lib/types';
 import { headerWithFeedback } from '@/components/FeedbackButton';
 
 const categories = [msg('All'), msg('Purifiers'), msg('Accessories'), msg('Spare parts')] as const;
-const tiers = [msg('Customer'), msg('Technician'), msg('Shop')] as const;
 type Tier = 'customer' | 'technician' | 'shop';
 
-// Each role sees only its own price tier (enforced in the database); the owner can preview each.
+// The owner sees all three price lists; everyone else sees only their own (enforced in the database).
 export default function Catalog() {
   const { data, profile, reload } = useSession();
   const readOnly = useReadOnlyReason();
   const owner = profile?.role === 'owner';
   const canViewStock = owner || profile?.role === 'technician';
+  const [query, setQuery] = useState('');
   const [category, setCategory] = useState<(typeof categories)[number]>('All');
   const [type, setType] = useState('all');
-  const [preview, setPreview] = useState<(typeof tiers)[number]>('Customer');
   const [refreshing, setRefreshing] = useState(false);
-  const tier: Tier = owner ? (preview.toLowerCase() as Tier) : (profile?.role === 'technician' || profile?.role === 'shop' ? profile.role : 'customer');
-  const inCategory = data.products.filter(item => category === 'All' || item.category === category);
+  const tier: Tier = profile?.role === 'technician' || profile?.role === 'shop' ? profile.role : 'customer';
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const matching = data.products.filter(item => words.every(word => `${item.name} ${item.hsn || ''} ${item.description || ''}`.toLowerCase().includes(word)));
+  const inCategory = matching.filter(item => category === 'All' || item.category === category);
   // Appliance types with products in this category; a type with none here shows all types.
   const types = groupsIn(inCategory);
   const shownType = types.some(([key]) => key === type) ? type : 'all';
@@ -54,22 +55,37 @@ export default function Catalog() {
       <FlatList
         data={products}
         keyExtractor={item => item.id}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={ui.padded}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await reload(); setRefreshing(false); }} colors={[colors.teal]} />}
         ListHeaderComponent={
           <View style={{ gap: 10 }}>
             <PlanNotice />
-            {owner ? (
-              <>
-                <Notice>{previewNotice(tier)}</Notice>
-                <Chips label={t('Price list')} options={tiers} value={preview} onChange={setPreview} />
-              </>
-            ) : <Notice>{tierNotice(tier)}</Notice>}
-            <Chips label={t('Category')} options={categories} value={category} onChange={setCategory} />
-            {types.length > 1 ? <Chips label={t('Type')} options={['all', ...types.map(([key]) => key)]} value={shownType} onChange={setType} format={key => t(key === 'all' ? 'All types' : types.find(([k]) => k === key)?.[1] || 'Other')} /> : null}
+            {data.products.length ? (
+              <View style={local.search}>
+                <Ionicons name="search" size={18} color={colors.muted} />
+                <TextInput value={query} onChangeText={setQuery} placeholder={t('Search name or HSN…')} placeholderTextColor={colors.muted} style={local.input} autoCorrect={false} accessibilityLabel={t('Search products')} />
+                {query ? (
+                  <Pressable accessibilityRole="button" accessibilityLabel={t('Clear search')} hitSlop={10} onPress={() => setQuery('')}>
+                    <Ionicons name="close-circle" size={18} color={colors.muted} />
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={local.filters} accessibilityLabel={t('Category')}>
+              {types.length > 1 ? (
+                <ChipMenu label={t('Type')} value={shownType} onChange={setType} options={[{ value: 'all', label: t('All types') }, ...types.map(([key, label]) => ({ value: key, label: t(label) }))]} />
+              ) : null}
+              {categories.map(option => (
+                <Pressable key={option} accessibilityRole="button" accessibilityState={{ selected: option === category }} onPress={() => setCategory(option)} style={[local.chip, option === category && local.chipOn]}>
+                  <Text style={[local.chipText, option === category && local.chipTextOn]}>{t(option)}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            {!owner ? <Text style={local.note}>{tierNotice(tier)}</Text> : null}
           </View>
         }
-        ListEmptyComponent={<Empty text={data.products.length ? t('No products in this category.') : owner ? t('No products yet. Tap + to add one.') : t('No products yet.')} />}
+        ListEmptyComponent={<Empty text={data.products.length ? t('No matching products.') : owner ? t('No products yet. Tap + to add one.') : t('No products yet.')} />}
         ListFooterComponent={photoCredits(products).length ? (
           <Text style={[local.note, { marginTop: 16 }]}>
             {t('Photo credits:')}{' '}
@@ -85,13 +101,18 @@ export default function Catalog() {
               <ProductImage product={item} url={item.image ? imageUrls[item.image] : undefined} />
               <View style={ui.flex}>
                 <Text style={local.title}>{item.name}</Text>
-                <Text style={local.note}>{`${t(item.category)}${item.hsn ? ` · HSN ${item.hsn}` : ''} · GST ${item.gst}%`}</Text>
+                <Text style={local.note}>{`${t(item.category)}${item.hsn ? ` · HSN ${item.hsn}` : ''} · GST ${item.gst}% · ${item.unit}`}</Text>
               </View>
               {canViewStock ? <Badge label={t('{count} in stock', { count: item.stock ?? 0 })} tone={(item.stock ?? 0) < 5 ? 'warning' : 'good'} /> : null}
             </View>
-            {item.description ? <Text style={local.note}>{item.description}</Text> : null}
-            <Text style={local.price}>{t('{price} per {unit}', { price: money(price(item)), unit: item.unit })}</Text>
-            {owner ? <Text style={local.note}>{t('Customer {customer} · Technician {technician} · Shop {shop}', { customer: money(item.customer ?? 0), technician: money(item.technician ?? 0), shop: money(item.shop ?? 0) })}</Text> : null}
+            {item.description ? <Text style={local.note} numberOfLines={2}>{item.description}</Text> : null}
+            {owner ? (
+              <View style={local.prices}>
+                <Price label={t('Customer')} value={item.customer} main />
+                <Price label={t('Technician')} value={item.technician} />
+                <Price label={t('Shop')} value={item.shop} />
+              </View>
+            ) : <Text style={local.price}>{t('{price} per {unit}', { price: money(price(item)), unit: item.unit })}</Text>}
           </Pressable>
         )}
       />
@@ -99,10 +120,13 @@ export default function Catalog() {
   );
 }
 
-function previewNotice(tier: Tier) {
-  if (tier === 'technician') return t('Previewing technician prices. Each signed-in role can only see its own price tier.');
-  if (tier === 'shop') return t('Previewing shop prices. Each signed-in role can only see its own price tier.');
-  return t('Previewing customer prices. Each signed-in role can only see its own price tier.');
+function Price({ label, value, main }: { label: string; value?: number; main?: boolean }) {
+  return (
+    <View style={ui.flex}>
+      <Text style={local.priceLabel}>{label}</Text>
+      <Text style={[local.priceValue, main && local.priceMain]}>{money(value ?? 0)}</Text>
+    </View>
+  );
 }
 
 function tierNotice(tier: Tier) {
@@ -112,9 +136,20 @@ function tierNotice(tier: Tier) {
 }
 
 const local = StyleSheet.create({
-  card: { backgroundColor: colors.paper, borderRadius: 12, borderWidth: 1, borderColor: colors.line, padding: 14, gap: 6 },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, borderRadius: 10, paddingHorizontal: 12 },
+  input: { flex: 1, paddingVertical: 10, fontSize: 15, color: colors.ink },
+  filters: { gap: 8 },
+  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.paper },
+  chipOn: { backgroundColor: colors.teal, borderColor: colors.teal },
+  chipText: { fontSize: 13, color: colors.ink },
+  chipTextOn: { color: '#fff', fontWeight: '700' },
+  card: { backgroundColor: colors.paper, borderRadius: 12, borderWidth: 1, borderColor: colors.line, padding: 14, gap: 8 },
   top: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   title: { fontSize: 15, fontWeight: '700', color: colors.ink },
   note: { fontSize: 12, color: colors.muted },
-  price: { fontSize: 18, fontWeight: '800', color: colors.tealDark, fontVariant: ['tabular-nums'] }
+  price: { fontSize: 18, fontWeight: '800', color: colors.tealDark, fontVariant: ['tabular-nums'] },
+  prices: { flexDirection: 'row', gap: 8, borderTopWidth: 1, borderColor: colors.line, paddingTop: 8 },
+  priceLabel: { fontSize: 11, color: colors.muted },
+  priceValue: { fontSize: 14, fontWeight: '700', color: colors.ink, fontVariant: ['tabular-nums'] },
+  priceMain: { color: colors.tealDark }
 });

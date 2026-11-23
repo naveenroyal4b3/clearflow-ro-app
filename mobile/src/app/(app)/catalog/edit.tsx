@@ -1,11 +1,12 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Chips } from '@/components/Chips';
 import { useReadOnlyReason } from '@/components/PlanNotice';
 import { ProductImage } from '@/components/ProductImage';
 import { catalogItem } from '@/lib/catalog';
-import { Button, colors, Field, Notice, Screen, Select } from '@/components/ui';
+import { Button, Card, CardTitle, colors, Field, Notice, Screen, Select, styles as ui } from '@/components/ui';
 import { errorMessage, newId } from '@/lib/format';
 import { msg, t } from '@/lib/i18n';
 import { photoBytes, pickProductPhoto, useProductImageUrls, type PickedPhoto } from '@/lib/productImages';
@@ -17,6 +18,8 @@ import type { Product } from '@/lib/types';
 const categories = [msg('Purifiers'), msg('Accessories'), msg('Spare parts')];
 // Unit codes are printed on GST invoices as they are.
 const units = ['Nos', 'Pcs', 'Set', 'Box', 'Kg', 'Ltr', 'Mtr'].map(value => ({ value, label: value }));
+// The GST rates in use; a product saved with another rate keeps it as an extra choice.
+const gstRates = ['0', '5', '12', '18', '28'];
 type Form = { name: string; category: string; description: string; hsn: string; unit: string; customer: string; technician: string; shop: string; stock: string; gst: string };
 
 const isAmount = (value: string) => value.trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
@@ -104,16 +107,36 @@ export default function EditProduct() {
           </View>
         ) : null}
       </View>
-      <Field label={t('Product name *')} value={form.name} onChangeText={set('name')} />
-      <Select label={t('Category')} value={form.category} options={categories.map(value => ({ value, label: t(value) }))} onChange={set('category')} />
-      <Field label={t('Description')} value={form.description} onChangeText={set('description')} />
-      <Field label={t('HSN code (needed for GST invoices)')} value={form.hsn} onChangeText={set('hsn')} keyboardType="number-pad" maxLength={8} placeholder={t('e.g. 8421')} />
-      <Select label={t('Unit')} value={form.unit} options={units} onChange={set('unit')} />
-      <Field label={t('Customer price (₹) *')} value={form.customer} onChangeText={set('customer')} keyboardType="decimal-pad" />
-      <Field label={t('Technician price (₹) *')} value={form.technician} onChangeText={set('technician')} keyboardType="decimal-pad" />
-      <Field label={t('Shop price (₹) *')} value={form.shop} onChangeText={set('shop')} keyboardType="decimal-pad" />
-      <Field label={t('Stock quantity')} value={form.stock} onChangeText={set('stock')} keyboardType="number-pad" />
-      <Field label={t('GST rate (%)')} value={form.gst} onChangeText={set('gst')} keyboardType="decimal-pad" />
+      <Card>
+        <CardTitle title={t('Details')} />
+        <Field label={t('Product name *')} value={form.name} onChangeText={set('name')} />
+        <View style={ui.field}>
+          <Text style={ui.label}>{t('Category')}</Text>
+          <Chips label={t('Category')} options={categories} value={form.category} onChange={set('category')} />
+        </View>
+        <Field label={t('Description')} value={form.description} onChangeText={set('description')} />
+        <View style={local.row}>
+          <View style={local.wide}><Field label={t('HSN code')} value={form.hsn} onChangeText={set('hsn')} keyboardType="number-pad" maxLength={8} placeholder={t('e.g. 8421')} /></View>
+          <View style={ui.flex}><Select label={t('Unit')} value={form.unit} options={units} onChange={set('unit')} /></View>
+        </View>
+      </Card>
+      <Card>
+        <CardTitle title={t('Prices (₹)')} note={t('Each role sees only its own price.')} />
+        <View style={local.row}>
+          <View style={ui.flex}><Field label={t('Customer *')} value={form.customer} onChangeText={set('customer')} keyboardType="decimal-pad" placeholder="0" /></View>
+          <View style={ui.flex}><Field label={t('Technician *')} value={form.technician} onChangeText={set('technician')} keyboardType="decimal-pad" placeholder="0" /></View>
+          <View style={ui.flex}><Field label={t('Shop *')} value={form.shop} onChangeText={set('shop')} keyboardType="decimal-pad" placeholder="0" /></View>
+        </View>
+      </Card>
+      <Card>
+        <CardTitle title={t('Stock & GST')} />
+        <Field label={t('Stock quantity')} value={form.stock} onChangeText={set('stock')} keyboardType="number-pad" />
+        <View style={ui.field}>
+          <Text style={ui.label}>{t('GST rate')}</Text>
+          <Chips label={t('GST rate')} options={gstRates.includes(form.gst) ? gstRates : [...gstRates, form.gst]} value={form.gst} onChange={set('gst')} format={rate => `${rate}%`} />
+          <Text style={ui.hint}>{t('The HSN code and GST rate are printed on GST invoices.')}</Text>
+        </View>
+      </Card>
       <Button label={existing ? t('Save changes') : t('Add product')} onPress={save} disabled={Boolean(readOnly) || !valid} />
     </Screen>
   );
@@ -121,5 +144,7 @@ export default function EditProduct() {
 
 const local = StyleSheet.create({
   photo: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  photoButtons: { flex: 1, gap: 8 }
+  photoButtons: { flex: 1, gap: 8 },
+  row: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  wide: { flex: 1.4 }
 });

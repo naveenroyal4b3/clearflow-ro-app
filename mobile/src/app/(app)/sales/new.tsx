@@ -26,9 +26,9 @@ export default function NewDocument() {
   const { data, organization, reload } = useSession();
   const readOnly = useReadOnlyReason();
   const product = (id: string) => data.products.find(item => item.id === id);
-  const newLine = (productId = data.products[0]?.id || ''): Line => ({ productId, qty: '1', price: String(product(productId)?.customer ?? 0), discount: '0' });
+  const newLine = (): Line => ({ productId: '', qty: '1', price: '', discount: '0' });
   const [type, setType] = useState<SalesDocument['type']>('Quotation');
-  const [customerId, setCustomerId] = useState(data.customers[0]?.id || '');
+  const [customerId, setCustomerId] = useState('');
   const [date, setDate] = useState(today());
   const [due, setDue] = useState(plusDays(today(), 14));
   // Only a GST-registered business may charge GST.
@@ -38,7 +38,9 @@ export default function NewDocument() {
 
   const update = (index: number, change: Partial<Line>) => setLines(current => current.map((line, i) => i === index ? { ...line, ...change } : line));
   const parsed = lines.map(line => ({ productId: line.productId, qty: Number(line.qty), price: Number(line.price), discount: Number(line.discount) || 0, gst: product(line.productId)?.gst ?? 0 }));
-  const lineError = parsed.some(line => !line.productId || !(line.qty >= 1) || !(line.price >= 0))
+  // An item with no product yet is not an error to show; saving just waits for it.
+  const unpicked = parsed.some(line => !line.productId);
+  const lineError = parsed.some(line => line.productId && (!(line.qty >= 1) || !(line.price >= 0)))
     ? t('Check item quantities and prices.')
     : type === 'Invoice' && parsed.some(line => !Number.isInteger(line.qty)) ? t('Invoice quantities must be whole units.')
       : parsed.some(line => line.discount < 0 || line.discount > line.qty * line.price) ? t('A discount cannot be more than the line amount.') : '';
@@ -70,7 +72,7 @@ export default function NewDocument() {
       {readOnly ? <Notice tone="warning">{readOnly}</Notice> : null}
       {error ? <Notice tone="error">{error}</Notice> : null}
       <Chips label={t('Document type')} options={types} value={type} onChange={setType} />
-      <Select label={t('Customer *')} value={customerId} options={data.customers.map(item => ({ value: item.id, label: `${item.name} · ${item.phone}` }))} onChange={setCustomerId} />
+      <Select label={t('Customer *')} value={customerId} options={data.customers.map(item => ({ value: item.id, label: `${item.name} · ${item.phone}` }))} onChange={setCustomerId} placeholder={t('Choose customer')} />
       <DateField label={t('Document date')} value={date} onChange={setDate} />
       <DateField label={type === 'Quotation' ? t('Valid until') : t('Due date')} value={due} onChange={setDue} optional />
 
@@ -84,7 +86,7 @@ export default function NewDocument() {
               </Pressable>
             ) : null}
           </View>
-          <Select label={t('Product')} value={line.productId} options={data.products.map(item => ({ value: item.id, label: `${item.name} · ${money(item.customer ?? 0)}` }))} onChange={productId => update(index, { productId, price: String(product(productId)?.customer ?? 0) })} />
+          <Select label={t('Product')} value={line.productId} options={data.products.map(item => ({ value: item.id, label: `${item.name} · ${money(item.customer ?? 0)}` }))} onChange={productId => update(index, { productId, price: String(product(productId)?.customer ?? 0) })} placeholder={t('Choose product')} />
           <View style={local.row}>
             <View style={ui.flex}><Field label={t('Qty')} value={line.qty} onChangeText={qty => update(index, { qty })} keyboardType="number-pad" /></View>
             <View style={ui.flex}><Field label={t('Unit price ₹')} value={line.price} onChangeText={price => update(index, { price })} keyboardType="decimal-pad" /></View>
@@ -107,7 +109,7 @@ export default function NewDocument() {
         <Total label={t('Total')} value={money(bill.total)} strong />
       </Card>
       {lineError ? <Notice tone="warning">{lineError}</Notice> : null}
-      <Button label={type === 'Quotation' ? t('Save quotation') : t('Save invoice')} onPress={save} disabled={Boolean(readOnly) || Boolean(lineError) || !customerId || !date} />
+      <Button label={type === 'Quotation' ? t('Save quotation') : t('Save invoice')} onPress={save} disabled={Boolean(readOnly) || Boolean(lineError) || unpicked || !customerId || !date} />
     </Screen>
   );
 }
