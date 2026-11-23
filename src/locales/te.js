@@ -685,4 +685,7 @@ export default {
   "Search": "వెతకండి",
   "Nothing matches.": "ఏదీ సరిపోలలేదు.",
   "TiruFix {version} · build {build}": "TiruFix {version} · బిల్డ్ {build}",
+  "Add your business phone": "మీ బిజినెస్ ఫోన్ జోడించండి",
+  "It is printed on your invoices and lets customers reach you.": "ఇది మీ ఇన్‌వాయిస్‌లపై ముద్రించబడుతుంది, కస్టమర్లు మిమ్మల్ని సంప్రదించగలరు.",
+  "Add phone number": "ఫోన్ నంబర్ జోడించండి",
 };

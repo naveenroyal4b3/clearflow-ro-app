@@ -8,13 +8,14 @@ import { PlanNotice } from '@/components/PlanNotice';
 import { money, shortDate, today, totals } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
+import { validPhone } from '@/lib/shared';
 
 function monthKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
 export default function Overview() {
-  const { profile, data, reload } = useSession();
+  const { profile, organization, data, reload } = useSession();
   const [refreshing, setRefreshing] = useState(false);
   const owner = profile?.role === 'owner';
   const canViewStock = owner || profile?.role === 'technician';
@@ -44,6 +45,12 @@ export default function Overview() {
     <SafeAreaView style={ui.screen} edges={['left', 'right']}>
       <ScrollView contentContainerStyle={ui.padded} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} colors={[colors.teal]} />}>
         <PlanNotice />
+        {owner && organization && !validPhone(organization.phone) ? (
+          <Card style={{ backgroundColor: colors.yellowPale, borderColor: colors.yellow }}>
+            <CardTitle title={t('Add your business phone')} note={t('It is printed on your invoices and lets customers reach you.')} />
+            <Button label={t('Add phone number')} onPress={() => router.push('/more/business')} />
+          </Card>
+        ) : null}
         <Heading eyebrow={new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long' }).format(now)} title={greeting} subtitle={t('Here’s what’s happening across your business today.')} />
 
         <View style={local.metrics}>

@@ -685,4 +685,7 @@ export default {
   "Search": "ಹುಡುಕಿ",
   "Nothing matches.": "ಏನೂ ಹೊಂದಿಕೆಯಾಗಲಿಲ್ಲ.",
   "TiruFix {version} · build {build}": "TiruFix {version} · ಬಿಲ್ಡ್ {build}",
+  "Add your business phone": "ನಿಮ್ಮ ವ್ಯಾಪಾರ ಫೋನ್ ಸೇರಿಸಿ",
+  "It is printed on your invoices and lets customers reach you.": "ಇದು ನಿಮ್ಮ ಇನ್‌ವಾಯ್ಸ್‌ಗಳಲ್ಲಿ ಮುದ್ರಿತವಾಗುತ್ತದೆ, ಗ್ರಾಹಕರು ನಿಮ್ಮನ್ನು ಸಂಪರ್ಕಿಸಬಹುದು.",
+  "Add phone number": "ಫೋನ್ ನಂಬರ್ ಸೇರಿಸಿ",
 };

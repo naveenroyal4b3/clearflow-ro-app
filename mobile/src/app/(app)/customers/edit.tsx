@@ -1,5 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
+import { View } from 'react-native';
 import { Button, Field, Notice, Screen, Select } from '@/components/ui';
 import { DateField } from '@/components/DateField';
 import { StateSelect } from '@/components/StateSelect';
@@ -7,7 +8,7 @@ import { useReadOnlyReason } from '@/components/PlanNotice';
 import { errorMessage, newId, today } from '@/lib/format';
 import { msg, t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
-import { saveWorkspaceRecords, stateFromGstin } from '@/lib/shared';
+import { joinPhone, saveWorkspaceRecords, splitPhone, stateFromGstin, validPhone } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
 import type { Customer } from '@/lib/types';
 
@@ -22,13 +23,18 @@ export default function EditCustomer() {
     id: '', name: '', phone: '', email: '', address: '', type: 'Residential', installed: '', purifier: '', notes: '', gstin: '', state: ''
   });
   const [error, setError] = useState('');
+  // Country code (+91 by default) and number, as on the business form.
+  const [code, setCode] = useState(splitPhone(existing?.phone).code);
+  const [number, setNumber] = useState(splitPhone(existing?.phone).number);
   const set = (key: keyof Customer) => (value: string) => setForm(current => ({ ...current, [key]: value }));
   const validDate = !form.installed || (/^\d{4}-\d{2}-\d{2}$/.test(form.installed) && form.installed <= today());
 
   const save = async () => {
     setError('');
     if (!profile) return;
-    const next: Customer = { ...form, id: existing?.id || newId('C'), name: form.name.trim(), phone: form.phone.trim(), gstin: form.gstin.trim().toUpperCase(), state: form.state || stateFromGstin(form.gstin) };
+    const phone = validPhone(joinPhone(code, number));
+    if (!phone) { setError(t('Enter a valid mobile number and country code.')); return; }
+    const next: Customer = { ...form, id: existing?.id || newId('C'), name: form.name.trim(), phone, gstin: form.gstin.trim().toUpperCase(), state: form.state || stateFromGstin(form.gstin) };
     try {
       await saveWorkspaceRecords(supabase, profile, 'customers', [next]);
     } catch (saveError) {
@@ -45,7 +51,10 @@ export default function EditCustomer() {
       {readOnly ? <Notice tone="warning">{readOnly}</Notice> : null}
       {error ? <Notice tone="error">{error}</Notice> : null}
       <Field label={t('Customer / business name *')} value={form.name} onChangeText={set('name')} maxLength={160} />
-      <Field label={t('Phone number *')} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <View style={{ width: 92 }}><Field label={t('Country code')} value={code} onChangeText={setCode} keyboardType="phone-pad" maxLength={5} /></View>
+        <View style={{ flex: 1 }}><Field label={t('Phone number *')} value={number} onChangeText={setNumber} keyboardType="phone-pad" maxLength={18} placeholder="98480 12345" /></View>
+      </View>
       <Field label={t('Email')} value={form.email} onChangeText={set('email')} keyboardType="email-address" autoCapitalize="none" />
       <Select label={t('Customer type')} value={form.type} options={customerTypes.map(value => ({ value, label: t(value) }))} onChange={set('type')} />
       <Field label={t('Full address')} value={form.address} onChangeText={set('address')} multiline />
@@ -54,7 +63,7 @@ export default function EditCustomer() {
       <Field label={t('Appliance / model installed')} value={form.purifier} onChangeText={set('purifier')} />
       <DateField label={t('Installation date')} value={form.installed} onChange={set('installed')} optional maximumDate={new Date()} />
       <Field label={t('Notes')} value={form.notes} onChangeText={set('notes')} multiline />
-      <Button label={existing ? t('Save changes') : t('Add customer')} onPress={save} disabled={Boolean(readOnly) || !form.name.trim() || !form.phone.trim() || !validDate} />
+      <Button label={existing ? t('Save changes') : t('Add customer')} onPress={save} disabled={Boolean(readOnly) || !form.name.trim() || !number.trim() || !validDate} />
     </Screen>
   );
 }
