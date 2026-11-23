@@ -21,6 +21,7 @@ const items: Item[] = [
   { href: '/more/activity', label: msg('Activity log'), note: msg('Who changed what, and when'), icon: 'time-outline', ownerOnly: true },
   // For the TiruFix team only, so not translated.
   { href: '/more/catalog-photos', label: 'Catalogue photos', note: 'Real photos shown to every business', icon: 'camera-outline', adminOnly: true },
+  { href: '/more/businesses', label: 'Businesses', note: 'Who signed up, plans and how much each one uses', icon: 'stats-chart-outline', adminOnly: true },
   { href: '/more/app-feedback-inbox', label: 'App feedback', note: 'Suggestions and problems from every business', icon: 'mail-unread-outline', adminOnly: true }
 ];
 
