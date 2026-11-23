@@ -38,7 +38,7 @@ export default function PickProduct() {
           <View style={{ gap: 10 }}>
             <View style={local.search}>
               <Ionicons name="search" size={18} color={colors.muted} />
-              <TextInput value={query} onChangeText={setQuery} placeholder={t('Search model or part, e.g. Kent Grand, membrane 80')} placeholderTextColor={colors.muted} style={local.input} autoCorrect={false} accessibilityLabel={t('Search the catalogue')} />
+              <TextInput value={query} onChangeText={setQuery} placeholder={t('Search model or part, e.g. split AC, Kent Grand, compressor')} placeholderTextColor={colors.muted} style={local.input} autoCorrect={false} accessibilityLabel={t('Search the catalogue')} />
             </View>
             <Chips label={t('Type')} options={['all', ...applianceGroups.map(([key]) => key)]} value={type} onChange={setType} format={key => t(key === 'all' ? 'All types' : applianceGroups.find(([k]) => k === key)?.[1] || 'Other')} />
             <Chips label={t('Category')} options={categories} value={category} onChange={setCategory} />

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Badge, Button, Card, CardTitle, colors, Empty, Heading, styles as ui } from '@/components/ui';
 import { PlanNotice } from '@/components/PlanNotice';
@@ -28,6 +29,10 @@ export default function Overview() {
   const chartMax = Math.max(1, ...months.map(item => item.total));
   const openJobs = data.jobs.filter(job => job.status !== 'Completed' && job.status !== 'Cancelled');
   const upcoming = [...openJobs].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 4);
+  const overdueJobs = openJobs.filter(job => job.date < today()).length;
+  const canOpenJobs = owner || profile?.role === 'technician';
+  const lowStock = data.products.filter(item => (item.stock ?? 0) < 5).length;
+  const lowestStock = [...data.products].sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0) || a.name.localeCompare(b.name)).slice(0, 5);
   const customerName = (id: string) => data.customers.find(item => item.id === id)?.name || t('Customer');
   const firstName = profile?.full_name?.split(/\s+/)[0] || t('there');
   const hour = now.getHours();
@@ -43,9 +48,9 @@ export default function Overview() {
 
         <View style={local.metrics}>
           <Metric label={t('{month} sales', { month: new Intl.DateTimeFormat('en', { month: 'long' }).format(now) })} value={money(monthTotal)} />
-          <Metric label={t('Customers')} value={String(data.customers.length)} />
           <Metric label={t('Open service jobs')} value={String(openJobs.length)} />
-          <Metric label={t('Products')} value={String(data.products.length)} />
+          <Metric label={t('Overdue jobs')} value={String(overdueJobs)} alert={overdueJobs > 0} onPress={profile?.role !== 'shop' ? () => router.push('/jobs') : undefined} />
+          {canViewStock ? <Metric label={t('Low stock')} value={String(lowStock)} alert={lowStock > 0} onPress={() => router.push('/catalog')} /> : <Metric label={t('Customers')} value={String(data.customers.length)} />}
         </View>
 
         {owner && !data.customers.length && !data.products.length ? (
@@ -73,20 +78,21 @@ export default function Overview() {
         <Card>
           <CardTitle title={t('Upcoming service')} note={t('Next scheduled visits')} action={profile?.role !== 'shop' ? <Button label={t('All jobs')} variant="link" onPress={() => router.push('/jobs')} /> : undefined} />
           {upcoming.length ? upcoming.map(job => (
-            <View key={job.id} style={local.listRow}>
+            <Pressable key={job.id} style={local.listRow} disabled={!canOpenJobs} onPress={() => router.push({ pathname: '/jobs/edit', params: { id: job.id } })} accessibilityRole={canOpenJobs ? 'button' : undefined}>
               <View style={ui.flex}>
                 <Text style={local.rowTitle}>{customerName(job.customerId)}</Text>
                 <Text style={local.rowNote}>{`${t(job.type)} · ${job.date < today() ? `${t('overdue')} · ` : ''}${shortDate(job.date)} · ${job.technician || t('Unassigned')}`}</Text>
               </View>
               <Badge label={t(job.status)} tone={job.status === 'In progress' ? 'good' : 'warning'} />
-            </View>
+              {canOpenJobs ? <Ionicons name="chevron-forward" size={16} color={colors.muted} /> : null}
+            </Pressable>
           )) : <Empty text={t('No upcoming service jobs.')} />}
         </Card>
 
         {canViewStock ? (
           <Card>
-            <CardTitle title={t('Stock watch')} note={t('Current availability')} />
-            {data.products.length ? data.products.slice(0, 5).map(item => (
+            <CardTitle title={t('Stock watch')} note={t('Lowest stock first')} action={<Button label={t('All products')} variant="link" onPress={() => router.push('/catalog')} />} />
+            {data.products.length ? lowestStock.map(item => (
               <View key={item.id} style={local.listRow}>
                 <View style={ui.flex}>
                   <Text style={local.rowTitle}>{item.name}</Text>
@@ -102,12 +108,12 @@ export default function Overview() {
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ label, value, alert, onPress }: { label: string; value: string; alert?: boolean; onPress?: () => void }) {
   return (
-    <View style={local.metric}>
+    <Pressable style={[local.metric, alert && local.metricAlert]} disabled={!onPress} onPress={onPress} accessibilityRole={onPress ? 'button' : undefined}>
       <Text style={local.metricLabel}>{label}</Text>
-      <Text style={local.metricValue}>{value}</Text>
-    </View>
+      <Text style={[local.metricValue, alert && local.metricValueAlert]}>{value}</Text>
+    </Pressable>
   );
 }
 
@@ -116,6 +122,8 @@ const local = StyleSheet.create({
   metric: { flexBasis: '47%', flexGrow: 1, backgroundColor: colors.paper, borderRadius: 12, borderWidth: 1, borderColor: colors.line, padding: 14, gap: 6 },
   metricLabel: { fontSize: 12, color: colors.muted },
   metricValue: { fontSize: 22, fontWeight: '800', color: colors.ink },
+  metricAlert: { backgroundColor: colors.orangePale, borderColor: '#f0d6bf' },
+  metricValueAlert: { color: colors.orange },
   chart: { height: 140, flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   barGroup: { flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center', gap: 6 },
   bar: { width: '70%', borderRadius: 6, backgroundColor: colors.tealPale },
