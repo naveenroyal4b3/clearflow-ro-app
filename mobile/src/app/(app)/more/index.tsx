@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import Constants from 'expo-constants';
 import { router, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { PlanNotice } from '@/components/PlanNotice';
@@ -22,6 +23,10 @@ const items: Item[] = [
   { href: '/more/catalog-photos', label: 'Catalogue photos', note: 'Real photos shown to every business', icon: 'camera-outline', adminOnly: true },
   { href: '/more/app-feedback-inbox', label: 'App feedback', note: 'Suggestions and problems from every business', icon: 'mail-unread-outline', adminOnly: true }
 ];
+
+// Every Play build is version 2.0.0; the build number tells which one is installed.
+const version = Constants.expoConfig?.version ?? '';
+const build = Constants.expoConfig?.android?.versionCode;
 
 export default function More() {
   const { profile, organization, signOut } = useSession();
@@ -48,6 +53,7 @@ export default function More() {
         ))}
       </View>
       <Button label={t('Sign out')} variant="secondary" onPress={signOut} />
+      <Text style={local.version}>{t('TiruFix {version} · build {build}', { version, build: build ?? '–' })}</Text>
     </Screen>
   );
 }
@@ -58,5 +64,6 @@ const local = StyleSheet.create({
   list: { backgroundColor: colors.paper, borderRadius: 12, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
   item: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderBottomWidth: 1, borderColor: colors.line },
   label: { fontSize: 15, fontWeight: '700', color: colors.ink },
-  note: { fontSize: 12, color: colors.muted, marginTop: 2 }
+  note: { fontSize: 12, color: colors.muted, marginTop: 2 },
+  version: { fontSize: 12, color: colors.muted, textAlign: 'center' }
 });

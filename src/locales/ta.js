@@ -684,4 +684,5 @@ export default {
   "Choose product": "தயாரிப்பைத் தேர்ந்தெடுங்கள்",
   "Search": "தேடு",
   "Nothing matches.": "எதுவும் பொருந்தவில்லை.",
+  "TiruFix {version} · build {build}": "TiruFix {version} · பில்ட் {build}",
 };
