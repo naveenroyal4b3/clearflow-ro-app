@@ -14,7 +14,11 @@ const languages = [
   'ro', 'ru', 'sk', 'sl', 'sv', 'sw', 'ta', 'te', 'th', 'tr', 'uk', 'ur', 'vi', 'zh', 'zh-rCN', 'zh-rTW', 'zu'
 ];
 
-const escape = text => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/'/g, "\\'");
+// Android string resource escaping: backslash first, then quotes, XML characters and a leading @ or ?.
+const escape = text => text
+  .replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/^([@?])/, '\\$1');
 
 module.exports = function withAppNameEveryLanguage(config) {
   return withDangerousMod(config, ['android', async result => {
