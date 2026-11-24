@@ -40,6 +40,8 @@ const config: ExpoConfig = {
     }],
     // Taking a photo is optional, so devices without a camera can still install the app.
     './plugins/optional-camera',
+    // The app name in every language, so Google Play's machine translations of the old name aren't used.
+    './plugins/app-name-every-language',
     // Release builds: R8 removes unused code and resources, so the app is smaller and faster.
     // The keep rules cover code that native libraries reach only through JNI or reflection.
     ['expo-build-properties', {
