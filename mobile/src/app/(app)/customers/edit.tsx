@@ -8,11 +8,13 @@ import { useReadOnlyReason } from '@/components/PlanNotice';
 import { errorMessage, newId, today } from '@/lib/format';
 import { msg, t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
-import { joinPhone, saveWorkspaceRecords, splitPhone, stateFromGstin, validPhone } from '@/lib/shared';
+import { firstServiceDate, joinPhone, saveWorkspaceRecords, splitPhone, stateFromGstin, validPhone } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
 import type { Customer } from '@/lib/types';
 
 const customerTypes = [msg('Residential'), msg('Commercial'), msg('Apartment')];
+// Regular service intervals in months ('' for none).
+const serviceIntervals = ['', '1', '2', '3', '4', '6', '12'];
 
 export default function EditCustomer() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -27,6 +29,12 @@ export default function EditCustomer() {
   const [code, setCode] = useState(splitPhone(existing?.phone).code);
   const [number, setNumber] = useState(splitPhone(existing?.phone).number);
   const set = (key: keyof Customer) => (value: string) => setForm(current => ({ ...current, [key]: value }));
+  // Choosing an interval fills in the next service date (from the installation date) if it is empty.
+  const setInterval = (value: string) => setForm(current => ({
+    ...current,
+    serviceEvery: value ? Number(value) : null,
+    nextService: value && !current.nextService ? firstServiceDate(current.installed, Number(value), today()) : value ? current.nextService : ''
+  }));
   const validDate = !form.installed || (/^\d{4}-\d{2}-\d{2}$/.test(form.installed) && form.installed <= today());
 
   const save = async () => {
@@ -62,6 +70,8 @@ export default function EditCustomer() {
       <StateSelect label={t('State (place of supply)')} value={form.state} onChange={set('state')} />
       <Field label={t('Appliance / model installed')} value={form.purifier} onChangeText={set('purifier')} />
       <DateField label={t('Installation date')} value={form.installed} onChange={set('installed')} optional maximumDate={new Date()} />
+      <Select label={t('Regular service')} value={form.serviceEvery ? String(form.serviceEvery) : ''} options={serviceIntervals.map(value => ({ value, label: value ? (value === '1' ? t('Every month') : t('Every {count} months', { count: value })) : t('No regular service') }))} onChange={setInterval} />
+      {form.serviceEvery ? <DateField label={t('Next service date')} value={form.nextService || ''} onChange={set('nextService')} optional /> : null}
       <Field label={t('Notes')} value={form.notes} onChangeText={set('notes')} multiline />
       <Button label={existing ? t('Save changes') : t('Add customer')} onPress={save} disabled={Boolean(readOnly) || !form.name.trim() || !number.trim() || !validDate} />
     </Screen>

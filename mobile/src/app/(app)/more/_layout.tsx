@@ -9,6 +9,7 @@ export default function MoreLayout() {
       <Stack.Screen name="index" options={{ title: t('More') }} />
       <Stack.Screen name="account" options={{ title: t('My account') }} />
       <Stack.Screen name="business" options={{ title: t('Business details') }} />
+      <Stack.Screen name="report" options={{ title: t('Business report') }} />
       <Stack.Screen name="team" options={{ title: t('Team & access') }} />
       <Stack.Screen name="team-edit" options={{ title: t('Team member'), presentation: 'modal' }} />
       <Stack.Screen name="feedback" options={{ title: t('Feedback & issues') }} />

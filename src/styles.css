@@ -315,3 +315,10 @@ td strong { color: #364640; font-size: 10px; font-weight: 700; }
 .link-button { padding: 0; border: 0; background: none; color: #197c70; font: inherit; font-weight: 700; cursor: pointer; text-align: left; }
 .sample-actions { flex-direction: column; align-items: stretch; max-width: 280px; }
 .sample-actions small { color: #64746b; font-size: 12px; }
+.reminders { margin-top: 16px; }
+.reminder-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid #e8ece8; }
+.reminder-row strong { display: block; font-size: 14px; }
+.reminder-row span { display: block; font-size: 12px; color: #788480; margin-top: 2px; }
+.reminder-row span.late { color: #b94a48; font-weight: 700; }
+.reminder-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.small-button { min-height: 32px; padding: 0 10px; font-size: 12px; text-decoration: none; }

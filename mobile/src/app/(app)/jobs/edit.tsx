@@ -18,12 +18,13 @@ const toOptions = (values: string[]) => values.map(value => ({ value, label: t(v
 
 // Owners schedule and edit jobs; technicians can only start or complete their assigned jobs.
 export default function EditJob() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  // id edits a job; customerId and type start a new one for that customer (from a service reminder).
+  const { id, customerId, type } = useLocalSearchParams<{ id?: string; customerId?: string; type?: string }>();
   const { data, profile, setData } = useSession();
   const readOnly = useReadOnlyReason();
   const existing = data.jobs.find(item => item.id === id);
   const technicianMode = profile?.role === 'technician';
-  const [form, setForm] = useState<Job>(existing || { id: '', customerId: data.customers[0]?.id || '', type: 'Installation', date: today(), technician: '', status: 'Scheduled', notes: '' });
+  const [form, setForm] = useState<Job>(existing || { id: '', customerId: customerId || data.customers[0]?.id || '', type: type || 'Installation', date: today(), technician: '', status: 'Scheduled', notes: '' });
   const [error, setError] = useState('');
   const set = (key: keyof Job) => (value: string) => setForm(current => ({ ...current, [key]: value }));
   const customer = data.customers.find(item => item.id === form.customerId);

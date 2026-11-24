@@ -1,5 +1,3 @@
-- New "Get started" steps on Home, with sample data to try the app first
-- Search your products by name or HSN; all three prices at a glance
-- Search customers and products while billing
-- Phone numbers are checked, with a country code
-- Home shows overdue jobs and lowest stock first
+- Service due: set a regular service for each customer and see who is due this week, with one-tap WhatsApp
+- Payments pending: unpaid invoices on Home with a WhatsApp reminder
+- Business report: monthly sales, collections, GST and best sellers (More → Business report)

@@ -14,6 +14,7 @@ type Item = { href: Href; label: string; note: string; icon: keyof typeof Ionico
 const items: Item[] = [
   { href: '/more/account', label: msg('My account'), note: msg('Plan, other devices, delete account'), icon: 'person-circle-outline' },
   { href: '/more/business', label: msg('Business details'), note: msg('Printed as the seller on invoices'), icon: 'business-outline', ownerOnly: true },
+  { href: '/more/report', label: msg('Business report'), note: msg('Sales, collections and best sellers by month'), icon: 'bar-chart-outline', ownerOnly: true },
   { href: '/more/team', label: msg('Team & access'), note: msg('Invite technicians, shops and customers'), icon: 'people-circle-outline', ownerOnly: true },
   { href: '/more/feedback', label: msg('Feedback & issues'), note: msg('Report a problem or share an idea'), icon: 'chatbubble-ellipses-outline' },
   { href: '/more/refer', label: msg('Refer a dealer'), note: msg('Share your code with other dealers'), icon: 'gift-outline', ownerOnly: true },
