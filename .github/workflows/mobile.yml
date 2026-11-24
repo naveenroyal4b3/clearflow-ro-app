@@ -15,6 +15,7 @@ on:
       - src/catalog.js
       - src/catalog-data.js
       - src/product-icons.js
+      - src/reminders.js
       - src/locales/**
       - .github/workflows/mobile.yml
   pull_request:
@@ -27,6 +28,7 @@ on:
       - src/catalog.js
       - src/catalog-data.js
       - src/product-icons.js
+      - src/reminders.js
       - src/locales/**
       - .github/workflows/mobile.yml
   workflow_dispatch:
