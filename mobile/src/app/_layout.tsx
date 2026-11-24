@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors } from '@/components/ui';
 import { useInAppUpdates } from '@/lib/inAppUpdates';
+import { usePhonePortrait } from '@/lib/orientation';
 import { LanguageProvider, t } from '@/lib/i18n';
 import { SessionProvider, useSession } from '@/lib/session';
 
@@ -27,6 +28,7 @@ function Navigator() {
 
 export default function RootLayout() {
   useInAppUpdates();
+  usePhonePortrait();
   return (
     <SafeAreaProvider>
       <SessionProvider>

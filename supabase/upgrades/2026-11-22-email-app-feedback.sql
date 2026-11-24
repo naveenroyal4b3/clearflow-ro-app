@@ -1,4 +1,4 @@
--- Emails every platform admin when a business sends feedback to Clearflow (the Suggest button on
+-- Emails every platform admin when a business sends feedback to TiruFix (the Suggest button on
 -- the website, the chat icon in the app). Sent through Resend (resend.com) with pg_net, after the
 -- feedback is saved; if the email fails, the feedback is still saved.
 -- Needs the Resend API key in Supabase Vault first (run once, with your own key):
@@ -36,16 +36,16 @@ begin
     url := 'https://api.resend.com/emails',
     headers := jsonb_build_object('Authorization', 'Bearer ' || api_key, 'Content-Type', 'application/json'),
     body := jsonb_build_object(
-      'from', 'Clearflow RO <onboarding@resend.dev>',
+      'from', 'TiruFix <onboarding@resend.dev>',
       'to', recipients,
-      'subject', 'Clearflow ' || lower(new.kind) || ' from ' || coalesce(nullif(new.business, ''), nullif(new.name, ''), new.email),
+      'subject', 'TiruFix ' || lower(new.kind) || ' from ' || coalesce(nullif(new.business, ''), nullif(new.name, ''), new.email),
       'text', new.message || E'\n\n'
         || 'From: ' || new.name || ' (' || new.role || ')' || E'\n'
         || 'Business: ' || new.business || E'\n'
         || 'Phone: ' || new.phone || E'\n'
         || 'Email: ' || new.email || E'\n'
         || 'Where: ' || new.page || ' · ' || new.platform || ' ' || new.app_version || E'\n\n'
-        || 'All feedback: https://clearflowro.in/ (Suggest > See all app feedback)'
+        || 'All feedback: More > App feedback in the TiruFix app, or https://clearflowro.in/ (Suggest > See all app feedback)'
     )
   );
   return new;

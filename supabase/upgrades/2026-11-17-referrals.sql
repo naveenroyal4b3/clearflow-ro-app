@@ -47,7 +47,7 @@ begin
 end;
 $$;
 
--- An owner enters the code of the business that told them about Clearflow.
+-- An owner enters the code of the business that told them about TiruFix.
 create or replace function public.apply_referral(code text)
 returns void
 language plpgsql

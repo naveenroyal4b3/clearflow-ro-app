@@ -9,7 +9,8 @@ const config: ExpoConfig = {
   slug: 'clearflow-ro',
   version: '2.0.0',
   scheme: 'clearflow',
-  orientation: 'portrait',
+  // Phones are kept in portrait at run time (src/lib/orientation.ts); large screens rotate freely.
+  orientation: 'default',
   icon: './assets/icon.png',
   userInterfaceStyle: 'light',
   android: {
