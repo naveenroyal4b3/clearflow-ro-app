@@ -3,7 +3,7 @@
 // type-checking the web project's JavaScript under this app's stricter settings. Only functions
 // that need no browser APIs are exposed.
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { LineItem, Organization, Profile, SalesDocument, WorkspaceData } from './types';
+import type { Customer, Job, LineItem, Organization, Profile, SalesDocument, WorkspaceData } from './types';
 
 type TaxLine = { qty: number; price: number; gst: number; discount?: number };
 type TaxRow<T> = T & { discount: number; taxable: number; rate: number; cgst: number; sgst: number; igst: number; total: number };
@@ -21,6 +21,21 @@ type GstModule = {
 };
 
 type Collection = 'customers' | 'products' | 'jobs' | 'feedback';
+type DueService = { customer: Customer; due: string; daysLeft: number };
+type UnpaidInvoice = { doc: SalesDocument; due: string; amount: number; daysOverdue: number };
+export type MonthReport = {
+  sales: number; tax: number; collected: number; pending: number; invoices: number; quotations: number; jobsDone: number; jobsOpen: number;
+  topProducts: { name: string; qty: number; amount: number }[]; topCustomers: { name: string; amount: number }[];
+};
+type RemindersModule = {
+  addMonths: (date: string, months: number) => string;
+  firstServiceDate: (installed: string, months: number, today: string) => string;
+  serviceDue: (customers: Customer[], jobs: Job[], today: string, days?: number) => DueService[];
+  unpaidInvoices: (documents: SalesDocument[], today: string) => UnpaidInvoice[];
+  whatsappLink: (phone: string, text?: string) => string;
+  monthReport: (data: WorkspaceData, month: string) => MonthReport;
+};
+
 type DataModule = {
   loadWorkspace: (client: SupabaseClient, profile: Profile) => Promise<WorkspaceData>;
   saveWorkspaceRecords: (client: SupabaseClient, profile: Profile, collection: Collection, records: object[], profiles?: { user_id?: string; id?: string; full_name?: string; name?: string }[]) => Promise<void>;
@@ -91,6 +106,9 @@ const documents: DocumentsModule = require('../../../src/documents.js');
 export const { documentDetails, documentHtml, invoiceRegisterRows, invoiceRegisterHtml } = documents;
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const data: DataModule = require('../../../src/supabase-data.js');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const reminders: RemindersModule = require('../../../src/reminders.js');
+export const { addMonths, firstServiceDate, serviceDue, unpaidInvoices, whatsappLink, monthReport } = reminders;
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const icons: ProductIconsModule = require('../../../src/product-icons.js');
 export const { productKind, productArtSvg, catalogPhotoUrl, photoCredits, productKinds, productKindLabels, applianceGroup, applianceGroups, groupsIn } = icons;

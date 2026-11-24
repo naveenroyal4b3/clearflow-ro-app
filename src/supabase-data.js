@@ -72,7 +72,9 @@ export async function loadWorkspace(client, profile) {
       purifier: item.purifier || '',
       notes: item.notes || '',
       gstin: item.gstin || '',
-      state: item.state_code || ''
+      state: item.state_code || '',
+      serviceEvery: item.service_every_months ?? null,
+      nextService: item.next_service_on || ''
     })),
     products: products.map(item => ({
       id: item.id,
@@ -154,7 +156,9 @@ export async function saveWorkspaceRecords(client, profile, collection, records,
       purifier: item.purifier || '',
       notes: item.notes || '',
       gstin: (item.gstin || '').trim().toUpperCase(),
-      state_code: item.state || ''
+      state_code: item.state || '',
+      service_every_months: Number(item.serviceEvery) || null,
+      next_service_on: item.nextService || null
     })), { onConflict: 'organization_id,id' });
   } else if (collection === 'products') {
     result = await client.from('products').upsert(entries.map(item => ({

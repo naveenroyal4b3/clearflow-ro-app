@@ -33,6 +33,8 @@ export type Organization = {
 export type Customer = {
   id: string; name: string; phone: string; email: string; address: string; type: string;
   installed: string; purifier: string; notes: string; gstin: string; state: string;
+  // Regular service: every this many months (null for none), next due on nextService ('' for none).
+  serviceEvery?: number | null; nextService?: string;
 };
 export type Product = {
   id: string; name: string; category: string; description: string; hsn: string; unit: string;

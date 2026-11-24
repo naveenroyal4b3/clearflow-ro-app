@@ -4,6 +4,7 @@ import { catalogPhotoUrl, photoCredits, productArtSvg, productKindLabels, produc
 const groupLabel = item => applianceGroups.find(([key]) => key === applianceGroup(item))?.[1] || 'Other';
 import { stateFromGstin, stateOptions, taxBreakup, validPhone, joinPhone, splitPhone } from './gst.js';
 import { catalog, catalogItem } from './catalog.js';
+import { firstServiceDate, serviceDue, unpaidInvoices, whatsappLink } from './reminders.js';
 import { documentDetails as sharedDocumentDetails, documentHtml, invoiceRegisterHeader, invoiceRegisterRows } from './documents.js';
 import { languages, getLanguage, setLanguage, t, msg } from './i18n.js';
 import { version as appVersion } from '../package.json';
@@ -527,6 +528,38 @@ async function removeSamples() {
     toast(kept ? t('Sample records used on a quotation or invoice stay, because the document needs them.') : t('Sample data removed'));
   } catch (error) { toast(errorMessage(error, t('Could not remove sample data. Try again.'))); }
 }
+function isoToday() {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+function whatsappButton(phone, text, label) {
+  const link = whatsappLink(phone, text);
+  return link ? `<a class="button secondary small-button" href="${esc(link)}" target="_blank" rel="noopener" aria-label="${esc(label)}">WhatsApp</a>` : '';
+}
+// Customers due for their regular service this week (or overdue) and unpaid invoices, each with a
+// WhatsApp message ready to send.
+function reminderPanels() {
+  const today = isoToday();
+  const business = organization?.name || '';
+  const due = serviceDue(data.customers, data.jobs, today);
+  const unpaid = unpaidInvoices(data.documents, today);
+  const dueRows = due.slice(0, 8).map(({ customer: person, due: date, daysLeft }) => {
+    const appliance = person.purifier || t('appliance');
+    const when = daysLeft < 0 ? t('Overdue since {date}', { date: shortDate(date) }) : daysLeft === 0 ? t('Due today') : t('Due {date}', { date: shortDate(date) });
+    const message = t('Hello {name}, your {appliance} service is due on {date}. Reply to book a visit. – {business}', { name: person.name, appliance, date: shortDate(date), business });
+    return `<div class="reminder-row"><div><strong>${esc(person.name)}</strong><span class="${daysLeft < 0 ? 'late' : ''}">${esc(`${appliance} · ${when}`)}</span></div><div class="reminder-actions">${whatsappButton(person.phone, message, t('WhatsApp {name}', { name: person.name }))}<button class="button secondary small-button" data-schedule-service="${esc(person.id)}">${t('Schedule')}</button></div></div>`;
+  }).join('');
+  const total = unpaid.reduce((sum, entry) => sum + entry.amount, 0);
+  const payRows = unpaid.slice(0, 8).map(({ doc, amount, daysOverdue }) => {
+    const person = data.customers.find(item => item.id === doc.customerId);
+    const name = person?.name || doc.buyer?.name || '';
+    const message = t('Hello {name}, a friendly reminder that invoice {number} for {amount} is pending. Please pay at your convenience. – {business}', { name, number: doc.id, amount: money(amount), business });
+    const when = daysOverdue > 0 ? t('{count} days overdue', { count: daysOverdue }) : t('Due {date}', { date: shortDate(doc.due || doc.date) });
+    return `<div class="reminder-row"><div><strong>${esc(name)}</strong><span class="${daysOverdue > 0 ? 'late' : ''}">${esc(`${doc.id} · ${money(amount)} · ${when}`)}</span></div><div class="reminder-actions">${person ? whatsappButton(person.phone, message, t('Send payment reminder')) : ''}</div></div>`;
+  }).join('');
+  const panel = (title, note, rows, more) => `<section class="panel reminder-panel"><div class="panel-head"><div><div class="panel-title">${title}</div><div class="panel-note">${esc(note)}</div></div>${more}</div>${rows}</section>`;
+  return (due.length || unpaid.length) ? `<div class="dash-grid reminders">${due.length ? panel(t('Service due'), t('{count} customers due this week or overdue', { count: due.length }), dueRows, '') : ''}${unpaid.length ? panel(t('Payments pending'), t('{amount} across {count} invoices · {overdue} overdue', { amount: money(total), count: unpaid.length, overdue: unpaid.filter(entry => entry.daysOverdue > 0).length }), payRows, `<button class="text-link" data-nav="sales">${t('View sales →')}</button>`) : ''}</div>` : '';
+}
 function renderOverview() {
   const currentDate = new Date();
   const month = new Intl.DateTimeFormat('sv-SE', { year: 'numeric', month: '2-digit' }).format(currentDate);
@@ -567,7 +600,8 @@ function renderOverview() {
     <div class="dash-grid"><section class="panel"><div class="panel-head"><div><div class="panel-title">${t('Sales overview')}</div><div class="panel-note">${t('Invoice value · last 12 months')}</div></div><button class="text-link" data-nav="sales">${t('View sales →')}</button></div><div class="chart-wrap"><div class="chart-summary"><strong>${money(monthTotal)}</strong><span>${esc(currentMonthLabel)}</span></div><div class="chart">${monthlySales.map((item, index) => `<div class="bar-group"><div class="bar ${index === 11 ? 'current' : ''}" style="height:${Math.max(3, Math.round(item.total / chartMaximum * 100))}%" title="${esc(item.label)}: ${money(item.total)}"></div><span class="bar-label">${esc(item.label)}</span></div>`).join('')}</div><div class="chart-legend"><span class="legend-dot"></span>${t('Revenue from invoices')}</div></div></section>
       <section class="panel"><div class="panel-head"><div><div class="panel-title">${t('Upcoming service')}</div><div class="panel-note">${t('Next scheduled visits')}</div></div><button class="text-link" data-nav="jobs">${t('All jobs →')}</button></div><div class="job-list">${jobRows}</div></section></div>
     <div class="lower-grid"><section class="panel"><div class="panel-head"><div><div class="panel-title">${t('Quick actions')}</div><div class="panel-note">${t('Common tasks, one tap away')}</div></div></div><div class="quick-grid">${quickActions}</div></section><section class="panel"><div class="panel-head"><div><div class="panel-title">${t('Recent activity')}</div><div class="panel-note">${t('Latest quotations and invoices')}</div></div>${owner ? `<button class="text-link" data-nav="sales">${t('View all →')}</button>` : ''}</div><div class="feed">${activity || `<div class="empty">${t('No recent sales activity.')}</div>`}</div></section></div>
-    ${canViewStock ? `<section class="panel" style="margin-top:16px"><div class="panel-head"><div><div class="panel-title">${t('Stock watch')}</div><div class="panel-note">${t('Popular parts and current availability')}</div></div><button class="text-link" data-nav="catalog">${t('Full catalogue →')}</button></div><div class="job-list">${productRows}</div></section>` : ''}`;
+    ${canViewStock ? `<section class="panel" style="margin-top:16px"><div class="panel-head"><div><div class="panel-title">${t('Stock watch')}</div><div class="panel-note">${t('Popular parts and current availability')}</div></div><button class="text-link" data-nav="catalog">${t('Full catalogue →')}</button></div><div class="job-list">${productRows}</div></section>` : ''}
+    ${owner ? reminderPanels() : ''}`;
 }
 function renderCustomers() {
   const owner = profile.role === 'owner';
@@ -775,21 +809,24 @@ function openCustomerForm(existing) {
   if (planBlocked()) return;
   const item = existing || {};
   const customerTypes = [msg('Residential'), msg('Commercial'), msg('Apartment')];
-  showModal(existing ? t('Edit customer') : t('Add customer'), t('Contact, address and installation details'), `<div class="form-grid"><div class="field"><label for="name">${t('Customer / business name *')}</label><input id="name" name="name" required value="${esc(item.name || '')}"></div><div class="field"><label for="phone">${t('Phone number *')}</label><div class="phone-row"><input name="country_code" aria-label="${t('Country code')}" inputmode="tel" maxlength="5" value="${esc(splitPhone(item.phone).code)}"><input id="phone" name="phone" type="tel" required inputmode="tel" maxlength="18" placeholder="98480 12345" value="${esc(splitPhone(item.phone).number)}"></div></div><div class="field"><label for="email">${t('Email')}</label><input id="email" name="email" type="email" value="${esc(item.email || '')}"></div><div class="field"><label for="type">${t('Customer type')}</label><select id="type" name="type">${customerTypes.map(type => `<option value="${type}" ${item.type === type ? 'selected' : ''}>${t(type)}</option>`).join('')}</select></div><div class="field full"><label for="address">${t('Full address')}</label><textarea id="address" name="address">${esc(item.address || '')}</textarea></div><div class="field"><label for="gstin">${t('Customer GSTIN (business customers)')}</label><input id="gstin" name="gstin" maxlength="15" value="${esc(item.gstin || '')}"></div><div class="field"><label for="state">${t('State (place of supply)')}</label><select id="state" name="state">${stateOptions(item.state || '')}</select></div><div class="field"><label for="purifier">${t('Appliance / model installed')}</label><input id="purifier" name="purifier" value="${esc(item.purifier || '')}"></div><div class="field"><label for="installed">${t('Installation date')}</label><input id="installed" name="installed" type="date" value="${esc(item.installed || '')}"></div></div>`, existing ? t('Save changes') : t('Add customer'), async form => {
+  showModal(existing ? t('Edit customer') : t('Add customer'), t('Contact, address and installation details'), `<div class="form-grid"><div class="field"><label for="name">${t('Customer / business name *')}</label><input id="name" name="name" required value="${esc(item.name || '')}"></div><div class="field"><label for="phone">${t('Phone number *')}</label><div class="phone-row"><input name="country_code" aria-label="${t('Country code')}" inputmode="tel" maxlength="5" value="${esc(splitPhone(item.phone).code)}"><input id="phone" name="phone" type="tel" required inputmode="tel" maxlength="18" placeholder="98480 12345" value="${esc(splitPhone(item.phone).number)}"></div></div><div class="field"><label for="email">${t('Email')}</label><input id="email" name="email" type="email" value="${esc(item.email || '')}"></div><div class="field"><label for="type">${t('Customer type')}</label><select id="type" name="type">${customerTypes.map(type => `<option value="${type}" ${item.type === type ? 'selected' : ''}>${t(type)}</option>`).join('')}</select></div><div class="field full"><label for="address">${t('Full address')}</label><textarea id="address" name="address">${esc(item.address || '')}</textarea></div><div class="field"><label for="gstin">${t('Customer GSTIN (business customers)')}</label><input id="gstin" name="gstin" maxlength="15" value="${esc(item.gstin || '')}"></div><div class="field"><label for="state">${t('State (place of supply)')}</label><select id="state" name="state">${stateOptions(item.state || '')}</select></div><div class="field"><label for="purifier">${t('Appliance / model installed')}</label><input id="purifier" name="purifier" value="${esc(item.purifier || '')}"></div><div class="field"><label for="installed">${t('Installation date')}</label><input id="installed" name="installed" type="date" value="${esc(item.installed || '')}"></div><div class="field"><label for="serviceEvery">${t('Regular service')}</label><select id="serviceEvery" name="serviceEvery">${['', '1', '2', '3', '4', '6', '12'].map(value => `<option value="${value}" ${String(item.serviceEvery || '') === value ? 'selected' : ''}>${value ? (value === '1' ? t('Every month') : esc(t('Every {count} months', { count: value }))) : t('No regular service')}</option>`).join('')}</select></div><div class="field"><label for="nextService">${t('Next service date')}</label><input id="nextService" name="nextService" type="date" value="${esc(item.nextService || '')}"><small>${t('Filled in from the installation date if left empty.')}</small></div></div>`, existing ? t('Save changes') : t('Add customer'), async form => {
     const { country_code: code, ...value } = Object.fromEntries(form.entries());
     value.phone = validPhone(joinPhone(code, value.phone));
     if (!value.phone) throw new Error(t('Enter a valid mobile number and country code.'));
+    value.serviceEvery = Number(value.serviceEvery) || null;
+    if (!value.serviceEvery) value.nextService = '';
+    else if (!value.nextService) value.nextService = firstServiceDate(value.installed, value.serviceEvery, isoToday());
     const next = { ...item, ...value, id: existing?.id || `C-${crypto.randomUUID().slice(0, 8).toUpperCase()}`, notes: item.notes || '', gstin: value.gstin.trim().toUpperCase(), state: value.state || stateFromGstin(value.gstin) };
     await save('customers', [next]);
     if (existing) Object.assign(existing, next); else data.customers.unshift(next);
     closeModal(); render(); toast(existing ? t('Customer updated') : t('Customer added'));
   });
 }
-function openJobForm(existing) {
+function openJobForm(existing, preset = {}) {
   if (!data.customers.length) { toast(t('Add a customer before scheduling a service job')); return; }
   if (profile.role !== 'owner' && (profile.role !== 'technician' || !existing)) { toast(t('Only an owner can schedule a service job')); return; }
   if (planBlocked()) return;
-  const item = existing || {};
+  const item = existing || preset;
   const technicianMode = profile.role === 'technician';
   // Option values stay in English (they are stored); only the labels are translated.
   const option = (value, selected) => `<option value="${value}" ${selected ? 'selected' : ''}>${t(value)}</option>`;
@@ -1078,6 +1115,8 @@ document.addEventListener('click', event => {
   const action = event.target.closest('[data-action]')?.dataset.action;
   if (action === 'new-customer') openCustomerForm();
   if (action === 'new-job') openJobForm();
+  const serviceFor = event.target.closest('[data-schedule-service]')?.dataset.scheduleService;
+  if (serviceFor) openJobForm(null, { customerId: serviceFor, type: 'Service / cleaning' });
   if (action === 'new-sale') openSaleForm();
   if (action === 'new-product') openProductForm();
   if (action === 'add-sample-data') addSamples();
