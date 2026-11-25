@@ -748,4 +748,7 @@ export default {
   "{count} quotations made this month. Cancelled invoices are not counted.": "இந்த மாதம் {count} கொட்டேஷன்கள். ரத்தான இன்வாய்ஸ்கள் கணக்கில் இல்லை.",
   "and {count} more": "மேலும் {count}",
   "See all invoices": "எல்லா இன்வாய்ஸ்களையும் பார்",
+  "UPI ID (optional)": "UPI ID (விருப்பம்)",
+  "Unpaid invoices show a scan-to-pay QR code for the bill amount.": "செலுத்தப்படாத இன்வாய்ஸ்களில் பில் தொகைக்கு ஸ்கேன் செய்து செலுத்தும் QR குறியீடு காட்டப்படும்.",
+  "Enter a valid UPI ID, for example name@okhdfcbank.": "சரியான UPI ID ஐ உள்ளிடவும், எ.கா. name@okhdfcbank.",
 };

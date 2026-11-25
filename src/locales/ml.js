@@ -748,4 +748,7 @@ export default {
   "{count} quotations made this month. Cancelled invoices are not counted.": "ഈ മാസം {count} ക്വട്ടേഷനുകൾ. റദ്ദാക്കിയ ഇൻവോയ്സുകൾ എണ്ണുന്നില്ല.",
   "and {count} more": "ഇനിയും {count}",
   "See all invoices": "എല്ലാ ഇൻവോയ്സുകളും കാണുക",
+  "UPI ID (optional)": "UPI ID (ഐച്ഛികം)",
+  "Unpaid invoices show a scan-to-pay QR code for the bill amount.": "പണമടയ്ക്കാത്ത ഇൻവോയ്സുകളിൽ ബിൽ തുകയ്ക്ക് സ്കാൻ ചെയ്ത് അടയ്ക്കാനുള്ള QR കോഡ് കാണിക്കും.",
+  "Enter a valid UPI ID, for example name@okhdfcbank.": "ശരിയായ UPI ID നൽകുക, ഉദാ. name@okhdfcbank.",
 };

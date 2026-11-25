@@ -2,9 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import { cachedWorkspace, cacheWorkspace, clearCachedWorkspaces, createSalesDocument, deleteAccount, inviteMember, loadAuditLog, loadWorkspace, reportClientError, saveWorkspaceRecords, setFeedbackStatus, setSalesDocumentStatus, signedInElsewhere, startSubscription, updateOrganization, uploadProductImage, productImageUrls, loadCatalogPhotos, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto, sendAppFeedback, loadAppFeedback, removeAppFeedback, applyReferral, appLinks, isSample, addSampleData, removeSampleData } from './supabase-data.js';
 import { catalogPhotoUrl, photoCredits, productArtSvg, productKindLabels, productKinds, applianceGroup, applianceGroups, groupsIn } from './product-icons.js';
 const groupLabel = item => applianceGroups.find(([key]) => key === applianceGroup(item))?.[1] || 'Other';
-import { stateFromGstin, stateOptions, taxBreakup, validPhone, joinPhone, splitPhone } from './gst.js';
+import { stateFromGstin, stateOptions, taxBreakup, validPhone, joinPhone, splitPhone, validUpi } from './gst.js';
 import { catalog, catalogItem } from './catalog.js';
-import { firstServiceDate, serviceDue, unpaidInvoices, whatsappLink } from './reminders.js';
+import { firstServiceDate, monthReport, serviceDue, unpaidInvoices, whatsappLink } from './reminders.js';
 import { documentDetails as sharedDocumentDetails, documentHtml, invoiceRegisterHeader, invoiceRegisterRows } from './documents.js';
 import { languages, getLanguage, setLanguage, t, msg } from './i18n.js';
 import { version as appVersion } from '../package.json';
@@ -19,7 +19,7 @@ const icons = {
   service: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 6 18 2l4 4-4 4M20 8l-8.5 8.5M13 5l6 6M5 8l4-4 4 4-4 4M3 20l5-5 4 4-5 5H3z"/></svg>',
   invoice: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 3h14v18l-3.5-2-3.5 2-3.5-2L5 21zM8 8h8M8 12h8M8 16h4"/></svg>',
   // The TiruFix logo: a water drop with ripples (matches the app icon).
-  brand: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2S6 10.2 6 14a6 6 0 0 0 12 0c0-3.8-6-10.8-6-10.8Z" fill="currentColor"/><path d="M8.6 14c.9-.7 1.8-.7 2.6 0s1.8.7 2.6 0M9.8 16.7c.6-.5 1.2-.5 1.8 0s1.2.5 1.8 0" fill="none" stroke="#197c70" stroke-width="1.2" stroke-linecap="round"/></svg>',
+  brand: '<svg viewBox="180 200 664 640" aria-hidden="true"><path d="M232 488 L512 262 L792 488" fill="none" stroke="currentColor" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/><path d="M316 430 V744 Q316 772 344 772 H680 Q708 772 708 744 V430" fill="none" stroke="currentColor" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/><path transform="translate(512 600) scale(14.5) translate(-12 -12)" d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z" fill="currentColor"/></svg>',
   product: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7.5 12 3l8 4.5-8 4.5zM4 12l8 4.5 8-4.5M4 16.5 12 21l8-4.5"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></svg>',
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
@@ -921,17 +921,40 @@ function openMoreMenu() {
     ['accounts', t('Accounts & access'), icons.person],
     ['feedback', t('Feedback & issues'), icons.service]
   ].filter(([target]) => ({ owner: ['catalog', 'accounts', 'feedback'], technician: ['catalog', 'feedback'], shop: ['catalog', 'feedback'], customer: ['catalog', 'feedback'] }[profile.role] || []).includes(target));
-  const body = `<div class="quick-grid">${tools.map(([target, label, icon]) => `<button class="quick-action" type="button" data-nav="${target}">${icon}<span>${label}</span></button>`).join('')}<button class="quick-action" type="button" data-action="my-account">${icons.person}<span>${t('My account')}</span></button></div>`;
+  const body = `<div class="quick-grid">${tools.map(([target, label, icon]) => `<button class="quick-action" type="button" data-nav="${target}">${icon}<span>${label}</span></button>`).join('')}${profile.role === 'owner' ? `<button class="quick-action" type="button" data-action="business-report">${icons.invoice}<span>${t('Business report')}</span></button>` : ''}<button class="quick-action" type="button" data-action="my-account">${icons.person}<span>${t('My account')}</span></button></div>`;
   showModal(t('More tools'), t('Products, team access, and customer feedback'), body, t('Done'), closeModal);
+}
+// The owner's month at a glance (the same report as in the app): sales, collections, GST, service
+// work and the best products and customers.
+function openBusinessReport(month) {
+  const now = new Date();
+  const months = Array.from({ length: 6 }, (_, index) => {
+    const date = new Date(now.getFullYear(), now.getMonth() - index, 1);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const chosen = months.includes(month) ? month : months[0];
+  const report = monthReport(data, chosen);
+  const previous = monthReport(data, months[months.indexOf(chosen) + 1] || '');
+  const change = previous.sales ? Math.round((report.sales - previous.sales) / previous.sales * 100) : null;
+  const label = value => new Intl.DateTimeFormat(getLanguage(), { month: 'long', year: 'numeric' }).format(new Date(`${value}-01T00:00:00`));
+  const tile = (title, value, note) => `<div class="report-tile"><span>${esc(title)}</span><strong>${value}</strong><small>${esc(note)}</small></div>`;
+  const list = (rows, empty) => rows.length ? `<ol class="report-list">${rows.join('')}</ol>` : `<p class="panel-note">${esc(empty)}</p>`;
+  const body = `<div class="field"><label for="report-month">${t('Month')}</label><select id="report-month">${months.map(value => `<option value="${value}" ${value === chosen ? 'selected' : ''}>${esc(label(value))}</option>`).join('')}</select></div>
+    <div class="report-tiles">${tile(t('Sales'), money(report.sales), change === null ? t('{count} invoices', { count: report.invoices }) : t('{change}% vs last month · {count} invoices', { change: change > 0 ? `+${change}` : String(change), count: report.invoices }))}${tile(t('Collected'), money(report.collected), t('{amount} still pending', { amount: money(report.pending) }))}${tile(t('GST collected'), money(report.tax), t('On this month’s invoices'))}${tile(t('Service jobs done'), report.jobsDone, t('{count} still open', { count: report.jobsOpen }))}</div>
+    <div class="report-columns"><section><h3>${t('Top products')}</h3>${list(report.topProducts.map(item => `<li><span>${esc(item.name)}<small>${esc(t('{count} sold', { count: item.qty }))}</small></span><strong>${money(item.amount)}</strong></li>`), t('No invoices this month.'))}</section><section><h3>${t('Top customers')}</h3>${list(report.topCustomers.map(item => `<li><span>${esc(item.name || t('Customer'))}</span><strong>${money(item.amount)}</strong></li>`), t('No invoices this month.'))}</section></div>
+    <p class="panel-note">${esc(t('{count} quotations made this month. Cancelled invoices are not counted.', { count: report.quotations }))}</p>`;
+  showModal(t('Business report'), t('Sales, collections and best sellers by month'), body, t('Done'), closeModal, true);
+  document.getElementById('report-month').addEventListener('change', event => openBusinessReport(event.target.value));
 }
 // The seller details printed on quotations and GST invoices.
 function openBusinessForm() {
   if (profile.role !== 'owner') { toast(t('Only the owner can change business details')); return; }
   const item = organization || {};
-  showModal(t('Business details'), t('Printed as the seller on quotations and GST invoices'), `<div class="form-grid"><div class="field full"><label for="name">${t('Business name *')}</label><input id="name" name="name" required maxlength="160" value="${esc(item.name || '')}"></div><div class="field"><label for="gstin">${t('GSTIN')}</label><input id="gstin" name="gstin" maxlength="15" value="${esc(item.gstin || '')}"></div><div class="field"><label for="state">${t('State')}</label><select id="state" name="state">${stateOptions(item.state_code || '')}</select></div><div class="field full"><label for="address">${t('Business address')}</label><textarea id="address" name="address" maxlength="300">${esc(item.address || '')}</textarea></div><div class="field"><label for="phone">${t('Business phone')}</label><div class="phone-row"><input name="country_code" aria-label="${t('Country code')}" inputmode="tel" maxlength="5" value="${esc(splitPhone(item.phone).code)}"><input id="phone" name="phone" type="tel" required inputmode="tel" maxlength="18" value="${esc(splitPhone(item.phone).number)}"></div></div></div>`, t('Save details'), async form => {
+  showModal(t('Business details'), t('Printed as the seller on quotations and GST invoices'), `<div class="form-grid"><div class="field full"><label for="name">${t('Business name *')}</label><input id="name" name="name" required maxlength="160" value="${esc(item.name || '')}"></div><div class="field"><label for="gstin">${t('GSTIN')}</label><input id="gstin" name="gstin" maxlength="15" value="${esc(item.gstin || '')}"></div><div class="field"><label for="state">${t('State')}</label><select id="state" name="state">${stateOptions(item.state_code || '')}</select></div><div class="field full"><label for="address">${t('Business address')}</label><textarea id="address" name="address" maxlength="300">${esc(item.address || '')}</textarea></div><div class="field"><label for="phone">${t('Business phone')}</label><div class="phone-row"><input name="country_code" aria-label="${t('Country code')}" inputmode="tel" maxlength="5" value="${esc(splitPhone(item.phone).code)}"><input id="phone" name="phone" type="tel" required inputmode="tel" maxlength="18" value="${esc(splitPhone(item.phone).number)}"></div></div><div class="field"><label for="upi">${t('UPI ID (optional)')}</label><input id="upi" name="upi" autocapitalize="none" autocomplete="off" maxlength="320" placeholder="name@okhdfcbank" value="${esc(item.upi_id || '')}"><small>${t('Unpaid invoices show a scan-to-pay QR code for the bill amount.')}</small></div></div>`, t('Save details'), async form => {
     const values = Object.fromEntries(form.entries());
     values.phone = joinPhone(values.country_code, values.phone);
     if (!validPhone(values.phone)) throw new Error(t('Enter a valid mobile number and country code.'));
+    if (values.upi.trim() && !validUpi(values.upi)) throw new Error(t('Enter a valid UPI ID, for example name@okhdfcbank.'));
     organization = await updateOrganization(supabaseClient, profile.organization_id, { ...values, state: values.state || stateFromGstin(values.gstin) });
     closeModal(); render(); toast(t('Business details saved'));
   });
@@ -1131,6 +1154,7 @@ document.addEventListener('click', event => {
   if (removeFeedback) deleteAppFeedback(removeFeedback);
   if (action === 'more-menu') openMoreMenu();
   if (action === 'my-account') openAccountSettings();
+  if (action === 'business-report') openBusinessReport();
   if (action === 'business-details') openBusinessForm();
   if (action === 'export-invoices') exportInvoices();
   if (action === 'buy-plan') buyPlan(event.target.closest('[data-action]'));

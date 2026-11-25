@@ -23,6 +23,7 @@ export type Organization = {
   address: string;
   state_code: string;
   phone: string;
+  upi_id?: string;
   trial_ends_at?: string | null;
   paid_until?: string | null;
   created_at?: string;
