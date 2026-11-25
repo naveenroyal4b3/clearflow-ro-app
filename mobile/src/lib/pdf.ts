@@ -18,3 +18,12 @@ export async function sharePdf(html: string, name: string) {
 export async function printDocument(html: string) {
   await Print.printAsync({ html });
 }
+
+// Saves text (for example a CSV for the accountant) as a file and opens the share sheet.
+export async function shareTextFile(name: string, text: string, mimeType = 'text/csv') {
+  const file = new File(Paths.cache, name.replace(/[^\w.-]+/g, '-'));
+  file.create({ overwrite: true });
+  file.writeSync(text);
+  if (!(await Sharing.isAvailableAsync())) throw new Error(t('Sharing is not available on this device.'));
+  await Sharing.shareAsync(file.uri, { mimeType, dialogTitle: name });
+}

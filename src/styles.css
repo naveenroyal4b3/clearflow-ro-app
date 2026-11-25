@@ -333,3 +333,5 @@ td strong { color: #364640; font-size: 10px; font-weight: 700; }
 .report-list li span { display: inline-block; width: calc(100% - 110px); }
 .report-list li small { display: block; color: #788480; }
 .report-list li strong { float: right; }
+.report-list.plain { list-style: none; padding-left: 0; }
+.gstr1-buttons { display: grid; gap: 6px; margin-top: 8px; }

@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { Chips } from '@/components/Chips';
-import { Card, CardTitle, colors, Empty, Screen } from '@/components/ui';
-import { money } from '@/lib/format';
+import { Button, Card, CardTitle, colors, Empty, Screen } from '@/components/ui';
+import { detailsFor } from '@/lib/documents';
+import { errorMessage, money } from '@/lib/format';
 import { t, useLanguage } from '@/lib/i18n';
+import { shareTextFile } from '@/lib/pdf';
 import { useSession } from '@/lib/session';
-import { monthReport } from '@/lib/shared';
+import { gstr1, monthReport } from '@/lib/shared';
 
 // The last six months as 'YYYY-MM', newest first.
 function recentMonths() {
@@ -20,7 +22,7 @@ const monthLabel = (month: string, language: string) => new Intl.DateTimeFormat(
 // The owner's month at a glance: sales, collections, GST, service work and the best products and
 // customers.
 export default function Report() {
-  const { data, profile } = useSession();
+  const { data, profile, organization } = useSession();
   const { language } = useLanguage();
   const [months] = useState(recentMonths);
   const [month, setMonth] = useState(months[0]);
@@ -28,6 +30,11 @@ export default function Report() {
   const report = monthReport(data, month);
   const previous = monthReport(data, months[months.indexOf(month) + 1] || '');
   const change = previous.sales ? Math.round((report.sales - previous.sales) / previous.sales * 100) : null;
+  const gstFiles = gstr1(data.documents, month, doc => detailsFor(doc, data, organization));
+  const shareFile = async (file: { name: string; text: string }) => {
+    try { await shareTextFile(file.name, file.text); }
+    catch (shareError) { Alert.alert(t('Export failed'), errorMessage(shareError, t('Try again.'))); }
+  };
 
   return (
     <Screen>
@@ -50,6 +57,19 @@ export default function Report() {
           <Line key={`${item.name}-${index}`} rank={index + 1} name={item.name || t('Customer')} amount={money(item.amount)} />
         )) : <Empty text={t('No invoices this month.')} />}
       </Card>
+      <Card>
+        <CardTitle title={t('Purchases')} note={t('{count} bills from suppliers', { count: report.purchases })} />
+        <Line name={t('Bought (with GST)')} amount={money(report.purchased)} />
+        <Line name={t('GST paid on purchases')} amount={money(report.inputTax)} />
+        <Line name={t('GST to pay (collected − paid)')} amount={money(Math.max(0, report.tax - report.inputTax))} />
+      </Card>
+      <Card>
+        <CardTitle title={t('GSTR-1 for your accountant')} note={t('{count} GST invoices this month', { count: gstFiles.invoices })} />
+        <Text style={local.note}>{t('Three CSV files in the GST offline tool format: B2B, B2C small and HSN summary.')}</Text>
+        {gstFiles.files.map(file => (
+          <Button key={file.name} label={t('Share {file} ({count} rows)', { file: file.name, count: file.rows })} variant="secondary" onPress={() => shareFile(file)} />
+        ))}
+      </Card>
       <Text style={local.note}>{t('{count} quotations made this month. Cancelled invoices are not counted.', { count: report.quotations })}</Text>
     </Screen>
   );
@@ -65,10 +85,10 @@ function Metric({ label, value, note }: { label: string; value: string; note: st
   );
 }
 
-function Line({ rank, name, detail, amount }: { rank: number; name: string; detail?: string; amount: string }) {
+function Line({ rank, name, detail, amount }: { rank?: number; name: string; detail?: string; amount: string }) {
   return (
     <View style={local.line}>
-      <Text style={local.rank}>{rank}</Text>
+      {rank ? <Text style={local.rank}>{rank}</Text> : null}
       <View style={{ flex: 1 }}>
         <Text style={local.name}>{name}</Text>
         {detail ? <Text style={local.note}>{detail}</Text> : null}
