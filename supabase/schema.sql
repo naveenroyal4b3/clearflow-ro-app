@@ -1272,3 +1272,19 @@ revoke all on function public.advance_next_service() from public, anon, authenti
 drop trigger if exists advance_next_service on public.service_jobs;
 create trigger advance_next_service after insert or update of status on public.service_jobs
   for each row execute function public.advance_next_service();
+
+-- The business's UPI ID (for example name@okhdfcbank). Unpaid invoices then carry a scan-to-pay
+-- UPI QR code for the bill amount. Owners can set it in Business details. Also in upgrades/2026-11-25-upi-id.sql.
+alter table public.organizations
+  add column if not exists upi_id text not null default '';
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'organizations_upi_id_check') then
+    alter table public.organizations add constraint organizations_upi_id_check
+      check (upi_id = '' or upi_id ~ '^[A-Za-z0-9._-]{2,256}@[A-Za-z][A-Za-z0-9.-]{1,63}$');
+  end if;
+end;
+$$;
+
+grant update (upi_id) on public.organizations to authenticated;

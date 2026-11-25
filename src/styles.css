@@ -322,3 +322,14 @@ td strong { color: #364640; font-size: 10px; font-weight: 700; }
 .reminder-row span.late { color: #b94a48; font-weight: 700; }
 .reminder-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .small-button { min-height: 32px; padding: 0 10px; font-size: 12px; text-decoration: none; }
+.report-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin: 14px 0; }
+.report-tile { border: 1px solid #e8ece8; border-radius: 8px; padding: 12px; }
+.report-tile span, .report-tile small { display: block; color: #788480; font-size: 12px; }
+.report-tile strong { display: block; font-size: 20px; margin: 4px 0; }
+.report-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.report-columns h3 { font-size: 14px; margin: 0 0 6px; }
+.report-list { margin: 0; padding-left: 18px; }
+.report-list li { padding: 6px 0; border-bottom: 1px solid #eef1ee; }
+.report-list li span { display: inline-block; width: calc(100% - 110px); }
+.report-list li small { display: block; color: #788480; }
+.report-list li strong { float: right; }

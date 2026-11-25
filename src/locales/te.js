@@ -748,4 +748,7 @@ export default {
   "{count} quotations made this month. Cancelled invoices are not counted.": "ఈ నెల {count} కొటేషన్లు చేశారు. రద్దైన ఇన్‌వాయిస్‌లు లెక్కించబడవు.",
   "and {count} more": "ఇంకా {count}",
   "See all invoices": "అన్ని ఇన్‌వాయిస్‌లు చూడండి",
+  "UPI ID (optional)": "UPI ID (ఐచ్ఛికం)",
+  "Unpaid invoices show a scan-to-pay QR code for the bill amount.": "చెల్లించని ఇన్‌వాయిస్‌లపై బిల్ మొత్తానికి స్కాన్ చేసి చెల్లించే QR కోడ్ కనిపిస్తుంది.",
+  "Enter a valid UPI ID, for example name@okhdfcbank.": "సరైన UPI ID ఇవ్వండి, ఉదా. name@okhdfcbank.",
 };

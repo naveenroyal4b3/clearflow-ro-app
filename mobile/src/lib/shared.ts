@@ -18,6 +18,7 @@ type GstModule = {
   validPhone: (value: string) => string;
   joinPhone: (code: string, number: string) => string;
   splitPhone: (value: string | null | undefined) => { code: string; number: string };
+  validUpi: (value: string) => string;
 };
 
 type Collection = 'customers' | 'products' | 'jobs' | 'feedback';
@@ -89,6 +90,8 @@ export type DocumentDetails = {
   seller: { name: string; gstin: string; address: string; state: string; phone?: string };
   buyer: { name: string; gstin: string; address: string; state: string };
   sellerState: string;
+  // The business's UPI ID for the scan-to-pay QR code ('' for none).
+  upi?: string;
   buyerState: string;
   tax: Bill<LineItem>;
 };
@@ -113,7 +116,7 @@ export const { addMonths, firstServiceDate, serviceDue, unpaidInvoices, whatsapp
 const icons: ProductIconsModule = require('../../../src/product-icons.js');
 export const { productKind, productArtSvg, catalogPhotoUrl, photoCredits, productKinds, productKindLabels, applianceGroup, applianceGroups, groupsIn } = icons;
 
-export const { gstStates, stateLabel, stateFromGstin, taxBreakup, amountInWords, validPhone, joinPhone, splitPhone } = gst;
+export const { gstStates, stateLabel, stateFromGstin, taxBreakup, amountInWords, validPhone, joinPhone, splitPhone, validUpi } = gst;
 export const {
   loadWorkspace, saveWorkspaceRecords, createSalesDocument, setSalesDocumentStatus, setFeedbackStatus,
   signedInElsewhere, inviteMember, deleteAccount, updateOrganization, loadAuditLog,

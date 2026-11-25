@@ -6,13 +6,13 @@ import { Button, Field, Notice, Screen } from '@/components/ui';
 import { errorMessage } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
-import { joinPhone, splitPhone, validPhone, stateFromGstin, updateOrganization } from '@/lib/shared';
+import { joinPhone, splitPhone, validPhone, validUpi, stateFromGstin, updateOrganization } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
 
 // The seller details printed on quotations and GST invoices. Allowed even when the plan has ended.
 export default function BusinessDetails() {
   const { organization, profile, offlineSince, setOrganization } = useSession();
-  const [form, setForm] = useState({ name: organization?.name || '', gstin: organization?.gstin || '', address: organization?.address || '', state: organization?.state_code || '', code: splitPhone(organization?.phone).code, phone: splitPhone(organization?.phone).number });
+  const [form, setForm] = useState({ name: organization?.name || '', gstin: organization?.gstin || '', address: organization?.address || '', state: organization?.state_code || '', code: splitPhone(organization?.phone).code, phone: splitPhone(organization?.phone).number, upi: organization?.upi_id || '' });
   const [error, setError] = useState('');
   const set = (key: keyof typeof form) => (value: string) => setForm(current => ({ ...current, [key]: value }));
   if (profile?.role !== 'owner' || !organization) return <Screen><Notice>{t('Only the business owner can change business details.')}</Notice></Screen>;
@@ -21,6 +21,7 @@ export default function BusinessDetails() {
     setError('');
     const phone = joinPhone(form.code, form.phone);
     if (!validPhone(phone)) { setError(t('Enter a valid mobile number and country code.')); return; }
+    if (form.upi.trim() && !validUpi(form.upi)) { setError(t('Enter a valid UPI ID, for example name@okhdfcbank.')); return; }
     try {
       setOrganization(await updateOrganization(supabase, organization.id, { ...form, phone, state: form.state || stateFromGstin(form.gstin) }));
       router.back();
@@ -41,6 +42,7 @@ export default function BusinessDetails() {
         <View style={{ width: 92 }}><Field label={t('Country code')} value={form.code} onChangeText={set('code')} keyboardType="phone-pad" maxLength={5} /></View>
         <View style={{ flex: 1 }}><Field label={t('Business phone')} value={form.phone} onChangeText={set('phone')} keyboardType="phone-pad" maxLength={18} /></View>
       </View>
+      <Field label={t('UPI ID (optional)')} value={form.upi} onChangeText={set('upi')} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" placeholder="name@okhdfcbank" hint={t('Unpaid invoices show a scan-to-pay QR code for the bill amount.')} />
       <Button label={t('Save details')} onPress={save} disabled={Boolean(offlineSince) || form.name.trim().length < 2} />
     </Screen>
   );

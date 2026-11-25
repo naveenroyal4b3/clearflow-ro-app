@@ -1,3 +1,3 @@
-- Service due: set a regular service for each customer and see who is due this week, with one-tap WhatsApp
-- Payments pending: unpaid invoices on Home with a WhatsApp reminder
-- Business report: monthly sales, collections, GST and best sellers (More → Business report)
+- New TiruFix icon
+- UPI QR code on unpaid invoices: customers scan and pay with any UPI app (add your UPI ID in Business details)
+- Service-due and payment reminders on Home, business report under More

@@ -299,7 +299,9 @@ export async function updateOrganization(client, organizationId, details) {
     gstin: details.gstin.trim().toUpperCase() || null,
     address: details.address.trim(),
     state_code: details.state || '',
-    phone: validPhone(details.phone) || details.phone.trim()
+    phone: validPhone(details.phone) || details.phone.trim(),
+    // Only the Business details form sends the UPI ID; business setup leaves it as it is.
+    ...(details.upi === undefined ? {} : { upi_id: String(details.upi).trim() })
   }).eq('id', organizationId).select('*').single();
   if (error) throw error;
   return data;

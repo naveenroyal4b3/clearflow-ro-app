@@ -1,7 +1,8 @@
 // @ts-check
 // Printable quotations, GST invoices and the invoice register. Shared by the web app (src/main.js)
 // and the native app (mobile/src/lib/shared.ts), so both print exactly the same documents.
-import { amountInWords, stateFromGstin, stateLabel, taxBreakup } from './gst.js';
+import qrcode from 'qrcode-generator';
+import { amountInWords, stateFromGstin, stateLabel, taxBreakup, validUpi } from './gst.js';
 
 /** @param {unknown} value */
 export function escapeHtml(value = '') {
@@ -34,7 +35,7 @@ export function documentDetails(doc, { customer, products, organization }) {
   const product = (/** @type {string} */ id) => products.find(item => item.id === id) || { name: 'Removed product', hsn: '' };
   const lines = doc.items.map((/** @type {any} */ item) => ({ ...item, name: item.name || product(item.productId).name, hsn: item.hsn ?? product(item.productId).hsn ?? '' }));
   const tax = taxBreakup(lines, { gstEnabled: doc.gst, sellerState, buyerState });
-  return { seller, buyer, sellerState, buyerState, tax };
+  return { seller, buyer, sellerState, buyerState, tax, upi: validUpi(organization?.upi_id) };
 }
 
 /**
@@ -42,7 +43,7 @@ export function documentDetails(doc, { customer, products, organization }) {
  * @param {any} doc
  * @param {ReturnType<typeof documentDetails>} details
  */
-export function documentHtml(doc, { seller, buyer, sellerState, buyerState, tax }) {
+export function documentHtml(doc, { seller, buyer, sellerState, buyerState, tax, upi = '' }) {
   const esc = escapeHtml;
   const title = doc.type === 'Quotation' ? 'Quotation' : doc.gst && seller.gstin ? 'Tax Invoice' : 'Invoice';
   const hasDiscount = tax.discount > 0;
@@ -53,15 +54,33 @@ export function documentHtml(doc, { seller, buyer, sellerState, buyerState, tax 
     ? `<p><span>IGST</span><strong>${rupees(tax.igst)}</strong></p>`
     : `<p><span>CGST</span><strong>${rupees(tax.cgst)}</strong></p><p><span>SGST</span><strong>${rupees(tax.sgst)}</strong></p>`;
   const party = (/** @type {string} */ label, /** @type {any} */ details, /** @type {string} */ state) => `<div class="party"><small>${label}</small><strong>${esc(details.name)}</strong>${details.address ? `<span>${esc(details.address)}</span>` : ''}${details.phone ? `<span>Phone: ${esc(details.phone)}</span>` : ''}${details.gstin ? `<span>GSTIN: ${esc(details.gstin)}</span>` : ''}${state ? `<span>State: ${esc(stateLabel(state))}</span>` : ''}</div>`;
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(doc.id)}</title><style>body{font:13px Arial,sans-serif;color:#24342d;padding:40px}h1{margin:0;font-size:22px}.head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #197c70;padding-bottom:16px}.meta{text-align:right}.meta span{display:block}.parties{display:flex;gap:24px;margin:20px 0}.party{flex:1}.party small{display:block;color:#68756e;text-transform:uppercase;font-size:10px;letter-spacing:.06em;margin-bottom:4px}.party strong,.party span{display:block}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;padding:8px;border-bottom:1px solid #ddd;font-size:12px}th{background:#f4f7f4}.n{text-align:right}td small{display:block;color:#77827c;font-size:10px}.words{margin:16px 0 0;text-align:right}.total{width:300px;margin:20px 0 0 auto}.total p{display:flex;justify-content:space-between;margin:6px 0}.grand{border-top:1px solid #aaa;padding-top:10px;font-size:16px;font-weight:bold}.foot{display:flex;justify-content:space-between;margin-top:60px;color:#77827c;font-size:11px}.sign{text-align:right;color:#24342d}</style></head><body>
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(doc.id)}</title><style>body{font:13px Arial,sans-serif;color:#24342d;padding:40px}h1{margin:0;font-size:22px}.head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #197c70;padding-bottom:16px}.meta{text-align:right}.meta span{display:block}.parties{display:flex;gap:24px;margin:20px 0}.party{flex:1}.party small{display:block;color:#68756e;text-transform:uppercase;font-size:10px;letter-spacing:.06em;margin-bottom:4px}.party strong,.party span{display:block}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;padding:8px;border-bottom:1px solid #ddd;font-size:12px}th{background:#f4f7f4}.n{text-align:right}td small{display:block;color:#77827c;font-size:10px}.words{margin:16px 0 0;text-align:right}.total{width:300px;margin:20px 0 0 auto}.total p{display:flex;justify-content:space-between;margin:6px 0}.grand{border-top:1px solid #aaa;padding-top:10px;font-size:16px;font-weight:bold}.foot{display:flex;justify-content:space-between;margin-top:60px;color:#77827c;font-size:11px}.sign{text-align:right;color:#24342d}.upi{display:flex;align-items:center;gap:16px;margin-top:24px;padding:12px;border:1px solid #cfe6dd;border-radius:8px;width:max-content}.upi svg{width:120px;height:120px}.upi strong{display:block;font-size:14px}.upi span{display:block;color:#68756e}</style></head><body>
 <div class="head"><div><h1>${esc(seller.name)}</h1></div><div class="meta"><h1>${title}</h1><span>${esc(doc.id)}</span><span>Date: ${printDate(doc.date)}</span><span>${doc.type === 'Quotation' ? 'Valid until' : 'Due date'}: ${printDate(doc.due)}</span></div></div>
 <div class="parties">${party('From', seller, sellerState)}${party(doc.type === 'Quotation' ? 'Quotation for' : 'Bill to', buyer, buyerState)}</div>
 ${doc.gst ? `<p>Place of supply: <strong>${esc(stateLabel(tax.placeOfSupply) || 'Not specified')}</strong> · Reverse charge: No</p>` : '<p>GST not applied to this document.</p>'}
 <table><thead><tr><th>#</th><th>Item</th><th>HSN</th><th class="n">Qty</th><th class="n">Rate</th>${hasDiscount ? '<th class="n">Discount</th>' : ''}<th class="n">Taxable value</th>${taxHead.replace(/<th>/g, '<th class="n">')}<th class="n">Amount</th></tr></thead><tbody>${rows}</tbody></table>
 <div class="total">${hasDiscount ? `<p><span>Discount</span><strong>${rupees(tax.discount)}</strong></p>` : ''}<p><span>Taxable value</span><strong>${rupees(tax.taxable)}</strong></p>${doc.gst ? taxTotals : ''}<p class="grand"><span>Total</span><strong>${rupees(tax.total)}</strong></p></div>
 <p class="words">Amount in words: <strong>${amountInWords(tax.total)}</strong></p>
+${upiBlock(doc, seller, tax.total, upi)}
 <div class="foot"><span>This is a computer-generated document.</span><span class="sign">For ${esc(seller.name)}<br><br><br>Authorised signatory</span></div>
 </body></html>`;
+}
+
+/**
+ * A scan-to-pay UPI QR code for the bill amount, on invoices that are still to be paid and only when
+ * the business has a UPI ID. Any UPI app (GPay, PhonePe, Paytm, BHIM) can scan it.
+ * @param {any} doc
+ * @param {{ name: string }} seller
+ * @param {number} total
+ * @param {string} upi
+ */
+function upiBlock(doc, seller, total, upi) {
+  if (!upi || doc.type !== 'Invoice' || doc.status === 'Paid' || doc.status === 'Cancelled' || !(total > 0)) return '';
+  const link = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(seller.name)}&am=${total.toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Invoice ${doc.id}`)}`;
+  const qr = qrcode(0, 'M');
+  qr.addData(link);
+  qr.make();
+  return `<div class="upi">${qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true })}<div><strong>Scan to pay ${rupees(total)}</strong><span>with any UPI app</span><span>UPI ID: ${escapeHtml(upi)}</span></div></div>`;
 }
 
 export const invoiceRegisterHeader = ['Invoice number', 'Date', 'Status', 'Customer', 'Customer GSTIN', 'Place of supply', 'Taxable value', 'CGST', 'SGST', 'IGST', 'Total'];

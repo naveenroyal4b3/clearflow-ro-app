@@ -120,3 +120,9 @@ export function splitPhone(value) {
   if (saved.startsWith('+')) return { code: '', number: saved };
   return { code: '+91', number: saved };
 }
+
+// A UPI ID such as name@okhdfcbank (handle@bank). Returns it trimmed, or '' when it isn't one.
+export function validUpi(value) {
+  const text = String(value || '').trim();
+  return /^[A-Za-z0-9._-]{2,256}@[A-Za-z][A-Za-z0-9.-]{1,63}$/.test(text) ? text : '';
+}
