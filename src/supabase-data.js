@@ -27,7 +27,7 @@ async function selectOrganization(client, table, organizationId) {
 
 export async function loadWorkspace(client, profile) {
   const organizationId = profile.organization_id;
-  const [customers, products, prices, jobs, documents, items, feedback, profiles] = await Promise.all([
+  const [customers, products, prices, jobs, documents, items, feedback, profiles, contracts, suppliers, bills, billItems] = await Promise.all([
     selectOrganization(client, 'customers', organizationId),
     selectOrganization(client, 'products', organizationId),
     selectOrganization(client, 'product_prices', organizationId),
@@ -35,7 +35,11 @@ export async function loadWorkspace(client, profile) {
     selectOrganization(client, 'sales_documents', organizationId),
     selectOrganization(client, 'sales_document_items', organizationId),
     selectOrganization(client, 'feedback', organizationId),
-    selectOrganization(client, 'profiles', organizationId)
+    selectOrganization(client, 'profiles', organizationId),
+    // AMC contracts, suppliers and purchase bills are the owner's; other roles read none.
+    ...(profile.role === 'owner'
+      ? ['amc_contracts', 'suppliers', 'purchase_bills', 'purchase_bill_items'].map(table => selectOrganization(client, table, organizationId))
+      : [[], [], [], []])
   ]);
 
   const priceByProduct = new Map();
@@ -97,6 +101,28 @@ export async function loadWorkspace(client, profile) {
       status: item.status,
       notes: item.notes || ''
     })),
+    amc: contracts.map(item => ({
+      id: item.id,
+      customerId: item.customer_id,
+      appliance: item.appliance || '',
+      start: item.starts_on,
+      end: item.ends_on,
+      amount: Number(item.amount) || 0,
+      visits: item.visits_included ?? 0,
+      visitsUsed: item.visits_used ?? 0,
+      notes: item.notes || '',
+      status: item.status
+    })),
+    suppliers: suppliers.map(item => ({ id: item.id, name: item.name, phone: item.phone || '', gstin: item.gstin || '', state: item.state_code || '', address: item.address || '' })),
+    purchases: bills.map(bill => ({
+      id: bill.id,
+      supplierId: bill.supplier_id,
+      billNumber: bill.bill_number || '',
+      date: bill.bill_date,
+      gst: bill.gst_enabled,
+      items: billItems.filter(item => item.bill_id === bill.id).sort((a, b) => a.line_no - b.line_no)
+        .map(item => ({ productId: item.product_id, qty: item.quantity, rate: Number(item.rate) || 0, gst: Number(item.gst_rate) || 0 }))
+    })).sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)),
     documents: documents.map(item => ({
       id: item.id,
       type: item.document_type,
@@ -197,6 +223,32 @@ export async function saveWorkspaceRecords(client, profile, collection, records,
         notes: item.notes || ''
       };
     }), { onConflict: 'organization_id,id' });
+  } else if (collection === 'amc') {
+    result = await client.from('amc_contracts').upsert(entries.map(item => ({
+      organization_id: organizationId,
+      id: item.id,
+      customer_id: item.customerId,
+      appliance: item.appliance || '',
+      starts_on: item.start,
+      ends_on: item.end,
+      amount: Number(item.amount) || 0,
+      visits_included: Number(item.visits) || 0,
+      visits_used: Number(item.visitsUsed) || 0,
+      notes: item.notes || '',
+      status: item.status || 'Active',
+      updated_at: new Date().toISOString()
+    })), { onConflict: 'organization_id,id' });
+  } else if (collection === 'suppliers') {
+    result = await client.from('suppliers').upsert(entries.map(item => ({
+      organization_id: organizationId,
+      id: item.id,
+      name: item.name,
+      phone: item.phone || '',
+      gstin: (item.gstin || '').trim().toUpperCase(),
+      state_code: item.state || '',
+      address: item.address || '',
+      updated_at: new Date().toISOString()
+    })), { onConflict: 'organization_id,id' });
   } else if (collection === 'feedback') {
     result = await client.from('feedback').insert(entries.map(item => ({
       organization_id: organizationId,
@@ -596,4 +648,26 @@ export async function removeSampleData(client, organizationId) {
   await remove('customers', customers.map(item => item.id));
   await remove('products', products.map(item => item.id));
   return kept;
+}
+
+/**
+ * Saves a purchase bill and adds its quantities to stock (one database transaction).
+ * @param {import('@supabase/supabase-js').SupabaseClient} client
+ * @param {{ id: string, supplierId: string, billNumber: string, date: string, gst: boolean, items: { productId: string, qty: number, rate: number, gst: number }[] }} bill
+ */
+export async function createPurchaseBill(client, bill) {
+  const { error } = await client.rpc('create_purchase_bill', {
+    p_id: bill.id, p_supplier_id: bill.supplierId, p_bill_number: bill.billNumber, p_bill_date: bill.date, p_gst_enabled: bill.gst, p_items: bill.items
+  });
+  if (error) throw error;
+}
+
+/**
+ * Deletes a purchase bill and takes its quantities off stock again.
+ * @param {import('@supabase/supabase-js').SupabaseClient} client
+ * @param {string} id
+ */
+export async function deletePurchaseBill(client, id) {
+  const { error } = await client.rpc('delete_purchase_bill', { p_id: id });
+  if (error) throw error;
 }

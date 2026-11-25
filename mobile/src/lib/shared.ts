@@ -3,7 +3,7 @@
 // type-checking the web project's JavaScript under this app's stricter settings. Only functions
 // that need no browser APIs are exposed.
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Customer, Job, LineItem, Organization, Profile, SalesDocument, WorkspaceData } from './types';
+import type { AmcContract, Customer, Job, LineItem, Organization, Profile, PurchaseBill, SalesDocument, WorkspaceData } from './types';
 
 type TaxLine = { qty: number; price: number; gst: number; discount?: number };
 type TaxRow<T> = T & { discount: number; taxable: number; rate: number; cgst: number; sgst: number; igst: number; total: number };
@@ -21,11 +21,12 @@ type GstModule = {
   validUpi: (value: string) => string;
 };
 
-type Collection = 'customers' | 'products' | 'jobs' | 'feedback';
+type Collection = 'customers' | 'products' | 'jobs' | 'feedback' | 'amc' | 'suppliers';
 type DueService = { customer: Customer; due: string; daysLeft: number };
 type UnpaidInvoice = { doc: SalesDocument; due: string; amount: number; daysOverdue: number };
 export type MonthReport = {
   sales: number; tax: number; collected: number; pending: number; invoices: number; quotations: number; jobsDone: number; jobsOpen: number;
+  purchases: number; purchased: number; inputTax: number;
   topProducts: { name: string; qty: number; amount: number }[]; topCustomers: { name: string; amount: number }[];
 };
 type RemindersModule = {
@@ -35,6 +36,13 @@ type RemindersModule = {
   unpaidInvoices: (documents: SalesDocument[], today: string) => UnpaidInvoice[];
   whatsappLink: (phone: string, text?: string) => string;
   monthReport: (data: WorkspaceData, month: string) => MonthReport;
+  amcRenewals: (contracts: AmcContract[], today: string, days?: number) => { contract: AmcContract; daysLeft: number }[];
+  amcActive: (contract: AmcContract, today: string) => boolean;
+  amcRenewal: (contract: AmcContract) => AmcContract;
+  purchaseTotals: (bill: PurchaseBill) => { taxable: number; tax: number; total: number };
+};
+type Gstr1Module = {
+  gstr1: (documents: SalesDocument[], month: string, detailsFor: (doc: SalesDocument) => DocumentDetails) => { invoices: number; files: { name: string; text: string; rows: number }[] };
 };
 
 type DataModule = {
@@ -60,6 +68,8 @@ type DataModule = {
   sendAppFeedback: (client: SupabaseClient, entry: { kind: 'Suggestion' | 'Problem'; page: string; message: string; platform: 'web' | 'android' | 'ios'; appVersion: string }) => Promise<void>;
   loadAppFeedback: (client: SupabaseClient) => Promise<AppFeedback[]>;
   loadBusinesses: (client: SupabaseClient) => Promise<Business[]>;
+  createPurchaseBill: (client: SupabaseClient, bill: PurchaseBill) => Promise<void>;
+  deletePurchaseBill: (client: SupabaseClient, id: string) => Promise<void>;
   isSample: (id: string) => boolean;
   addSampleData: (client: SupabaseClient, profile: Profile) => Promise<unknown>;
   removeSampleData: (client: SupabaseClient, organizationId: string) => Promise<number>;
@@ -111,7 +121,10 @@ export const { documentDetails, documentHtml, invoiceRegisterRows, invoiceRegist
 const data: DataModule = require('../../../src/supabase-data.js');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const reminders: RemindersModule = require('../../../src/reminders.js');
-export const { addMonths, firstServiceDate, serviceDue, unpaidInvoices, whatsappLink, monthReport } = reminders;
+export const { addMonths, firstServiceDate, serviceDue, unpaidInvoices, whatsappLink, monthReport, amcRenewals, amcActive, amcRenewal, purchaseTotals } = reminders;
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const gstr1Module: Gstr1Module = require('../../../src/gstr1.js');
+export const { gstr1 } = gstr1Module;
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const icons: ProductIconsModule = require('../../../src/product-icons.js');
 export const { productKind, productArtSvg, catalogPhotoUrl, photoCredits, productKinds, productKindLabels, applianceGroup, applianceGroups, groupsIn } = icons;
@@ -120,5 +133,5 @@ export const { gstStates, stateLabel, stateFromGstin, taxBreakup, amountInWords,
 export const {
   loadWorkspace, saveWorkspaceRecords, createSalesDocument, setSalesDocumentStatus, setFeedbackStatus,
   signedInElsewhere, inviteMember, deleteAccount, updateOrganization, loadAuditLog,
-  uploadProductImage, removeProductImages, productImageUrls, loadCatalogPhotos, sendAppFeedback, loadAppFeedback, loadBusinesses, isSample, addSampleData, removeSampleData, removeAppFeedback, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto, applyReferral, appLinks
+  uploadProductImage, removeProductImages, productImageUrls, loadCatalogPhotos, sendAppFeedback, loadAppFeedback, loadBusinesses, createPurchaseBill, deletePurchaseBill, isSample, addSampleData, removeSampleData, removeAppFeedback, isPlatformAdmin, uploadCatalogPhoto, removeCatalogPhoto, applyReferral, appLinks
 } = data;

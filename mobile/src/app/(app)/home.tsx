@@ -5,7 +5,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Badge, Button, Card, CardTitle, colors, Empty, Heading, styles as ui } from '@/components/ui';
 import { GettingStarted } from '@/components/GettingStarted';
-import { PaymentsDueCard, ServiceDueCard } from '@/components/Reminders';
+import { AmcRenewalsCard, PaymentsDueCard, ServiceDueCard } from '@/components/Reminders';
 import { PlanNotice } from '@/components/PlanNotice';
 import { money, shortDate, today, totals } from '@/lib/format';
 import { t } from '@/lib/i18n';
@@ -65,6 +65,7 @@ export default function Overview() {
         <GettingStarted />
         <ServiceDueCard />
         <PaymentsDueCard />
+        <AmcRenewalsCard />
 
         {owner ? (
           <Card>

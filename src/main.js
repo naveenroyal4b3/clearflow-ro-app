@@ -5,6 +5,7 @@ const groupLabel = item => applianceGroups.find(([key]) => key === applianceGrou
 import { stateFromGstin, stateOptions, taxBreakup, validPhone, joinPhone, splitPhone, validUpi } from './gst.js';
 import { catalog, catalogItem } from './catalog.js';
 import { firstServiceDate, monthReport, serviceDue, unpaidInvoices, whatsappLink } from './reminders.js';
+import { gstr1 } from './gstr1.js';
 import { documentDetails as sharedDocumentDetails, documentHtml, invoiceRegisterHeader, invoiceRegisterRows } from './documents.js';
 import { languages, getLanguage, setLanguage, t, msg } from './i18n.js';
 import { version as appVersion } from '../package.json';
@@ -934,6 +935,7 @@ function openBusinessReport(month) {
   });
   const chosen = months.includes(month) ? month : months[0];
   const report = monthReport(data, chosen);
+  const gstFiles = gstr1(data.documents, chosen, documentDetails);
   const previous = monthReport(data, months[months.indexOf(chosen) + 1] || '');
   const change = previous.sales ? Math.round((report.sales - previous.sales) / previous.sales * 100) : null;
   const label = value => new Intl.DateTimeFormat(getLanguage(), { month: 'long', year: 'numeric' }).format(new Date(`${value}-01T00:00:00`));
@@ -942,9 +944,12 @@ function openBusinessReport(month) {
   const body = `<div class="field"><label for="report-month">${t('Month')}</label><select id="report-month">${months.map(value => `<option value="${value}" ${value === chosen ? 'selected' : ''}>${esc(label(value))}</option>`).join('')}</select></div>
     <div class="report-tiles">${tile(t('Sales'), money(report.sales), change === null ? t('{count} invoices', { count: report.invoices }) : t('{change}% vs last month · {count} invoices', { change: change > 0 ? `+${change}` : String(change), count: report.invoices }))}${tile(t('Collected'), money(report.collected), t('{amount} still pending', { amount: money(report.pending) }))}${tile(t('GST collected'), money(report.tax), t('On this month’s invoices'))}${tile(t('Service jobs done'), report.jobsDone, t('{count} still open', { count: report.jobsOpen }))}</div>
     <div class="report-columns"><section><h3>${t('Top products')}</h3>${list(report.topProducts.map(item => `<li><span>${esc(item.name)}<small>${esc(t('{count} sold', { count: item.qty }))}</small></span><strong>${money(item.amount)}</strong></li>`), t('No invoices this month.'))}</section><section><h3>${t('Top customers')}</h3>${list(report.topCustomers.map(item => `<li><span>${esc(item.name || t('Customer'))}</span><strong>${money(item.amount)}</strong></li>`), t('No invoices this month.'))}</section></div>
+    <div class="report-columns"><section><h3>${t('Purchases')}</h3><ol class="report-list plain"><li><span>${t('Bought (with GST)')}</span><strong>${money(report.purchased)}</strong></li><li><span>${t('GST paid on purchases')}</span><strong>${money(report.inputTax)}</strong></li><li><span>${t('GST to pay (collected − paid)')}</span><strong>${money(Math.max(0, report.tax - report.inputTax))}</strong></li></ol><p class="panel-note">${esc(t('{count} bills from suppliers', { count: report.purchases }))}</p></section>
+    <section><h3>${t('GSTR-1 for your accountant')}</h3><p class="panel-note">${esc(t('Three CSV files in the GST offline tool format: B2B, B2C small and HSN summary.'))}</p><div class="gstr1-buttons">${gstFiles.files.map((file, index) => `<button class="button secondary small-button" type="button" data-gstr1="${index}">${esc(t('Download {file} ({count} rows)', { file: file.name, count: file.rows }))}</button>`).join('')}</div></section></div>
     <p class="panel-note">${esc(t('{count} quotations made this month. Cancelled invoices are not counted.', { count: report.quotations }))}</p>`;
   showModal(t('Business report'), t('Sales, collections and best sellers by month'), body, t('Done'), closeModal, true);
   document.getElementById('report-month').addEventListener('change', event => openBusinessReport(event.target.value));
+  document.querySelectorAll('[data-gstr1]').forEach(button => button.addEventListener('click', () => downloadText(gstFiles.files[Number(button.dataset.gstr1)])));
 }
 // The seller details printed on quotations and GST invoices.
 function openBusinessForm() {
@@ -1062,6 +1067,14 @@ function printHtml(html) {
   print.document.close();
   print.focus();
   print.print();
+}
+// Saves a text file (CSV) through the browser's download.
+function downloadText({ name, text }) {
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 // A spreadsheet (CSV) of every invoice for the accountant.
 function exportInvoices() {

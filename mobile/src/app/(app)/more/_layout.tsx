@@ -10,6 +10,10 @@ export default function MoreLayout() {
       <Stack.Screen name="account" options={{ title: t('My account') }} />
       <Stack.Screen name="business" options={{ title: t('Business details') }} />
       <Stack.Screen name="report" options={{ title: t('Business report') }} />
+      <Stack.Screen name="amc" options={{ title: t('AMC contracts') }} />
+      <Stack.Screen name="amc-edit" options={{ title: t('AMC contract') }} />
+      <Stack.Screen name="purchases" options={{ title: t('Purchases') }} />
+      <Stack.Screen name="purchase-new" options={{ title: t('New purchase bill') }} />
       <Stack.Screen name="team" options={{ title: t('Team & access') }} />
       <Stack.Screen name="team-edit" options={{ title: t('Team member'), presentation: 'modal' }} />
       <Stack.Screen name="feedback" options={{ title: t('Feedback & issues') }} />

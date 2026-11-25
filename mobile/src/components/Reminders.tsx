@@ -2,10 +2,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button, Card, CardTitle, colors, styles as ui } from './ui';
-import { money, shortDate, today } from '@/lib/format';
+import { formatDate, money, shortDate, today } from '@/lib/format';
 import { t } from '@/lib/i18n';
 import { useSession } from '@/lib/session';
-import { serviceDue, unpaidInvoices, whatsappLink } from '@/lib/shared';
+import { amcRenewals, serviceDue, unpaidInvoices, whatsappLink } from '@/lib/shared';
 
 function WhatsAppButton({ phone, text, label }: { phone: string; text: string; label: string }) {
   const link = whatsappLink(phone, text);
@@ -78,6 +78,34 @@ export function PaymentsDueCard() {
         );
       })}
       {unpaid.length > 5 ? <Button label={t('See all invoices')} variant="link" onPress={() => router.push('/sales')} /> : null}
+    </Card>
+  );
+}
+
+// AMC contracts ending within a month (or ended recently) and not yet renewed. For the owner.
+export function AmcRenewalsCard() {
+  const { profile, organization, data } = useSession();
+  if (profile?.role !== 'owner') return null;
+  const due = amcRenewals(data.amc, today());
+  if (!due.length) return null;
+  const business = organization?.name || '';
+  return (
+    <Card>
+      <CardTitle title={t('AMC renewals')} note={t('{count} contracts ending soon or ended', { count: due.length })} action={<Button label={t('All contracts')} variant="link" onPress={() => router.push('/more/amc')} />} />
+      {due.slice(0, 5).map(({ contract, daysLeft }) => {
+        const person = data.customers.find(item => item.id === contract.customerId);
+        const appliance = contract.appliance || t('appliance');
+        const message = t('Hello {name}, your {appliance} AMC ends on {date}. Renew for {amount} to keep free service visits. – {business}', { name: person?.name || '', appliance, date: formatDate(contract.end), amount: money(contract.amount), business });
+        return (
+          <Pressable key={contract.id} style={local.row} onPress={() => router.push({ pathname: '/more/amc-edit', params: { renew: contract.id } })} accessibilityHint={t('Opens the renewal for next year')}>
+            <View style={ui.flex}>
+              <Text style={local.title}>{person?.name || t('Customer')}</Text>
+              <Text style={[local.note, daysLeft < 0 && local.late]}>{`${appliance} · ${money(contract.amount)} · ${daysLeft < 0 ? t('Ended {date}', { date: shortDate(contract.end) }) : t('Ends {date}', { date: shortDate(contract.end) })}`}</Text>
+            </View>
+            {person ? <WhatsAppButton phone={person.phone} text={message} label={t('Send renewal reminder')} /> : null}
+          </Pressable>
+        );
+      })}
     </Card>
   );
 }

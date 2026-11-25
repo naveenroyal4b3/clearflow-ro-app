@@ -56,15 +56,28 @@ export type Feedback = {
 };
 export type Account = { id: string; name: string; username: string; role: string; phone: string; address: string; gstin: string; linked: string; status: string };
 
+// A yearly maintenance contract: visits included, used so far, and the renewal (end) date.
+export type AmcContract = {
+  id: string; customerId: string; appliance: string; start: string; end: string; amount: number;
+  visits: number; visitsUsed: number; notes: string; status: 'Active' | 'Cancelled' | string;
+};
+export type Supplier = { id: string; name: string; phone: string; gstin: string; state: string; address: string };
+export type PurchaseItem = { productId: string; qty: number; rate: number; gst: number };
+export type PurchaseBill = { id: string; supplierId: string; billNumber: string; date: string; gst: boolean; items: PurchaseItem[] };
+
 export type WorkspaceData = {
   customers: Customer[];
   products: Product[];
   jobs: Job[];
   documents: SalesDocument[];
+  // The owner's only (other roles get empty lists).
+  amc: AmcContract[];
+  suppliers: Supplier[];
+  purchases: PurchaseBill[];
   feedback: Feedback[];
   accounts: Account[];
 };
 
-export const emptyData: WorkspaceData = { customers: [], products: [], jobs: [], documents: [], feedback: [], accounts: [] };
+export const emptyData: WorkspaceData = { customers: [], products: [], jobs: [], documents: [], feedback: [], accounts: [], amc: [], suppliers: [], purchases: [] };
 // English labels; show them with t(roleLabels[role]).
 export const roleLabels: Record<Role, string> = { owner: msg('Business owner'), technician: msg('Technician'), shop: msg('Shop'), customer: msg('Customer') };
