@@ -305,8 +305,9 @@ td strong { color: #364640; font-size: 10px; font-weight: 700; }
 .phone-row { display: grid; grid-template-columns: 76px 1fr; gap: 8px; }
 
 /* Appliance types under the category tabs. */
-.type-tabs { margin-top: 8px; flex-wrap: wrap; }
-.type-tabs .tab { font-size: 12px; }
+.type-tabs { margin-top: 8px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.type-tabs::-webkit-scrollbar { display: none; }
+.type-tabs .tab { flex: none; white-space: nowrap; font-size: 12px; }
 .getting-started .progress { height: 6px; margin: 10px 0 8px; border-radius: 3px; background: #cfe6dd; overflow: hidden; max-width: 320px; }
 .getting-started .progress span { display: block; height: 100%; border-radius: 3px; background: #197c70; }
 .getting-started .steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
@@ -328,10 +329,10 @@ td strong { color: #364640; font-size: 10px; font-weight: 700; }
 .report-tile strong { display: block; font-size: 20px; margin: 4px 0; }
 .report-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
 .report-columns h3 { font-size: 14px; margin: 0 0 6px; }
-.report-list { margin: 0; padding-left: 18px; }
-.report-list li { padding: 6px 0; border-bottom: 1px solid #eef1ee; }
-.report-list li span { display: inline-block; width: calc(100% - 110px); }
+.report-list { margin: 0; padding-left: 0; list-style: none; }
+.report-list li { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 6px 0; border-bottom: 1px solid #eef1ee; }
+.report-list li span { flex: 1; }
 .report-list li small { display: block; color: #788480; }
-.report-list li strong { float: right; }
+.report-list li strong { white-space: nowrap; }
 .report-list.plain { list-style: none; padding-left: 0; }
 .gstr1-buttons { display: grid; gap: 6px; margin-top: 8px; }
